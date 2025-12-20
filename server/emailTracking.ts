@@ -1,0 +1,209 @@
+import { randomBytes } from "crypto";
+import { getDb } from "./db";
+import { emailEvents, leads } from "../drizzle/schema";
+import { eq, desc } from "drizzle-orm";
+
+/**
+ * Generate a unique tracking ID for a lead
+ */
+export function generateTrackingId(): string {
+  return randomBytes(32).toString("hex");
+}
+
+/**
+ * Log an email event (open, click, bounce, unsubscribe, reply)
+ */
+export async function logEmailEvent(params: {
+  trackingId: string;
+  eventType: "open" | "click" | "bounce" | "unsubscribe" | "reply";
+  linkUrl?: string;
+  userAgent?: string;
+  ipAddress?: string;
+  metadata?: Record<string, any>;
+}) {
+  const { trackingId, eventType, linkUrl, userAgent, ipAddress, metadata } = params;
+
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Find the lead by tracking ID
+  const leadResults = await db.select().from(leads).where(eq(leads.trackingId, trackingId)).limit(1);
+  const lead = leadResults[0];
+
+  if (!lead) {
+    throw new Error(`Lead not found for tracking ID: ${trackingId}`);
+  }
+
+  // Insert event into email_events table
+  await db.insert(emailEvents).values({
+    leadId: lead.id,
+    campaignId: lead.campaignId,
+    trackingId,
+    eventType,
+    linkUrl,
+    userAgent,
+    ipAddress,
+    metadata,
+  });
+
+  // Update lead stats based on event type
+  const now = new Date();
+  
+  switch (eventType) {
+    case "open":
+      await db.update(leads)
+        .set({
+          status: "opened",
+          emailOpenedAt: lead.emailOpenedAt || now,
+          openCount: lead.openCount + 1,
+          updatedAt: now,
+        })
+        .where(eq(leads.id, lead.id));
+      break;
+
+    case "click":
+      await db.update(leads)
+        .set({
+          status: "clicked",
+          emailClickedAt: lead.emailClickedAt || now,
+          clickCount: lead.clickCount + 1,
+          updatedAt: now,
+        })
+        .where(eq(leads.id, lead.id));
+      break;
+
+    case "bounce":
+      await db.update(leads)
+        .set({
+          status: "bounced",
+          emailBouncedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(leads.id, lead.id));
+      break;
+
+    case "unsubscribe":
+      await db.update(leads)
+        .set({
+          status: "unsubscribed",
+          unsubscribed: true,
+          emailUnsubscribedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(leads.id, lead.id));
+      break;
+
+    case "reply":
+      await db.update(leads)
+        .set({
+          status: "replied",
+          emailRepliedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(leads.id, lead.id));
+      break;
+  }
+
+  return { success: true, leadId: lead.id };
+}
+
+/**
+ * Generate tracking pixel HTML (1x1 transparent GIF)
+ */
+export function generateTrackingPixel(trackingId: string, baseUrl: string): string {
+  return `<img src="${baseUrl}/track/open/${trackingId}" width="1" height="1" style="display:none;" alt="" />`;
+}
+
+/**
+ * Wrap links in email body with tracking URLs
+ */
+export function wrapLinksWithTracking(
+  htmlBody: string,
+  trackingId: string,
+  baseUrl: string
+): string {
+  // Replace all href attributes with tracked URLs
+  return htmlBody.replace(
+    /href="([^"]+)"/g,
+    (match, url) => {
+      // Don't track unsubscribe links or already tracked links
+      if (url.includes("/unsubscribe/") || url.includes("/track/click/")) {
+        return match;
+      }
+      
+      // Encode the original URL
+      const encodedUrl = encodeURIComponent(url);
+      const trackedUrl = `${baseUrl}/track/click/${trackingId}/${encodedUrl}`;
+      
+      return `href="${trackedUrl}"`;
+    }
+  );
+}
+
+/**
+ * Add unsubscribe link to email footer
+ */
+export function addUnsubscribeLink(htmlBody: string, trackingId: string, baseUrl: string): string {
+  const unsubscribeLink = `${baseUrl}/unsubscribe/${trackingId}`;
+  
+  const footer = `
+    <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size: 12px; color: #6b7280; text-align: center;">
+      <p>
+        Hvis du ikke lenger ønsker å motta e-post fra oss, kan du 
+        <a href="${unsubscribeLink}" style="color: #3b82f6; text-decoration: underline;">melde deg av her</a>.
+      </p>
+    </div>
+  `;
+  
+  // Add footer before closing body tag
+  return htmlBody.replace(/<\/body>/i, `${footer}</body>`);
+}
+
+/**
+ * Prepare email HTML with tracking
+ */
+export function prepareEmailWithTracking(
+  htmlBody: string,
+  trackingId: string,
+  baseUrl: string
+): string {
+  let trackedHtml = htmlBody;
+  
+  // 1. Wrap links with tracking
+  trackedHtml = wrapLinksWithTracking(trackedHtml, trackingId, baseUrl);
+  
+  // 2. Add unsubscribe link
+  trackedHtml = addUnsubscribeLink(trackedHtml, trackingId, baseUrl);
+  
+  // 3. Add tracking pixel at the end
+  const trackingPixel = generateTrackingPixel(trackingId, baseUrl);
+  trackedHtml = trackedHtml.replace(/<\/body>/i, `${trackingPixel}</body>`);
+  
+  return trackedHtml;
+}
+
+/**
+ * Get email events for a lead
+ */
+export async function getLeadEmailEvents(leadId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select()
+    .from(emailEvents)
+    .where(eq(emailEvents.leadId, leadId))
+    .orderBy(desc(emailEvents.createdAt));
+}
+
+/**
+ * Get email events for a campaign
+ */
+export async function getCampaignEmailEvents(campaignId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return await db.select()
+    .from(emailEvents)
+    .where(eq(emailEvents.campaignId, campaignId))
+    .orderBy(desc(emailEvents.createdAt));
+}
