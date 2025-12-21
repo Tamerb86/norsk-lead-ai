@@ -12,14 +12,15 @@ COPY patches ./patches/
 # Install all dependencies (including devDependencies for build)
 RUN pnpm install --frozen-lockfile
 
-# Force cache invalidation by adding a file that changes with each build
-ADD "https://worldtimeapi.org/api/timezone/Etc/UTC.txt" /tmp/cachebust
-
-# Copy source code AFTER cache invalidation
+# Copy source code
 COPY . .
 
-# Clean and rebuild
-RUN rm -rf dist && pnpm run build
+# Force cache invalidation by creating a file with current timestamp
+# This ensures the build step is never cached
+RUN date > /tmp/build_timestamp && cat /tmp/build_timestamp
+
+# Clean and rebuild - force fresh build every time
+RUN rm -rf dist node_modules/.vite && pnpm run build
 
 # Production stage
 FROM node:20-slim
