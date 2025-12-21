@@ -1,0 +1,2 @@
+Force rebuild - Dec 21, 2025
+This file triggers a fresh build on Railway to include the ForgotPassword route.
