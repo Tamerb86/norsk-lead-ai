@@ -15,12 +15,9 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY . .
 
-# Force cache invalidation by creating a file with current timestamp
-# This ensures the build step is never cached
-RUN date > /tmp/build_timestamp && cat /tmp/build_timestamp
-
-# Clean and rebuild - force fresh build every time
-RUN rm -rf dist node_modules/.vite && pnpm run build
+# Force cache invalidation and build in same RUN command
+# The date command ensures this layer is never cached
+RUN echo "Build timestamp: $(date)" && rm -rf dist node_modules/.vite && pnpm run build && echo "Build completed at: $(date)"
 
 # Production stage
 FROM node:20-slim
