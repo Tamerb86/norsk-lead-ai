@@ -12,12 +12,11 @@ COPY patches ./patches/
 # Install all dependencies (including devDependencies for build)
 RUN pnpm install --frozen-lockfile
 
-# Copy source code
-COPY . .
+# Force cache invalidation by adding a file that changes with each build
+ADD "https://worldtimeapi.org/api/timezone/Etc/UTC.txt" /tmp/cachebust
 
-# Force rebuild by invalidating cache with timestamp
-ARG CACHEBUST=1
-RUN echo "Cache bust: $CACHEBUST"
+# Copy source code AFTER cache invalidation
+COPY . .
 
 # Clean and rebuild
 RUN rm -rf dist && pnpm run build
