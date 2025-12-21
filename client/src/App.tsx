@@ -31,7 +31,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
-import ForgotPassword from "./pages/ForgotPassword";
+import ForgotPassword from "@/pages/ForgotPassword";
 
 function Router() {
   return (

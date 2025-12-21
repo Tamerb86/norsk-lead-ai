@@ -15,8 +15,12 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY . .
 
-# Build the application
-RUN pnpm run build
+# Force rebuild by invalidating cache with timestamp
+ARG CACHEBUST=1
+RUN echo "Cache bust: $CACHEBUST"
+
+# Clean and rebuild
+RUN rm -rf dist && pnpm run build
 
 # Production stage
 FROM node:20-slim
