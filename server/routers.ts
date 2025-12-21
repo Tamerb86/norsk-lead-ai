@@ -913,6 +913,88 @@ export const appRouter = router({
   }),
 
   // ============================================
+  // SAVED COMPANIES ROUTER
+  // ============================================
+  savedCompanies: router({
+    // Check if company is saved
+    checkSaved: protectedProcedure
+      .input(z.object({ companyId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const result = await db.checkCompanySaved(ctx.user.id, input.companyId);
+        return { isSaved: result };
+      }),
+
+    // Save company
+    save: protectedProcedure
+      .input(z.object({
+        companyId: z.number(),
+        listName: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.saveCompany({
+          userId: ctx.user.id,
+          companyId: input.companyId,
+          listName: input.listName || 'default',
+          notes: input.notes,
+        });
+      }),
+
+    // Remove saved company
+    remove: protectedProcedure
+      .input(z.object({ companyId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.removeSavedCompany(ctx.user.id, input.companyId);
+      }),
+
+    // Get all saved companies
+    getAll: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getSavedCompanies(ctx.user.id);
+    }),
+
+    // Get lists
+    getLists: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getSavedCompanyLists(ctx.user.id);
+    }),
+  }),
+
+  // ============================================
+  // NOTIFICATIONS ROUTER
+  // ============================================
+  notifications: router({
+    // Get all notifications
+    getAll: protectedProcedure
+      .input(z.object({ limit: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        return await db.getNotifications(ctx.user.id, input.limit || 20);
+      }),
+
+    // Get unread count
+    getUnreadCount: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getUnreadNotificationCount(ctx.user.id);
+    }),
+
+    // Mark as read
+    markAsRead: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.markNotificationAsRead(input.id, ctx.user.id);
+      }),
+
+    // Mark all as read
+    markAllAsRead: protectedProcedure.mutation(async ({ ctx }) => {
+      return await db.markAllNotificationsAsRead(ctx.user.id);
+    }),
+
+    // Delete notification
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.deleteNotification(input.id, ctx.user.id);
+      }),
+  }),
+
+  // ============================================
   queue: router({
     // Get queue stats
     getStats: protectedProcedure.query(async ({ ctx }) => {

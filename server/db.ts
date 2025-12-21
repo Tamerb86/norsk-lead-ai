@@ -749,3 +749,175 @@ export async function getAdminStats() {
     leads: leadStats,
   };
 }
+
+
+// ============================================
+// SAVED COMPANIES FUNCTIONS
+// ============================================
+
+export async function checkCompanySaved(userId: number, companyId: number): Promise<boolean> {
+  const db = await getDb();
+  
+  const result = await db.execute(
+    sql`SELECT id FROM saved_companies WHERE user_id = ${userId} AND company_id = ${companyId} LIMIT 1`
+  );
+  
+  return (result.rows?.length || 0) > 0;
+}
+
+export async function saveCompany(data: {
+  userId: number;
+  companyId: number;
+  listName: string;
+  notes?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.execute(
+    sql`INSERT INTO saved_companies (user_id, company_id, list_name, notes, created_at)
+        VALUES (${data.userId}, ${data.companyId}, ${data.listName}, ${data.notes || null}, NOW())
+        ON CONFLICT (user_id, company_id) DO UPDATE SET list_name = ${data.listName}, notes = ${data.notes || null}`
+  );
+
+  return { success: true };
+}
+
+export async function removeSavedCompany(userId: number, companyId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.execute(
+    sql`DELETE FROM saved_companies WHERE user_id = ${userId} AND company_id = ${companyId}`
+  );
+
+  return { success: true };
+}
+
+export async function getSavedCompanies(userId: number) {
+  const db = await getDb();
+
+  const result = await db.execute(
+    sql`SELECT sc.id, sc.company_id as "companyId", sc.list_name as "listName", sc.notes, sc.created_at as "createdAt",
+               nc.id as "company.id", nc.navn as "company.navn", nc.organisasjonsnummer as "company.organisasjonsnummer",
+               nc.epostadresse as "company.epost", nc.telefon as "company.telefon", nc.hjemmeside as "company.hjemmeside",
+               nc.poststed as "company.poststed", nc.organisasjonsform as "company.organisasjonsform",
+               nc.antall_ansatte as "company.antallAnsatte"
+        FROM saved_companies sc
+        LEFT JOIN norwegian_companies nc ON sc.company_id = nc.id
+        WHERE sc.user_id = ${userId}
+        ORDER BY sc.created_at DESC`
+  );
+
+  // Transform flat result to nested structure
+  return result.rows?.map((row: any) => ({
+    id: row.id,
+    companyId: row.companyId,
+    listName: row.listName,
+    notes: row.notes,
+    createdAt: row.createdAt,
+    company: {
+      id: row['company.id'],
+      navn: row['company.navn'],
+      organisasjonsnummer: row['company.organisasjonsnummer'],
+      epost: row['company.epost'],
+      telefon: row['company.telefon'],
+      hjemmeside: row['company.hjemmeside'],
+      poststed: row['company.poststed'],
+      organisasjonsform: row['company.organisasjonsform'],
+      antallAnsatte: row['company.antallAnsatte'],
+    },
+  })) || [];
+}
+
+export async function getSavedCompanyLists(userId: number): Promise<string[]> {
+  const db = await getDb();
+
+  const result = await db.execute(
+    sql`SELECT DISTINCT list_name FROM saved_companies WHERE user_id = ${userId} ORDER BY list_name`
+  );
+
+  return result.rows?.map((row: any) => row.list_name) || [];
+}
+
+// ============================================
+// NOTIFICATIONS FUNCTIONS
+// ============================================
+
+export async function getNotifications(userId: number, limit: number = 20) {
+  const db = await getDb();
+
+  const result = await db.execute(
+    sql`SELECT id, type, title, message, related_id as "relatedId", related_type as "relatedType", 
+               is_read as "isRead", created_at as "createdAt"
+        FROM notifications 
+        WHERE user_id = ${userId}
+        ORDER BY created_at DESC
+        LIMIT ${limit}`
+  );
+
+  return result.rows || [];
+}
+
+export async function getUnreadNotificationCount(userId: number): Promise<number> {
+  const db = await getDb();
+
+  const result = await db.execute(
+    sql`SELECT COUNT(*) as count FROM notifications WHERE user_id = ${userId} AND is_read = false`
+  );
+
+  return Number(result.rows?.[0]?.count || 0);
+}
+
+export async function markNotificationAsRead(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.execute(
+    sql`UPDATE notifications SET is_read = true WHERE id = ${id} AND user_id = ${userId}`
+  );
+
+  return { success: true };
+}
+
+export async function markAllNotificationsAsRead(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.execute(
+    sql`UPDATE notifications SET is_read = true WHERE user_id = ${userId}`
+  );
+
+  return { success: true };
+}
+
+export async function deleteNotification(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.execute(
+    sql`DELETE FROM notifications WHERE id = ${id} AND user_id = ${userId}`
+  );
+
+  return { success: true };
+}
+
+export async function createNotification(data: {
+  userId: number;
+  type: string;
+  title: string;
+  message?: string;
+  relatedId?: number;
+  relatedType?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.execute(
+    sql`INSERT INTO notifications (user_id, type, title, message, related_id, related_type, is_read, created_at)
+        VALUES (${data.userId}, ${data.type}, ${data.title}, ${data.message || null}, 
+                ${data.relatedId || null}, ${data.relatedType || null}, false, NOW())`
+  );
+
+  return { success: true };
+}

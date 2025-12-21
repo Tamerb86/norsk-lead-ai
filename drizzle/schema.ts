@@ -316,3 +316,54 @@ export const emailQueue = pgTable("email_queue", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
+
+
+/**
+ * Saved Companies (user's favorite/saved companies for later)
+ */
+export const savedCompanies = pgTable("saved_companies", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  companyId: integer("company_id").notNull(),
+  listName: varchar("listName", { length: 100 }).default("default"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type SavedCompany = typeof savedCompanies.$inferSelect;
+export type InsertSavedCompany = typeof savedCompanies.$inferInsert;
+
+/**
+ * User Notifications (smart notifications for email events)
+ */
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  type: varchar("type", { length: 50 }).notNull(), // email_opened, email_replied, email_clicked, campaign_completed
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message"),
+  relatedId: integer("relatedId"), // campaignId, leadId, etc.
+  relatedType: varchar("relatedType", { length: 50 }), // campaign, lead, sequence
+  isRead: boolean("isRead").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
+
+/**
+ * User Onboarding Progress
+ */
+export const userOnboarding = pgTable("user_onboarding", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  completedSteps: json("completedSteps").default([]).notNull(), // Array of completed step IDs
+  currentStep: integer("currentStep").default(1).notNull(),
+  tourCompleted: boolean("tourCompleted").default(false).notNull(),
+  tourSkipped: boolean("tourSkipped").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type UserOnboarding = typeof userOnboarding.$inferSelect;
+export type InsertUserOnboarding = typeof userOnboarding.$inferInsert;
