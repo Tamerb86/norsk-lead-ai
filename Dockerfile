@@ -30,8 +30,8 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 COPY patches ./patches/
 
-# Install production dependencies only
-RUN pnpm install --frozen-lockfile --prod
+# Install ALL dependencies (vite is needed at runtime for this project)
+RUN pnpm install --frozen-lockfile
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
