@@ -650,3 +650,95 @@ export async function queueCampaignEmails(
     scheduledAt,
   };
 }
+
+
+// ============================================
+// AUTH FUNCTIONS (Local Authentication)
+// ============================================
+
+/**
+ * User passwords table (stored separately for security)
+ */
+const userPasswordsCache = new Map<string, string>();
+
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.email, email))
+    .limit(1);
+  return result[0] || null;
+}
+
+export async function setUserPassword(openId: string, passwordHash: string) {
+  // In production, store in a separate passwords table
+  // For now, we'll use a simple in-memory cache (not recommended for production)
+  userPasswordsCache.set(openId, passwordHash);
+  
+  // TODO: Create a passwords table and store there
+  // const db = await getDb();
+  // await db.insert(userPasswords).values({ openId, passwordHash }).onDuplicateKeyUpdate({ set: { passwordHash } });
+}
+
+export async function getUserPassword(openId: string): Promise<string | null> {
+  return userPasswordsCache.get(openId) || null;
+}
+
+export async function getAllUsers() {
+  const db = await getDb();
+  return await db
+    .select()
+    .from(users)
+    .orderBy(desc(users.createdAt));
+}
+
+export async function updateUserRole(userId: number, role: 'admin' | 'manager' | 'viewer') {
+  const db = await getDb();
+  await db
+    .update(users)
+    .set({ role })
+    .where(eq(users.id, userId));
+}
+
+export async function deleteUser(userId: number) {
+  const db = await getDb();
+  await db.delete(users).where(eq(users.id, userId));
+}
+
+export async function getAdminStats() {
+  const db = await getDb();
+  
+  const [userStats] = await db
+    .select({
+      totalUsers: sql<number>`count(*)`,
+      adminCount: sql<number>`sum(case when role = 'admin' then 1 else 0 end)`,
+    })
+    .from(users);
+
+  const [companyStats] = await db
+    .select({
+      totalCompanies: sql<number>`count(*)`,
+    })
+    .from(norwegianCompanies);
+
+  const [campaignStats] = await db
+    .select({
+      totalCampaigns: sql<number>`count(*)`,
+      activeCampaigns: sql<number>`sum(case when status = 'sending' then 1 else 0 end)`,
+    })
+    .from(campaigns);
+
+  const [leadStats] = await db
+    .select({
+      totalLeads: sql<number>`count(*)`,
+    })
+    .from(leads);
+
+  return {
+    users: userStats,
+    companies: companyStats,
+    campaigns: campaignStats,
+    leads: leadStats,
+  };
+}

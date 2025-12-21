@@ -25,12 +25,22 @@ export const ENV = {
   appId: required("VITE_APP_ID"),
   cookieSecret: required("JWT_SECRET"),
   databaseUrl: required("DATABASE_URL"),
-  oAuthServerUrl: required("OAUTH_SERVER_URL"),
+  
+  // Clerk Auth
+  clerkPublishableKey: optional("VITE_CLERK_PUBLISHABLE_KEY"),
+  clerkSecretKey: optional("CLERK_SECRET_KEY"),
   
   // Optional variables
   ownerOpenId: optional("OWNER_OPEN_ID"),
   forgeApiUrl: optional("BUILT_IN_FORGE_API_URL"),
   forgeApiKey: optional("BUILT_IN_FORGE_API_KEY"),
+  
+  // Stripe
+  stripeSecretKey: optional("STRIPE_SECRET_KEY"),
+  stripeWebhookSecret: optional("STRIPE_WEBHOOK_SECRET"),
+  
+  // SendGrid
+  sendgridApiKey: optional("SENDGRID_API_KEY"),
   
   // Computed
   isProduction: process.env.NODE_ENV === "production",

@@ -5,7 +5,8 @@ import net from "net";
 import helmet from "helmet";
 import cors from "cors";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
-import { registerOAuthRoutes } from "./oauth";
+import { registerAuthRoutes } from "./authRoutes";
+import { registerAdminRoutes } from "./adminRoutes";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -72,13 +73,14 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   
-  // Rate limiting for OAuth routes
-  app.use("/api/oauth", authRateLimiter);
+  // Auth routes (login, register, logout)
+  app.use("/api/auth", authRateLimiter);
+  registerAuthRoutes(app);
   
-  // OAuth callback under /api/oauth/callback
-  registerOAuthRoutes(app);
+  // Admin routes
+  registerAdminRoutes(app);
   // Email tracking routes
-  app.use("/track", trackingRoutes);
+  app.use("/api/track", trackingRoutes);
   
   // Stripe webhook endpoint (MUST be before express.json())
   app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async (req, res) => {

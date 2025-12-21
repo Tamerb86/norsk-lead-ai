@@ -31,6 +31,10 @@ import Docs from "./pages/Docs";
 import Status from "./pages/Status";
 import LeadEnrichment from "./pages/LeadEnrichment";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Profile from "./pages/Profile";
+import Admin from "./pages/Admin";
 
 // Create QueryClient
 const queryClient = new QueryClient({
@@ -74,6 +78,10 @@ function Router() {
       <Route path="/docs" component={Docs} />
       <Route path="/status" component={Status} />
       
+      {/* Auth pages */}
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
+      
       {/* Protected pages (require login) */}
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/dashboard/campaigns">
@@ -88,6 +96,8 @@ function Router() {
       <Route path="/sequences" component={Sequences} />
       <Route path="/analytics" component={Analytics} />
       <Route path="/enrichment" component={LeadEnrichment} />
+      <Route path="/profile" component={Profile} />
+      <Route path="/admin" component={Admin} />
       
       {/* 404 */}
       <Route path="/404" component={NotFound} />
