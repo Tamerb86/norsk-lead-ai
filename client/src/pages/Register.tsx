@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Mail, Lock, User, ArrowRight, Check } from "lucide-react";
 
 export default function Register() {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const { register, loading } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -46,7 +46,7 @@ export default function Register() {
     const result = await register({ name, email, password });
     
     if (result.success) {
-      navigate("/dashboard");
+      setLocation("/dashboard");
     } else {
       setError(result.error || "Registrering mislyktes");
     }
@@ -64,7 +64,7 @@ export default function Register() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2">
+          <Link href="/" className="inline-flex items-center gap-2">
             <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">N</span>
             </div>
@@ -171,11 +171,11 @@ export default function Register() {
                 />
                 <label htmlFor="terms" className="text-sm text-gray-400 leading-tight">
                   Jeg godtar{" "}
-                  <Link to="/terms" className="text-pink-400 hover:text-pink-300">
+                  <Link href="/terms" className="text-pink-400 hover:text-pink-300">
                     vilkårene
                   </Link>{" "}
                   og{" "}
-                  <Link to="/privacy" className="text-pink-400 hover:text-pink-300">
+                  <Link href="/privacy" className="text-pink-400 hover:text-pink-300">
                     personvernerklæringen
                   </Link>
                 </label>
@@ -203,7 +203,7 @@ export default function Register() {
 
               <p className="text-sm text-gray-400 text-center">
                 Har du allerede en konto?{" "}
-                <Link to="/login" className="text-pink-400 hover:text-pink-300 font-medium">
+                <Link href="/login" className="text-pink-400 hover:text-pink-300 font-medium">
                   Logg inn
                 </Link>
               </p>

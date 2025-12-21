@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Mail, Lock, ArrowRight } from "lucide-react";
 
 export default function Login() {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const { login, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -27,7 +27,7 @@ export default function Login() {
     const result = await login({ email, password });
     
     if (result.success) {
-      navigate("/dashboard");
+      setLocation("/dashboard");
     } else {
       setError(result.error || "Innlogging mislyktes");
     }
@@ -38,7 +38,7 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2">
+          <Link href="/" className="inline-flex items-center gap-2">
             <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-purple-600 rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-xl">N</span>
             </div>
@@ -81,7 +81,7 @@ export default function Login() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="text-gray-300">Passord</Label>
-                  <Link to="/forgot-password" className="text-sm text-pink-400 hover:text-pink-300">
+                  <Link href="/forgot-password" className="text-sm text-pink-400 hover:text-pink-300">
                     Glemt passord?
                   </Link>
                 </div>
@@ -121,7 +121,7 @@ export default function Login() {
 
               <p className="text-sm text-gray-400 text-center">
                 Har du ikke en konto?{" "}
-                <Link to="/register" className="text-pink-400 hover:text-pink-300 font-medium">
+                <Link href="/register" className="text-pink-400 hover:text-pink-300 font-medium">
                   Registrer deg
                 </Link>
               </p>
@@ -131,11 +131,11 @@ export default function Login() {
 
         <p className="mt-8 text-center text-sm text-gray-500">
           Ved å logge inn godtar du våre{" "}
-          <Link to="/terms" className="text-pink-400 hover:text-pink-300">
+          <Link href="/terms" className="text-pink-400 hover:text-pink-300">
             vilkår
           </Link>{" "}
           og{" "}
-          <Link to="/privacy" className="text-pink-400 hover:text-pink-300">
+          <Link href="/privacy" className="text-pink-400 hover:text-pink-300">
             personvernerklæring
           </Link>
         </p>
