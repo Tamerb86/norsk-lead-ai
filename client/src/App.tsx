@@ -26,11 +26,19 @@ import Docs from "./pages/Docs";
 import Status from "./pages/Status";
 import SentryTest from "./pages/SentryTest";
 import LeadEnrichment from "./pages/LeadEnrichment";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import Profile from "./pages/Profile";
+import Admin from "./pages/Admin";
 
 function Router() {
   return (
     <Switch>
       <Route path={"/"} component={Landing} />
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
+      <Route path="/profile" component={Profile} />
+      <Route path="/admin" component={Admin} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/search" component={Search} />
       <Route path="/campaigns" component={Campaigns} />
