@@ -41,6 +41,10 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
   
+  // Trust proxy for Railway/reverse proxy deployments
+  // This is required for express-rate-limit to work correctly
+  app.set('trust proxy', 1);
+  
   // Security: Helmet for security headers
   app.use(
     helmet({
