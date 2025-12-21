@@ -193,7 +193,7 @@ export async function searchCompanies(params: {
   }
 
   if (params.organisasjonsform) {
-    conditions.push(like(norwegianCompanies.organisasjonsform, `%${params.organisasjonsform}%`));
+    conditions.push(eq(norwegianCompanies.organisasjonsform, params.organisasjonsform));
   }
 
   if (params.foundedAfter) {
