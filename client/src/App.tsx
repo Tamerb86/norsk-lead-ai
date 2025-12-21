@@ -30,6 +30,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
+import ForgotPassword from "./pages/ForgotPassword";
 
 function Router() {
   return (
@@ -39,6 +40,7 @@ function Router() {
       <Route path="/register" component={Register} />
       <Route path="/profile" component={Profile} />
       <Route path="/admin" component={Admin} />
+      <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/search" component={Search} />
       <Route path="/campaigns" component={Campaigns} />

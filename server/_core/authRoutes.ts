@@ -146,6 +146,37 @@ export function registerAuthRoutes(app: Express) {
   });
 
   /**
+   * POST /api/auth/forgot-password
+   * Request password reset
+   */
+  app.post("/api/auth/forgot-password", async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: "Email is required" });
+      }
+
+      // For now, just return success (email sending requires SendGrid setup)
+      // In production, this would:
+      // 1. Check if user exists
+      // 2. Generate a reset token
+      // 3. Send email with reset link
+      
+      console.log(`[Auth] Password reset requested for: ${email}`);
+      
+      // Always return success to prevent email enumeration
+      res.json({ 
+        success: true, 
+        message: "If an account exists with this email, you will receive a password reset link." 
+      });
+    } catch (error) {
+      console.error("[Auth] Forgot password failed:", error);
+      res.status(500).json({ error: "Failed to process request" });
+    }
+  });
+
+  /**
    * PUT /api/auth/password
    * Change password
    */
