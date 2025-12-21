@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
+import { useAuth } from "@/_core/hooks/useAuth";
 import {
   Search,
   Mail,
@@ -21,6 +22,8 @@ import {
   ChevronDown,
   Menu,
   X,
+  User,
+  LogOut,
 } from "lucide-react";
 
 // Animated Counter Component
@@ -75,6 +78,7 @@ function FAQItem({ question, answer }: { question: string; answer: string }) {
 export default function Landing() {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, isAuthenticated, logout, loading } = useAuth();
 
   // Crisp Chat Integration - Disabled until valid CRISP_WEBSITE_ID is configured
   // To enable: Replace YOUR_CRISP_WEBSITE_ID with your actual Crisp website ID
@@ -119,11 +123,31 @@ export default function Landing() {
             <Link href="/search">
               <Button variant="ghost">Søk bedrifter</Button>
             </Link>
-            <Link href="/dashboard">
-              <Button>
-                Kom i gang gratis <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-            </Link>
+            {isAuthenticated && user ? (
+              <>
+                <Link href="/dashboard">
+                  <Button variant="ghost">
+                    <User className="w-4 h-4 mr-2" />
+                    {user.name || user.email}
+                  </Button>
+                </Link>
+                <Button variant="outline" onClick={logout}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logg ut
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost">Logg inn</Button>
+                </Link>
+                <Link href="/register">
+                  <Button>
+                    Kom i gang gratis <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
           
           {/* Mobile Menu Button */}
@@ -146,11 +170,33 @@ export default function Landing() {
                 Søk bedrifter
               </Button>
             </Link>
-            <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
-              <Button className="w-full text-lg">
-                Kom i gang gratis <ArrowRight className="ml-2 w-4 h-4" />
-              </Button>
-            </Link>
+            {isAuthenticated && user ? (
+              <>
+                <Link href="/dashboard" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="ghost" className="w-full justify-start text-lg">
+                    <User className="w-5 h-5 mr-2" />
+                    {user.name || user.email}
+                  </Button>
+                </Link>
+                <Button variant="outline" className="w-full text-lg" onClick={() => { logout(); setIsMobileMenuOpen(false); }}>
+                  <LogOut className="w-5 h-5 mr-2" />
+                  Logg ut
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="ghost" className="w-full justify-start text-lg">
+                    Logg inn
+                  </Button>
+                </Link>
+                <Link href="/register" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button className="w-full text-lg">
+                    Kom i gang gratis <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       )}
