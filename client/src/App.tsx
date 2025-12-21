@@ -1,3 +1,4 @@
+// App.tsx - Version 1.0.1 - All routes including ForgotPassword
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
