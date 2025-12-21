@@ -1,5 +1,0 @@
-[build]
-dockerfilePath = "Dockerfile"
-
-[build.args]
-CACHEBUST = "${RAILWAY_DEPLOYMENT_ID}"
