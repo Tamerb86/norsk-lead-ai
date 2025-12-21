@@ -1,5 +1,6 @@
 import { eq, and, or, like, desc, asc, sql, inArray } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import { 
   InsertUser, 
   users, 
@@ -14,6 +15,7 @@ import {
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _pool: pg.Pool | null = null;
 
 /**
  * Get database connection
@@ -31,8 +33,12 @@ export async function getDb() {
     }
 
     try {
-      _db = drizzle(ENV.databaseUrl);
-      console.log("✅ [Database] Connected successfully");
+      _pool = new pg.Pool({
+        connectionString: ENV.databaseUrl,
+        ssl: ENV.isProduction ? { rejectUnauthorized: false } : false,
+      });
+      _db = drizzle(_pool);
+      console.log("✅ [Database] Connected successfully (PostgreSQL)");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       throw new Error(

@@ -1,22 +1,38 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, boolean, json, date, index } from "drizzle-orm/mysql-core";
+import { integer, pgEnum, pgTable, text, timestamp, varchar, boolean, json, date, index, serial } from "drizzle-orm/pg-core";
+
+// Define enums for PostgreSQL
+export const roleEnum = pgEnum("role", ["admin", "manager", "viewer"]);
+export const campaignStatusEnum = pgEnum("campaign_status", ["draft", "scheduled", "sending", "sent", "paused", "completed"]);
+export const leadStatusEnum = pgEnum("lead_status", [
+  "pending", "sent", "delivered", "opened", "clicked", "replied",
+  "interested", "not_interested", "bounced", "unsubscribed"
+]);
+export const invitationStatusEnum = pgEnum("invitation_status", ["pending", "accepted", "declined", "expired"]);
+export const dataUpdateTypeEnum = pgEnum("data_update_type", ["manual", "automatic"]);
+export const dataUpdateStatusEnum = pgEnum("data_update_status", ["started", "completed", "failed"]);
+export const emailEventTypeEnum = pgEnum("email_event_type", ["open", "click", "bounce", "unsubscribe", "reply"]);
+export const sequenceStatusEnum = pgEnum("sequence_status", ["active", "paused", "archived"]);
+export const triggerTypeEnum = pgEnum("trigger_type", ["time", "opened", "clicked", "replied", "not_opened", "not_replied"]);
+export const enrollmentStatusEnum = pgEnum("enrollment_status", ["active", "paused", "completed", "stopped", "bounced"]);
+export const emailQueueStatusEnum = pgEnum("email_queue_status", ["pending", "sending", "sent", "failed", "cancelled"]);
 
 /**
  * Core user table backing auth flow.
  */
-export const users = mysqlTable("users", {
-  id: int("id").autoincrement().primaryKey(),
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["admin", "manager", "viewer"]).default("admin").notNull(),
-  teamId: int("teamId"), // Team membership
-  // Subscription fields (existing in DB, preserving for compatibility)
+  role: varchar("role", { length: 20 }).default("admin").notNull(),
+  teamId: integer("teamId"),
   subscriptionPlan: varchar("subscriptionPlan", { length: 50 }),
-  monthlyLeadsQuota: int("monthlyLeadsQuota"),
-  usedLeadsThisMonth: int("usedLeadsThisMonth"),
+  monthlyLeadsQuota: integer("monthlyLeadsQuota"),
+  usedLeadsThisMonth: integer("usedLeadsThisMonth"),
+  passwordHash: varchar("password_hash", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
 
@@ -26,12 +42,12 @@ export type InsertUser = typeof users.$inferInsert;
 /**
  * Teams table
  */
-export const teams = mysqlTable("teams", {
-  id: int("id").autoincrement().primaryKey(),
+export const teams = pgTable("teams", {
+  id: serial("id").primaryKey(),
   name: varchar("name", { length: 255 }).notNull(),
-  ownerId: int("ownerId").notNull(), // User who created the team
+  ownerId: integer("ownerId").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 export type Team = typeof teams.$inferSelect;
@@ -40,14 +56,14 @@ export type InsertTeam = typeof teams.$inferInsert;
 /**
  * Team invitations
  */
-export const teamInvitations = mysqlTable("team_invitations", {
-  id: int("id").autoincrement().primaryKey(),
-  teamId: int("teamId").notNull(),
+export const teamInvitations = pgTable("team_invitations", {
+  id: serial("id").primaryKey(),
+  teamId: integer("teamId").notNull(),
   email: varchar("email", { length: 320 }).notNull(),
-  role: mysqlEnum("role", ["admin", "manager", "viewer"]).notNull(),
-  invitedBy: int("invitedBy").notNull(), // User ID who sent the invitation
-  status: mysqlEnum("status", ["pending", "accepted", "declined", "expired"]).default("pending").notNull(),
-  token: varchar("token", { length: 64 }).notNull().unique(), // Unique invitation token
+  role: varchar("role", { length: 20 }).notNull(),
+  invitedBy: integer("invitedBy").notNull(),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
+  token: varchar("token", { length: 64 }).notNull().unique(),
   expiresAt: timestamp("expiresAt").notNull(),
   acceptedAt: timestamp("acceptedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -59,8 +75,8 @@ export type InsertTeamInvitation = typeof teamInvitations.$inferInsert;
 /**
  * Norwegian companies database
  */
-export const norwegianCompanies = mysqlTable("norwegian_companies", {
-  id: int("id").autoincrement().primaryKey(),
+export const norwegianCompanies = pgTable("norwegian_companies", {
+  id: serial("id").primaryKey(),
   organisasjonsnummer: varchar("organisasjonsnummer", { length: 9 }).notNull().unique(),
   navn: varchar("navn", { length: 500 }).notNull(),
   organisasjonsform: varchar("organisasjonsform", { length: 50 }),
@@ -68,7 +84,7 @@ export const norwegianCompanies = mysqlTable("norwegian_companies", {
   naeringsbeskrivelse1: text("naeringsbeskrivelse1"),
   naeringskode2: varchar("naeringskode2", { length: 10 }),
   naeringsbeskrivelse2: text("naeringsbeskrivelse2"),
-  antallAnsatte: int("antallAnsatte"),
+  antallAnsatte: integer("antallAnsatte"),
   forretningsadresse: text("forretningsadresse"),
   poststed: varchar("poststed", { length: 100 }),
   postnummer: varchar("postnummer", { length: 4 }),
@@ -83,9 +99,8 @@ export const norwegianCompanies = mysqlTable("norwegian_companies", {
   underAvvikling: boolean("underAvvikling").default(false).notNull(),
   underTvangsavviklingEllerTvangsopplosning: boolean("underTvangsavviklingEllerTvangsopplosning").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 }, (table) => ({
-  // Performance indexes for common search queries
   fylkeIdx: index("fylke_idx").on(table.fylke),
   kommuneIdx: index("kommune_idx").on(table.kommune),
   naeringskode1Idx: index("naeringskode1_idx").on(table.naeringskode1),
@@ -96,54 +111,43 @@ export const norwegianCompanies = mysqlTable("norwegian_companies", {
 /**
  * Email campaigns
  */
-export const campaigns = mysqlTable("campaigns", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+export const campaigns = pgTable("campaigns", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
-  status: mysqlEnum("status", ["draft", "scheduled", "sending", "sent", "paused", "completed"]).default("draft").notNull(),
+  status: varchar("status", { length: 20 }).default("draft").notNull(),
   emailSubject: text("emailSubject"),
   emailBody: text("emailBody"),
-  emailTemplateId: int("emailTemplateId"),
+  emailTemplateId: integer("emailTemplateId"),
   senderName: varchar("senderName", { length: 255 }),
   senderEmail: varchar("senderEmail", { length: 255 }),
   replyTo: varchar("replyTo", { length: 255 }),
-  totalRecipients: int("totalRecipients").default(0).notNull(),
-  totalSent: int("totalSent").default(0).notNull(),
-  totalDelivered: int("totalDelivered").default(0).notNull(),
-  totalOpened: int("totalOpened").default(0).notNull(),
-  totalClicked: int("totalClicked").default(0).notNull(),
-  totalReplied: int("totalReplied").default(0).notNull(),
-  totalBounced: int("totalBounced").default(0).notNull(),
-  totalUnsubscribed: int("totalUnsubscribed").default(0).notNull(),
+  totalRecipients: integer("totalRecipients").default(0).notNull(),
+  totalSent: integer("totalSent").default(0).notNull(),
+  totalDelivered: integer("totalDelivered").default(0).notNull(),
+  totalOpened: integer("totalOpened").default(0).notNull(),
+  totalClicked: integer("totalClicked").default(0).notNull(),
+  totalReplied: integer("totalReplied").default(0).notNull(),
+  totalBounced: integer("totalBounced").default(0).notNull(),
+  totalUnsubscribed: integer("totalUnsubscribed").default(0).notNull(),
   scheduledAt: timestamp("scheduledAt"),
   sentAt: timestamp("sentAt"),
   completedAt: timestamp("completedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 /**
  * Campaign leads (recipients)
  */
-export const leads = mysqlTable("leads", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  campaignId: int("campaignId").notNull(),
-  companyId: int("companyId").notNull(),
-  trackingId: varchar("trackingId", { length: 64 }), // Unique tracking ID for email events
-  unsubscribed: boolean("unsubscribed").default(false).notNull(), // Unsubscribe status
-  status: mysqlEnum("status", [
-    "pending",
-    "sent",
-    "delivered",
-    "opened",
-    "clicked",
-    "replied",
-    "interested",
-    "not_interested",
-    "bounced",
-    "unsubscribed",
-  ]).default("pending").notNull(),
+export const leads = pgTable("leads", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  campaignId: integer("campaign_id").notNull(),
+  companyId: integer("company_id").notNull(),
+  trackingId: varchar("trackingId", { length: 64 }),
+  unsubscribed: boolean("unsubscribed").default(false).notNull(),
+  status: varchar("status", { length: 20 }).default("pending").notNull(),
   emailSentAt: timestamp("emailSentAt"),
   emailDeliveredAt: timestamp("emailDeliveredAt"),
   emailOpenedAt: timestamp("emailOpenedAt"),
@@ -151,41 +155,41 @@ export const leads = mysqlTable("leads", {
   emailRepliedAt: timestamp("emailRepliedAt"),
   emailBouncedAt: timestamp("emailBouncedAt"),
   emailUnsubscribedAt: timestamp("emailUnsubscribedAt"),
-  openCount: int("openCount").default(0).notNull(),
-  clickCount: int("clickCount").default(0).notNull(),
-  followUpCount: int("followUpCount").default(0).notNull(),
+  openCount: integer("openCount").default(0).notNull(),
+  clickCount: integer("clickCount").default(0).notNull(),
+  followUpCount: integer("followUpCount").default(0).notNull(),
   lastFollowUpAt: timestamp("lastFollowUpAt"),
   nextFollowUpAt: timestamp("nextFollowUpAt"),
   notes: text("notes"),
   replyContent: text("replyContent"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 /**
  * Email templates
  */
-export const emailTemplates = mysqlTable("email_templates", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+export const emailTemplates = pgTable("email_templates", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   subject: text("subject").notNull(),
   body: text("body").notNull(),
   category: varchar("category", { length: 50 }),
   isDefault: boolean("isDefault").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 /**
  * Activity log
  */
-export const activities = mysqlTable("activities", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  teamId: int("teamId"), // Team context for activity
-  leadId: int("leadId"),
-  campaignId: int("campaignId"),
+export const activities = pgTable("activities", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  teamId: integer("teamId"),
+  leadId: integer("leadId"),
+  campaignId: integer("campaignId"),
   type: varchar("type", { length: 50 }).notNull(),
   description: text("description"),
   metadata: json("metadata"),
@@ -195,13 +199,13 @@ export const activities = mysqlTable("activities", {
 /**
  * Data update logs (for tracking company data updates)
  */
-export const dataUpdateLogs = mysqlTable("data_update_logs", {
-  id: int("id").autoincrement().primaryKey(),
-  type: mysqlEnum("type", ["manual", "automatic"]).notNull(),
-  status: mysqlEnum("status", ["started", "completed", "failed"]).notNull(),
-  companiesAdded: int("companiesAdded").default(0).notNull(),
-  companiesUpdated: int("companiesUpdated").default(0).notNull(),
-  companiesDeleted: int("companiesDeleted").default(0).notNull(),
+export const dataUpdateLogs = pgTable("data_update_logs", {
+  id: serial("id").primaryKey(),
+  type: varchar("type", { length: 20 }).notNull(),
+  status: varchar("status", { length: 20 }).notNull(),
+  companiesAdded: integer("companiesAdded").default(0).notNull(),
+  companiesUpdated: integer("companiesUpdated").default(0).notNull(),
+  companiesDeleted: integer("companiesDeleted").default(0).notNull(),
   errorMessage: text("errorMessage"),
   startedAt: timestamp("startedAt").notNull(),
   completedAt: timestamp("completedAt"),
@@ -211,105 +215,104 @@ export const dataUpdateLogs = mysqlTable("data_update_logs", {
 /**
  * Saved search filters
  */
-export const savedFilters = mysqlTable("saved_filters", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
+export const savedFilters = pgTable("saved_filters", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
-  filters: json("filters").notNull(), // Store all filter criteria as JSON
+  filters: json("filters").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 /**
  * Email tracking events (opens, clicks, bounces, unsubscribes)
  */
-export const emailEvents = mysqlTable("email_events", {
-  id: int("id").autoincrement().primaryKey(),
-  leadId: int("leadId").notNull(),
-  campaignId: int("campaignId").notNull(),
+export const emailEvents = pgTable("email_events", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").notNull(),
+  campaignId: integer("campaign_id").notNull(),
   trackingId: varchar("trackingId", { length: 64 }).notNull(),
-  eventType: mysqlEnum("eventType", ["open", "click", "bounce", "unsubscribe", "reply"]).notNull(),
-  linkUrl: text("linkUrl"), // For click events
+  eventType: varchar("eventType", { length: 20 }).notNull(),
+  linkUrl: text("linkUrl"),
   userAgent: text("userAgent"),
   ipAddress: varchar("ipAddress", { length: 45 }),
-  metadata: json("metadata"), // Additional event data
+  metadata: json("metadata"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type EmailEvent = typeof emailEvents.$inferSelect;
 export type InsertEmailEvent = typeof emailEvents.$inferInsert;
 
-
 /**
  * Email Sequences (multi-step automated campaigns)
  */
-export const sequences = mysqlTable("sequences", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  teamId: int("teamId"),
+export const sequences = pgTable("sequences", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  teamId: integer("teamId"),
   name: varchar("name", { length: 255 }).notNull(),
   description: text("description"),
-  status: mysqlEnum("status", ["active", "paused", "archived"]).notNull().default("active"),
-  totalSteps: int("totalSteps").default(0).notNull(),
-  totalEnrolled: int("totalEnrolled").default(0).notNull(),
-  totalCompleted: int("totalCompleted").default(0).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  totalSteps: integer("totalSteps").default(0).notNull(),
+  totalEnrolled: integer("totalEnrolled").default(0).notNull(),
+  totalCompleted: integer("totalCompleted").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 /**
  * Sequence Steps (individual emails in a sequence)
  */
-export const sequenceSteps = mysqlTable("sequence_steps", {
-  id: int("id").autoincrement().primaryKey(),
-  sequenceId: int("sequenceId").notNull(),
-  stepNumber: int("stepNumber").notNull(), // Order in sequence (1, 2, 3...)
+export const sequenceSteps = pgTable("sequence_steps", {
+  id: serial("id").primaryKey(),
+  sequenceId: integer("sequence_id").notNull(),
+  stepNumber: integer("stepNumber").notNull(),
   name: varchar("name", { length: 255 }).notNull(),
   subject: varchar("subject", { length: 500 }).notNull(),
   body: text("body").notNull(),
-  delayDays: int("delayDays").default(0).notNull(), // Days to wait before sending
-  delayHours: int("delayHours").default(0).notNull(), // Additional hours
-  triggerType: mysqlEnum("triggerType", ["time", "opened", "clicked", "replied", "not_opened", "not_replied"]).notNull().default("time"),
-  stopOnReply: int("stopOnReply").default(1).notNull(), // Stop sequence if lead replies (1=yes, 0=no)
+  delayDays: integer("delayDays").default(0).notNull(),
+  delayHours: integer("delayHours").default(0).notNull(),
+  triggerType: varchar("triggerType", { length: 20 }).notNull().default("time"),
+  stopOnReply: integer("stopOnReply").default(1).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 /**
  * Sequence Enrollments (tracks leads in sequences)
  */
-export const sequenceEnrollments = mysqlTable("sequence_enrollments", {
-  id: int("id").autoincrement().primaryKey(),
-  sequenceId: int("sequenceId").notNull(),
-  leadId: int("leadId").notNull(),
-  currentStep: int("currentStep").default(0).notNull(), // 0 = not started, 1+ = step number
-  status: mysqlEnum("status", ["active", "paused", "completed", "stopped", "bounced"]).notNull().default("active"),
+export const sequenceEnrollments = pgTable("sequence_enrollments", {
+  id: serial("id").primaryKey(),
+  sequenceId: integer("sequence_id").notNull(),
+  leadId: integer("lead_id").notNull(),
+  currentStep: integer("currentStep").default(0).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
   enrolledAt: timestamp("enrolledAt").defaultNow().notNull(),
   lastEmailSentAt: timestamp("lastEmailSentAt"),
   completedAt: timestamp("completedAt"),
   stoppedReason: varchar("stoppedReason", { length: 255 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
 
 /**
  * Email Queue (scheduled email sends)
  */
-export const emailQueue = mysqlTable("email_queue", {
-  id: int("id").autoincrement().primaryKey(),
-  leadId: int("leadId").notNull(),
-  campaignId: int("campaignId"),
-  sequenceId: int("sequenceId"),
-  sequenceStepId: int("sequenceStepId"),
-  enrollmentId: int("enrollmentId"),
+export const emailQueue = pgTable("email_queue", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").notNull(),
+  campaignId: integer("campaign_id"),
+  sequenceId: integer("sequence_id"),
+  sequenceStepId: integer("sequence_step_id"),
+  enrollmentId: integer("enrollment_id"),
   subject: varchar("subject", { length: 500 }).notNull(),
   body: text("body").notNull(),
   scheduledAt: timestamp("scheduledAt").notNull(),
   sentAt: timestamp("sentAt"),
-  status: mysqlEnum("status", ["pending", "sending", "sent", "failed", "cancelled"]).notNull().default("pending"),
-  attempts: int("attempts").default(0).notNull(),
+  status: varchar("status", { length: 20 }).notNull().default("pending"),
+  attempts: integer("attempts").default(0).notNull(),
   lastAttemptAt: timestamp("lastAttemptAt"),
   errorMessage: text("errorMessage"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
 });
