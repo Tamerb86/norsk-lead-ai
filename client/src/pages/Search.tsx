@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Building2, Search as SearchIcon, Mail, Phone, Globe, Filter, X, ArrowUpDown, Info, Download, ChevronLeft, ChevronRight, Save, Bookmark, Trash2 } from "lucide-react";
+import { Building2, Search as SearchIcon, Mail, Phone, Globe, Filter, X, ArrowUpDown, Info, Download, ChevronLeft, ChevronRight, Save, Bookmark, Trash2, LogIn } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { SearchTableSkeleton } from "@/components/SkeletonLoaders";
 import { Link, useLocation } from "wouter";
@@ -271,7 +271,27 @@ export default function Search() {
   const isAllSelected = paginatedCompanies.length > 0 && selectedCompanies.length === paginatedCompanies.length;
   const selectedNaeringskode = COMMON_NAERINGSKODER.find(n => n.code === naeringskode);
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="text-center p-8 bg-white rounded-2xl shadow-xl max-w-md">
+          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-6">
+            <LogIn className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Logg inn for å søke</h2>
+          <p className="text-gray-600 mb-6">Du må være logget inn for å søke i bedriftsdatabasen</p>
+          <Link href="/login">
+            <Button size="lg" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+              Logg inn
+            </Button>
+          </Link>
+          <p className="mt-4 text-sm text-gray-500">
+            Har du ikke en konto? <Link href="/register" className="text-blue-600 hover:underline">Registrer deg</Link>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
