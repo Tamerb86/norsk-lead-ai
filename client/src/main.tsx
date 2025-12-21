@@ -35,8 +35,9 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
+import ForgotPassword from "./pages/ForgotPassword";
 
-// Create QueryClient
+Routes// Create QueryClient
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -76,12 +77,13 @@ function Router() {
       <Route path="/contact" component={Contact} />
       <Route path="/help" component={Help} />
       <Route path="/docs" component={Docs} />
-      <Route path="/status" component={Status} />
+      <="/status" component={Status} />
       
       {/* Auth pages */}
-      <Route path="/login" component={Login} />
-      <Route path="/register" component={Register} />
-      
+      <="/login" component={Login} />
+      <="/register" component={Register} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+
       {/* Protected pages (require login) */}
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/dashboard/campaigns">
