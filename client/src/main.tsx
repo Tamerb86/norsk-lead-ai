@@ -37,7 +37,7 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import ForgotPassword from "./pages/ForgotPassword";
 
-Routes// Create QueryClient
+// Create QueryClient
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -45,14 +45,14 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
     },
   },
-});
+} );
 
 // Create tRPC client
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
       url: "/api/trpc",
-      fetch(url, options) {
+      fetch(url, options ) {
         return fetch(url, {
           ...options,
           credentials: "include",
@@ -77,11 +77,11 @@ function Router() {
       <Route path="/contact" component={Contact} />
       <Route path="/help" component={Help} />
       <Route path="/docs" component={Docs} />
-      <="/status" component={Status} />
+      <Route path="/status" component={Status} />
       
       {/* Auth pages */}
-      <="/login" component={Login} />
-      <="/register" component={Register} />
+      <Route path="/login" component={Login} />
+      <Route path="/register" component={Register} />
       <Route path="/forgot-password" component={ForgotPassword} />
 
       {/* Protected pages (require login) */}
