@@ -706,6 +706,11 @@ export default function Search() {
           </CardContent>
         </Card>
 
+        {/* Debug Info */}
+        <div className="mt-4 p-4 bg-yellow-100 rounded text-sm">
+          <p>Debug: isLoading={String(isLoading)}, isFetching={String(isFetching)}, hasData={String(!!data)}, companiesCount={data?.companies?.length || 0}</p>
+        </div>
+
         {/* Results */}
         <div className="mt-8">
           {(isLoading || isFetching) ? (
