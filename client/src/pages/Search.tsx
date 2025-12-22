@@ -80,7 +80,7 @@ export default function Search() {
     },
   });
 
-  const { data, isLoading, refetch } = trpc.companies.search.useQuery({
+  const { data, isLoading, refetch, error, isFetching } = trpc.companies.search.useQuery({
     query,
     hasEmail,
     hasPhone,
@@ -95,7 +95,16 @@ export default function Search() {
     sortBy,
     sortOrder,
     limit: 50,
+  }, {
+    enabled: !!user,
+    refetchOnWindowFocus: false,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+    retry: 3,
+    retryDelay: 1000,
   });
+
+  // Debug logging
+  console.log('Search Debug:', { isLoading, isFetching, hasData: !!data, companiesCount: data?.companies?.length, error: error?.message });
 
   const handleSearch = () => {
     refetch();
@@ -892,7 +901,28 @@ export default function Search() {
                 <p className="text-gray-600">Prøv å justere søkekriteriene dine</p>
               </CardContent>
             </Card>
-          ) : null}
+          ) : error ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <X className="w-6 h-6 text-red-600" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Feil ved søk</h3>
+                <p className="text-gray-600">{error.message}</p>
+                <Button onClick={() => refetch()} className="mt-4">Prøv igjen</Button>
+              </CardContent>
+            </Card>
+          ) : isFetching ? (
+            <SearchTableSkeleton />
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <SearchIcon className="w-12 h-12 text-blue-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Klar til å søke</h3>
+                <p className="text-gray-600">Klikk på "Søk" for å finne bedrifter</p>
+              </CardContent>
+            </Card>
+          )
         </div>
       </main>
     </div>
