@@ -103,8 +103,6 @@ export default function Search() {
     retry: 3,
   });
 
-  // Debug: Log data state
-  console.log('Search data:', { data, isLoading, isFetching, hasData: !!data, companiesCount: data?.companies?.length });
 
   const handleSearch = () => {
     refetch();
@@ -707,12 +705,6 @@ export default function Search() {
             </Button>
           </CardContent>
         </Card>
-
-        {/* Debug Info */}
-        <div className="mt-4 p-4 bg-yellow-100 rounded text-sm">
-          <p>Debug: isLoading={String(isLoading)}, isFetching={String(isFetching)}, hasData={String(!!data)}, companiesCount={data?.companies?.length || 0}, isError={String(isError)}</p>
-          {isError && <p className="text-red-600 mt-2">Error: {error?.message}</p>}
-        </div>
 
         {/* Results */}
         <div className="mt-8">
