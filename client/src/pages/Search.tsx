@@ -80,7 +80,7 @@ export default function Search() {
     },
   });
 
-  const { data, isLoading, refetch } = trpc.companies.search.useQuery({
+  const { data, isLoading, refetch, isFetching } = trpc.companies.search.useQuery({
     query,
     hasEmail,
     hasPhone,
@@ -95,6 +95,10 @@ export default function Search() {
     sortBy,
     sortOrder,
     limit: 50,
+  }, {
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
+    staleTime: 0,
   });
 
   const handleSearch = () => {
@@ -701,7 +705,7 @@ export default function Search() {
 
         {/* Results */}
         <div className="mt-8">
-          {isLoading ? (
+          {(isLoading || isFetching) ? (
             <SearchTableSkeleton />
           ) : data && data.companies && data.companies.length > 0 ? (
             <>
