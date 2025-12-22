@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { httpBatchLink } from "@trpc/client";
+import superjson from "superjson";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch, Redirect } from "wouter";
@@ -52,12 +53,13 @@ const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
       url: "/api/trpc",
-      fetch(url, options ) {
+      fetch(url, options) {
         return fetch(url, {
           ...options,
           credentials: "include",
         });
       },
+      transformer: superjson,
     }),
   ],
 });
