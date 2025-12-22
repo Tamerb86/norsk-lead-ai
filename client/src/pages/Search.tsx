@@ -80,7 +80,7 @@ export default function Search() {
     },
   });
 
-  const { data, isLoading, refetch, isFetching } = trpc.companies.search.useQuery({
+  const { data, isLoading, refetch, isFetching, error, isError } = trpc.companies.search.useQuery({
     query,
     hasEmail,
     hasPhone,
@@ -96,9 +96,11 @@ export default function Search() {
     sortOrder,
     limit: 50,
   }, {
+    enabled: true,
     refetchOnMount: true,
     refetchOnWindowFocus: false,
     staleTime: 0,
+    retry: 3,
   });
 
   // Debug: Log data state
@@ -708,7 +710,8 @@ export default function Search() {
 
         {/* Debug Info */}
         <div className="mt-4 p-4 bg-yellow-100 rounded text-sm">
-          <p>Debug: isLoading={String(isLoading)}, isFetching={String(isFetching)}, hasData={String(!!data)}, companiesCount={data?.companies?.length || 0}</p>
+          <p>Debug: isLoading={String(isLoading)}, isFetching={String(isFetching)}, hasData={String(!!data)}, companiesCount={data?.companies?.length || 0}, isError={String(isError)}</p>
+          {isError && <p className="text-red-600 mt-2">Error: {error?.message}</p>}
         </div>
 
         {/* Results */}
