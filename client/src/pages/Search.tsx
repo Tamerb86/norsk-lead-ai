@@ -101,6 +101,9 @@ export default function Search() {
     staleTime: 0,
   });
 
+  // Debug: Log data state
+  console.log('Search data:', { data, isLoading, isFetching, hasData: !!data, companiesCount: data?.companies?.length });
+
   const handleSearch = () => {
     refetch();
   };
