@@ -10,6 +10,7 @@ import jsPDF from 'jspdf';
 import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { DashboardStatsSkeleton, ChartsSkeleton } from "@/components/SkeletonLoaders";
+import { OnboardingTutorial, QuickStartCard, FeatureCards } from "@/components/OnboardingTutorial";
 
 // Chart colors
 const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
@@ -359,6 +360,19 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Onboarding & Feature Cards */}
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <QuickStartCard />
+          </div>
+          <div className="lg:col-span-2">
+            <FeatureCards />
+          </div>
+        </div>
+
+        {/* Onboarding Tutorial Dialog */}
+        <OnboardingTutorial />
 
         {/* Charts Section */}
         <div className="mt-8 mb-6">
