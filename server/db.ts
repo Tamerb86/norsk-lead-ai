@@ -670,10 +670,12 @@ const userPasswordsCache = new Map<string, string>();
 
 export async function getUserByEmail(email: string) {
   const db = await getDb();
+  // Convert email to lowercase for case-insensitive search
+  const normalizedEmail = email.toLowerCase();
   const result = await db
     .select()
     .from(users)
-    .where(eq(users.email, email))
+    .where(sql`LOWER(${users.email}) = ${normalizedEmail}`)
     .limit(1);
   return result[0] || null;
 }

@@ -162,8 +162,11 @@ class AuthService {
     password: string;
     name: string;
   }): Promise<User> {
+    // Normalize email to lowercase to prevent duplicate accounts
+    const normalizedEmail = data.email.toLowerCase();
+    
     // Check if email already exists
-    const existingUser = await db.getUserByEmail(data.email);
+    const existingUser = await db.getUserByEmail(normalizedEmail);
     if (existingUser) {
       throw new Error("Email already registered");
     }
@@ -173,7 +176,7 @@ class AuthService {
 
     await db.upsertUser({
       openId,
-      email: data.email,
+      email: normalizedEmail, // Store email in lowercase
       name: data.name,
       loginMethod: "email",
       lastSignedIn: new Date(),
@@ -194,7 +197,9 @@ class AuthService {
    * Login user with email and password
    */
   async login(email: string, password: string): Promise<User> {
-    const user = await db.getUserByEmail(email);
+    // Normalize email to lowercase for case-insensitive login
+    const normalizedEmail = email.toLowerCase();
+    const user = await db.getUserByEmail(normalizedEmail);
     if (!user) {
       throw new Error("Invalid email or password");
     }
