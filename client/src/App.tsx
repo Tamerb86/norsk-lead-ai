@@ -30,6 +30,7 @@ import LeadEnrichment from "./pages/LeadEnrichment";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
+import Account from "./pages/Account";
 import Admin from "./pages/Admin";
 import ForgotPassword from "@/pages/ForgotPassword";
 
@@ -40,6 +41,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/register" component={Register} />
       <Route path="/profile" component={Profile} />
+      <Route path="/account" component={Account} />
       <Route path="/admin" component={Admin} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/dashboard" component={Dashboard} />

@@ -35,6 +35,7 @@ import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
+import Account from "./pages/Account";
 import Admin from "./pages/Admin";
 import ForgotPassword from "./pages/ForgotPassword";
 
@@ -101,6 +102,7 @@ function Router() {
       <Route path="/analytics" component={Analytics} />
       <Route path="/enrichment" component={LeadEnrichment} />
       <Route path="/profile" component={Profile} />
+      <Route path="/account" component={Account} />
       <Route path="/admin" component={Admin} />
       
       {/* 404 */}

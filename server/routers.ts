@@ -851,6 +851,40 @@ export const appRouter = router({
   // ============================================
   // QUEUE ROUTER
   // ============================================
+  // USER ROUTER
+  // ============================================
+  user: router({
+    // Get user usage stats
+    getUsage: protectedProcedure.query(async ({ ctx }) => {
+      const usage = await db.getUserUsageStats(ctx.user.id);
+      return usage;
+    }),
+
+    // Get subscription info
+    getSubscription: protectedProcedure.query(async ({ ctx }) => {
+      const subscription = await db.getUserSubscription(ctx.user.id);
+      
+      if (!subscription) {
+        return {
+          plan: "free",
+          status: "active",
+          currentPeriodEnd: null,
+          stripeCustomerId: null,
+          stripeSubscriptionId: null,
+        };
+      }
+
+      return {
+        plan: subscription.subscriptionPlan || "free",
+        status: subscription.subscriptionStatus || "active",
+        currentPeriodEnd: subscription.subscriptionPeriodEnd,
+        stripeCustomerId: subscription.stripeCustomerId,
+        stripeSubscriptionId: subscription.stripeSubscriptionId,
+      };
+    }),
+  }),
+
+  // ============================================
   // STRIPE ROUTER
   // ============================================
   stripe: router({
@@ -976,6 +1010,115 @@ export const appRouter = router({
 
       return await db.getAllSubscriptions();
     }),
+
+    // Get invoices for current user
+    getInvoices: protectedProcedure.query(async ({ ctx }) => {
+      const subscription = await db.getUserSubscription(ctx.user.id);
+      
+      if (!subscription?.stripeCustomerId) {
+        return { invoices: [] };
+      }
+
+      try {
+        const Stripe = (await import("stripe")).default;
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+          apiVersion: "2025-12-15.clover",
+        });
+
+        const invoices = await stripe.invoices.list({
+          customer: subscription.stripeCustomerId,
+          limit: 12,
+        });
+
+        return {
+          invoices: invoices.data.map((inv) => ({
+            id: inv.id,
+            date: new Date(inv.created * 1000).toISOString(),
+            amount: (inv.amount_paid || 0) / 100,
+            status: inv.status || "unknown",
+            pdfUrl: inv.invoice_pdf || undefined,
+          })),
+        };
+      } catch (error) {
+        console.error("Failed to fetch invoices:", error);
+        return { invoices: [] };
+      }
+    }),
+
+    // Reactivate cancelled subscription
+    reactivateSubscription: protectedProcedure.mutation(async ({ ctx }) => {
+      const subscription = await db.getUserSubscription(ctx.user.id);
+      
+      if (!subscription?.stripeSubscriptionId) {
+        throw new Error("No subscription found");
+      }
+
+      const Stripe = (await import("stripe")).default;
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+        apiVersion: "2025-12-15.clover",
+      });
+
+      // Remove cancellation
+      await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+        cancel_at_period_end: false,
+      });
+
+      // Update database
+      await db.updateUserSubscription(ctx.user.id, {
+        subscriptionStatus: "active",
+      });
+
+      return { success: true, message: "Subscription reactivated" };
+    }),
+
+    // Change subscription plan (upgrade/downgrade)
+    changePlan: protectedProcedure
+      .input(
+        z.object({
+          newPlanId: z.enum(["basic", "pro"]),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const subscription = await db.getUserSubscription(ctx.user.id);
+        
+        if (!subscription?.stripeSubscriptionId) {
+          throw new Error("No active subscription found");
+        }
+
+        const Stripe = (await import("stripe")).default;
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+          apiVersion: "2025-12-15.clover",
+        });
+        const { SUBSCRIPTION_PLANS } = await import("@shared/products");
+
+        const newPlan = SUBSCRIPTION_PLANS.find((p) => p.id === input.newPlanId);
+        if (!newPlan) {
+          throw new Error("Invalid plan ID");
+        }
+
+        // Get current subscription
+        const stripeSubscription = await stripe.subscriptions.retrieve(
+          subscription.stripeSubscriptionId
+        );
+
+        // Update subscription with new price
+        await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+          items: [
+            {
+              id: stripeSubscription.items.data[0].id,
+              price: newPlan.stripePriceId,
+            },
+          ],
+          proration_behavior: "create_prorations",
+        });
+
+        // Update database
+        await db.updateUserSubscription(ctx.user.id, {
+          subscriptionPlan: input.newPlanId,
+        });
+
+        return { success: true, message: `Plan changed to ${newPlan.name}` };
+      }),
   }),
 
   // ============================================

@@ -1117,3 +1117,108 @@ export async function incrementUsedLeads(userId: number, count: number = 1) {
 
   return { success: true };
 }
+
+
+/**
+ * Get user usage statistics for the current month
+ */
+export async function getUserUsageStats(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Get user subscription info
+  const userResult = await db.execute(
+    sql`SELECT "subscriptionPlan", "monthlyLeadsQuota", "usedLeadsThisMonth"
+        FROM users WHERE id = ${userId}`
+  );
+
+  const user = userResult.rows?.[0] as any;
+  const plan = user?.subscriptionPlan || 'free';
+
+  // Get plan limits
+  const planLimits: Record<string, { companies: number; emails: number; campaigns: number }> = {
+    free: { companies: 50, emails: 100, campaigns: 1 },
+    basic: { companies: 1000, emails: 5000, campaigns: 5 },
+    pro: { companies: -1, emails: 25000, campaigns: -1 }, // -1 = unlimited
+  };
+
+  const limits = planLimits[plan] || planLimits.free;
+
+  // Get companies used this month
+  const companiesResult = await db.execute(
+    sql`SELECT COUNT(DISTINCT company_id) as count 
+        FROM saved_companies 
+        WHERE user_id = ${userId} 
+        AND created_at >= date_trunc('month', CURRENT_DATE)`
+  );
+  const companiesUsed = Number((companiesResult.rows?.[0] as any)?.count) || 0;
+
+  // Get emails sent this month
+  const emailsResult = await db.execute(
+    sql`SELECT COUNT(*) as count 
+        FROM emails 
+        WHERE user_id = ${userId} 
+        AND created_at >= date_trunc('month', CURRENT_DATE)`
+  );
+  const emailsSent = Number((emailsResult.rows?.[0] as any)?.count) || 0;
+
+  // Get active campaigns
+  const campaignsResult = await db.execute(
+    sql`SELECT COUNT(*) as count 
+        FROM campaigns 
+        WHERE user_id = ${userId} 
+        AND status = 'active'`
+  );
+  const campaignsActive = Number((campaignsResult.rows?.[0] as any)?.count) || 0;
+
+  return {
+    companiesUsed,
+    companiesLimit: limits.companies,
+    emailsSent,
+    emailsLimit: limits.emails,
+    campaignsActive,
+    campaignsLimit: limits.campaigns,
+  };
+}
+
+/**
+ * Update user subscription (simplified version for partial updates)
+ */
+export async function updateUserSubscriptionPartial(userId: number, data: {
+  subscriptionPlan?: string;
+  subscriptionStatus?: string;
+  subscriptionPeriodEnd?: Date;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (data.subscriptionPlan !== undefined) {
+    updates.push(`"subscriptionPlan" = $${values.length + 1}`);
+    values.push(data.subscriptionPlan);
+  }
+
+  if (data.subscriptionStatus !== undefined) {
+    updates.push(`subscription_status = $${values.length + 1}`);
+    values.push(data.subscriptionStatus);
+  }
+
+  if (data.subscriptionPeriodEnd !== undefined) {
+    updates.push(`subscription_period_end = $${values.length + 1}`);
+    values.push(data.subscriptionPeriodEnd);
+  }
+
+  if (updates.length === 0) {
+    return { success: true };
+  }
+
+  updates.push(`"updatedAt" = NOW()`);
+
+  await db.execute(
+    sql.raw(`UPDATE users SET ${updates.join(', ')} WHERE id = ${userId}`)
+  );
+
+  return { success: true };
+}
