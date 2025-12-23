@@ -742,7 +742,7 @@ const headers = [
                         <Button 
                           size="sm" 
                           className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                          onClick={() => setLocation(`/campaigns/new?companyIds=${selectedCompanies.join(',')}`)}
+                          onClick={() => setLocation(`/campaigns?newCampaign=true&companyIds=${selectedCompanies.join(',')}`)}
                         >
                           <Mail className="w-4 h-4 mr-1" />
                           Opprett kampanje
@@ -866,7 +866,7 @@ const headers = [
                               <Button 
                                 size="sm" 
                                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                                onClick={() => setLocation(`/campaigns/new?companyId=${company.id}`)}
+                                onClick={() => setLocation(`/campaigns?newCampaign=true&companyId=${company.id}`)}
                               >
                                 Opprett kampanje
                               </Button>

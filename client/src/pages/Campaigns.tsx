@@ -9,13 +9,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Building2, Mail, Plus, Trash2, Send, Eye, Clock, CheckCircle2, Sparkles, Users, X } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CampaignsListSkeleton } from "@/components/SkeletonLoaders";
-import { Link } from "wouter";
+import { Link, useSearch } from "wouter";
 import { toast } from "sonner";
 import { toastSuccess, toastError, toastDeleteWithUndo, toastWithViewDetails } from "@/lib/toast-utils";
 
 export default function Campaigns() {
   const { user } = useAuth();
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const searchString = useSearch();
+  const urlParams = new URLSearchParams(searchString);
+  const newCampaignParam = urlParams.get('newCampaign');
+  const companyIdsParam = urlParams.get('companyIds');
+  const companyIdParam = urlParams.get('companyId');
+  
+  const [showCreateForm, setShowCreateForm] = useState(newCampaignParam === 'true');
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<number[]>(() => {
+    if (companyIdsParam) {
+      return companyIdsParam.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
+    }
+    if (companyIdParam) {
+      const id = parseInt(companyIdParam);
+      return isNaN(id) ? [] : [id];
+    }
+    return [];
+  });
   const [formData, setFormData] = useState({
     name: "",
     emailSubject: "",
@@ -172,9 +188,17 @@ export default function Campaigns() {
         {showCreateForm && (
           <Card className="mb-6 border-0 shadow-xl bg-white/90 backdrop-blur-sm">
             <CardHeader className="border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-blue-600" />
-                <CardTitle className="text-xl">Create New Campaign</CardTitle>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-blue-600" />
+                  <CardTitle className="text-xl">Create New Campaign</CardTitle>
+                </div>
+                {selectedCompanyIds.length > 0 && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-sm">
+                    <Users className="w-4 h-4" />
+                    <span>{selectedCompanyIds.length} bedrift{selectedCompanyIds.length !== 1 ? 'er' : ''} valgt</span>
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent className="pt-6">
