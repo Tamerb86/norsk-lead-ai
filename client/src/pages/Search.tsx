@@ -80,6 +80,9 @@ export default function Search() {
     },
   });
 
+  // Calculate offset for server-side pagination
+  const offset = (currentPage - 1) * itemsPerPage;
+
   const { data, isLoading, refetch, isFetching, error, isError } = trpc.companies.search.useQuery({
     query,
     hasEmail,
@@ -94,7 +97,8 @@ export default function Search() {
     maxEmployees: maxEmployees ? parseInt(maxEmployees) : undefined,
     sortBy,
     sortOrder,
-    limit: 50,
+    limit: itemsPerPage,
+    offset: offset,
   }, {
     enabled: true,
     refetchOnMount: true,
@@ -105,6 +109,7 @@ export default function Search() {
 
 
   const handleSearch = () => {
+    setCurrentPage(1); // Reset to first page on new search
     refetch();
   };
 
@@ -253,12 +258,12 @@ export default function Search() {
     });
   };
 
-  // Pagination helpers
+  // Pagination helpers - Server-side pagination
   const companies = data?.companies || [];
-  const totalPages = Math.ceil(companies.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedCompanies = companies.slice(startIndex, endIndex);
+  const totalResults = data?.total || 0;
+  const totalPages = Math.ceil(totalResults / itemsPerPage);
+  // With server-side pagination, companies are already paginated
+  const paginatedCompanies = companies;
 
   // Selection helpers
   const toggleCompany = (id: number) => {
@@ -715,7 +720,12 @@ export default function Search() {
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <p className="text-sm text-gray-600">
-                    Fant <span className="font-semibold text-gray-900">{data.companies.length}</span> bedrifter
+                    Fant <span className="font-semibold text-gray-900">{totalResults.toLocaleString()}</span> bedrifter
+                    {totalPages > 1 && (
+                      <span className="ml-2 text-gray-400">
+                        (side {currentPage} av {totalPages.toLocaleString()})
+                      </span>
+                    )}
                   </p>
                   {selectedCompanies.length > 0 && (
                     <div className="flex items-center gap-2">
