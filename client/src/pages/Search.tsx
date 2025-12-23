@@ -439,9 +439,9 @@ export default function Search() {
             </div>
           </CardHeader>
 
-          <CardContent className="pt-6">
+          <CardContent className="pt-4">
             {/* Basic Search */}
-            <div className="space-y-4 mb-6">
+            <div className="space-y-3 mb-4">
               <div>
                 <Label htmlFor="search" className="text-base font-medium">Søk etter bedriftsnavn eller organisasjonsnummer</Label>
                 <Input
@@ -506,13 +506,13 @@ export default function Search() {
 
             {/* Advanced Filters */}
             {showFilters && (
-              <div className="border-t pt-6 space-y-6 animate-slide-up">
-                <h3 className="font-semibold text-lg flex items-center gap-2">
-                  <Filter className="w-5 h-5 text-blue-600" />
+              <div className="border-t pt-4 space-y-4 animate-slide-up">
+                <h3 className="font-semibold text-base flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-blue-600" />
                   Avanserte filtre
                 </h3>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* City (Poststed) */}
                   <div className="space-y-2">
                     <Label htmlFor="poststed">By (Poststed)</Label>
@@ -672,12 +672,12 @@ export default function Search() {
                 </div>
 
                 {/* Sorting */}
-                <div className="border-t pt-4">
-                  <Label className="flex items-center gap-2 mb-3">
+                <div className="border-t pt-3">
+                  <Label className="flex items-center gap-2 mb-2">
                     <ArrowUpDown className="w-4 h-4" />
                     Sortering
                   </Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
                       <SelectTrigger>
                         <SelectValue />
@@ -704,7 +704,7 @@ export default function Search() {
               </div>
             )}
 
-            <Button onClick={handleSearch} className="w-full mt-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700" size="lg">
+            <Button onClick={handleSearch} className="w-full mt-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700" size="lg">
               <SearchIcon className="w-5 h-5 mr-2" />
               Søk
             </Button>

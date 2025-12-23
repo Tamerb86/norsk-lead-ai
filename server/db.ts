@@ -162,10 +162,11 @@ export async function searchCompanies(params: {
   const conditions = [];
 
   if (params.query) {
+    // Use ILIKE for case-insensitive search
     conditions.push(
       or(
-        like(norwegianCompanies.navn, `%${params.query}%`),
-        like(norwegianCompanies.organisasjonsnummer, `%${params.query}%`)
+        sql`${norwegianCompanies.navn} ILIKE ${`%${params.query}%`}`,
+        sql`${norwegianCompanies.organisasjonsnummer} ILIKE ${`%${params.query}%`}`
       )
     );
   }
@@ -179,7 +180,8 @@ export async function searchCompanies(params: {
   }
 
   if (params.poststed) {
-    conditions.push(like(norwegianCompanies.poststed, `%${params.poststed}%`));
+    // Use ILIKE for case-insensitive city search
+    conditions.push(sql`${norwegianCompanies.poststed} ILIKE ${`%${params.poststed}%`}`);
   }
 
   if (params.naeringskode) {
