@@ -43,6 +43,20 @@ import {
   AlertTriangle,
   CheckCircle,
   Search,
+  CreditCard,
+  DollarSign,
+  Activity,
+  Calendar,
+  Crown,
+  Zap,
+  Database,
+  Server,
+  Globe,
+  Settings,
+  BarChart3,
+  PieChart,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 
 interface AdminStats {
@@ -52,6 +66,9 @@ interface AdminStats {
   totalEmailsSent: number;
   activeSubscriptions: number;
   revenue: number;
+  freeUsers?: number;
+  basicUsers?: number;
+  proUsers?: number;
 }
 
 interface AdminUser {
@@ -61,6 +78,8 @@ interface AdminUser {
   role: string;
   createdAt: string;
   lastLogin?: string;
+  subscriptionPlan?: string;
+  subscriptionStatus?: string;
 }
 
 export default function Admin() {
@@ -189,11 +208,16 @@ export default function Admin() {
     u.email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Calculate subscription breakdown
+  const freeUsers = users.filter(u => !u.subscriptionPlan || u.subscriptionPlan === 'free').length;
+  const basicUsers = users.filter(u => u.subscriptionPlan === 'basic').length;
+  const proUsers = users.filter(u => u.subscriptionPlan === 'pro').length;
+
   if (authLoading || loading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-pink-500" />
+          <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
         </div>
       </DashboardLayout>
     );
@@ -210,13 +234,13 @@ export default function Admin() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-              <Shield className="h-6 w-6 text-pink-500" />
-              Admin Panel
+              <Shield className="h-6 w-6 text-blue-600" />
+              Admin Dashboard
             </h1>
-            <p className="text-gray-600">Administrer brukere og systeminnstillinger</p>
+            <p className="text-gray-600">Oversikt og administrasjon av systemet</p>
           </div>
-          <Button onClick={fetchData} variant="outline" className="border-gray-300 text-gray-900">
-            <RefreshCw className="h-4 w-4 mr-2" />
+          <Button onClick={fetchData} variant="outline" className="gap-2">
+            <RefreshCw className="h-4 w-4" />
             Oppdater
           </Button>
         </div>
@@ -236,56 +260,97 @@ export default function Admin() {
           </Alert>
         )}
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-white shadow-md border-gray-200">
-            <CardContent className="p-6">
+        {/* Main Stats Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-0">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Totale brukere</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats?.totalUsers || 0}</p>
+                  <p className="text-blue-100 text-sm">Totale brukere</p>
+                  <p className="text-3xl font-bold">{stats?.totalUsers || 0}</p>
                 </div>
-                <Users className="h-8 w-8 text-pink-500" />
+                <Users className="h-10 w-10 text-blue-200" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white shadow-md border-gray-200">
-            <CardContent className="p-6">
+          <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white border-0">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Bedrifter i database</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {stats?.totalCompanies?.toLocaleString() || 0}
-                  </p>
+                  <p className="text-green-100 text-sm">Månedlig inntekt</p>
+                  <p className="text-3xl font-bold">{(stats?.revenue || 0).toLocaleString()} kr</p>
                 </div>
-                <Building2 className="h-8 w-8 text-blue-500" />
+                <DollarSign className="h-10 w-10 text-green-200" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white shadow-md border-gray-200">
-            <CardContent className="p-6">
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white border-0">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">E-poster sendt</p>
-                  <p className="text-2xl font-bold text-gray-900">
-                    {stats?.totalEmailsSent?.toLocaleString() || 0}
-                  </p>
+                  <p className="text-purple-100 text-sm">Aktive abonnementer</p>
+                  <p className="text-3xl font-bold">{stats?.activeSubscriptions || 0}</p>
                 </div>
-                <Mail className="h-8 w-8 text-green-500" />
+                <CreditCard className="h-10 w-10 text-purple-200" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white shadow-md border-gray-200">
-            <CardContent className="p-6">
+          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Aktive abonnementer</p>
-                  <p className="text-2xl font-bold text-gray-900">{stats?.activeSubscriptions || 0}</p>
+                  <p className="text-orange-100 text-sm">E-poster sendt</p>
+                  <p className="text-3xl font-bold">{(stats?.totalEmailsSent || 0).toLocaleString()}</p>
                 </div>
-                <TrendingUp className="h-8 w-8 text-purple-500" />
+                <Mail className="h-10 w-10 text-orange-200" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Secondary Stats */}
+        <div className="grid grid-cols-3 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-gray-100 rounded-lg">
+                  <Zap className="h-5 w-5 text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Gratis brukere</p>
+                  <p className="text-xl font-bold text-gray-900">{freeUsers}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Crown className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Basic abonnenter</p>
+                  <p className="text-xl font-bold text-gray-900">{basicUsers}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-100 rounded-lg">
+                  <Crown className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Pro abonnenter</p>
+                  <p className="text-xl font-bold text-gray-900">{proUsers}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -293,39 +358,43 @@ export default function Admin() {
 
         {/* Tabs */}
         <Tabs defaultValue="users" className="space-y-4">
-          <TabsList className="bg-gray-100 border-gray-200">
-            <TabsTrigger value="users" className="data-[state=active]:bg-pink-500">
+          <TabsList className="bg-gray-100">
+            <TabsTrigger value="users" className="data-[state=active]:bg-white data-[state=active]:text-blue-600">
+              <Users className="h-4 w-4 mr-2" />
               Brukere
             </TabsTrigger>
-            <TabsTrigger value="companies" className="data-[state=active]:bg-pink-500">
+            <TabsTrigger value="companies" className="data-[state=active]:bg-white data-[state=active]:text-blue-600">
+              <Building2 className="h-4 w-4 mr-2" />
               Bedrifter
             </TabsTrigger>
-            <TabsTrigger value="subscriptions" className="data-[state=active]:bg-pink-500">
+            <TabsTrigger value="subscriptions" className="data-[state=active]:bg-white data-[state=active]:text-blue-600">
+              <CreditCard className="h-4 w-4 mr-2" />
               Abonnementer
             </TabsTrigger>
-            <TabsTrigger value="system" className="data-[state=active]:bg-pink-500">
+            <TabsTrigger value="system" className="data-[state=active]:bg-white data-[state=active]:text-blue-600">
+              <Settings className="h-4 w-4 mr-2" />
               System
             </TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
           <TabsContent value="users">
-            <Card className="bg-white shadow-md border-gray-200">
-              <CardHeader>
+            <Card>
+              <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-gray-900">Brukere</CardTitle>
-                    <CardDescription className="text-gray-600">
+                    <CardTitle>Brukere</CardTitle>
+                    <CardDescription>
                       Administrer brukerkontoer og tilganger
                     </CardDescription>
                   </div>
                   <div className="relative w-64">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                     <Input
                       placeholder="Søk brukere..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 bg-gray-700/50 border-gray-300 text-gray-900"
+                      className="pl-10"
                     />
                   </div>
                 </div>
@@ -333,43 +402,56 @@ export default function Admin() {
               <CardContent>
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-gray-200">
-                      <TableHead className="text-gray-600">Navn</TableHead>
-                      <TableHead className="text-gray-600">E-post</TableHead>
-                      <TableHead className="text-gray-600">Rolle</TableHead>
-                      <TableHead className="text-gray-600">Opprettet</TableHead>
-                      <TableHead className="text-gray-600">Handlinger</TableHead>
+                    <TableRow>
+                      <TableHead>Navn</TableHead>
+                      <TableHead>E-post</TableHead>
+                      <TableHead>Plan</TableHead>
+                      <TableHead>Rolle</TableHead>
+                      <TableHead>Opprettet</TableHead>
+                      <TableHead className="text-right">Handlinger</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredUsers.map((u) => (
-                      <TableRow key={u.id} className="border-gray-200">
-                        <TableCell className="text-gray-900">{u.name || "-"}</TableCell>
-                        <TableCell className="text-gray-300">{u.email || "-"}</TableCell>
+                      <TableRow key={u.id}>
+                        <TableCell className="font-medium">{u.name || "-"}</TableCell>
+                        <TableCell className="text-gray-500">{u.email || "-"}</TableCell>
+                        <TableCell>
+                          <Badge variant={
+                            u.subscriptionPlan === 'pro' ? 'default' :
+                            u.subscriptionPlan === 'basic' ? 'secondary' : 'outline'
+                          } className={
+                            u.subscriptionPlan === 'pro' ? 'bg-purple-100 text-purple-700' :
+                            u.subscriptionPlan === 'basic' ? 'bg-blue-100 text-blue-700' : ''
+                          }>
+                            {u.subscriptionPlan === 'pro' ? 'Pro' :
+                             u.subscriptionPlan === 'basic' ? 'Basic' : 'Gratis'}
+                          </Badge>
+                        </TableCell>
                         <TableCell>
                           <Select
                             value={u.role}
                             onValueChange={(value) => handleRoleChange(u.id, value)}
                             disabled={u.id === user?.id}
                           >
-                            <SelectTrigger className="w-32 bg-gray-700/50 border-gray-300 text-gray-900">
+                            <SelectTrigger className="w-28 h-8">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-gray-100 border-gray-200">
+                            <SelectContent>
                               <SelectItem value="admin">Admin</SelectItem>
                               <SelectItem value="manager">Manager</SelectItem>
                               <SelectItem value="viewer">Viewer</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className="text-gray-600">
+                        <TableCell className="text-gray-500">
                           {new Date(u.createdAt).toLocaleDateString("nb-NO")}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="text-right">
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
                             onClick={() => setDeleteDialog({ open: true, user: u })}
                             disabled={u.id === user?.id}
                           >
@@ -386,19 +468,45 @@ export default function Admin() {
 
           {/* Companies Tab */}
           <TabsContent value="companies">
-            <Card className="bg-white shadow-md border-gray-200">
+            <Card>
               <CardHeader>
-                <CardTitle className="text-gray-900">Bedriftsdatabase</CardTitle>
-                <CardDescription className="text-gray-600">
+                <CardTitle>Bedriftsdatabase</CardTitle>
+                <CardDescription>
                   Administrer bedriftsdata fra Brønnøysund
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center gap-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Database className="h-5 w-5 text-blue-600" />
+                      <span className="text-sm text-blue-600">Totale bedrifter</span>
+                    </div>
+                    <p className="text-2xl font-bold text-blue-700">
+                      {stats?.totalCompanies?.toLocaleString() || 0}
+                    </p>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-4 border border-green-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Mail className="h-5 w-5 text-green-600" />
+                      <span className="text-sm text-green-600">Med e-post</span>
+                    </div>
+                    <p className="text-2xl font-bold text-green-700">~40%</p>
+                  </div>
+                  <div className="bg-purple-50 rounded-lg p-4 border border-purple-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Globe className="h-5 w-5 text-purple-600" />
+                      <span className="text-sm text-purple-600">Med nettside</span>
+                    </div>
+                    <p className="text-2xl font-bold text-purple-700">~35%</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 pt-4 border-t">
                   <Button
                     onClick={handleImportCompanies}
                     disabled={importLoading}
-                    className="bg-gradient-to-r from-pink-500 to-purple-600"
+                    className="bg-blue-600 hover:bg-blue-700"
                   >
                     {importLoading ? (
                       <>
@@ -412,25 +520,9 @@ export default function Admin() {
                       </>
                     )}
                   </Button>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-500">
                     Sist oppdatert: {stats?.totalCompanies ? "I dag" : "Aldri"}
                   </p>
-                </div>
-
-                <div className="bg-gray-700/30 rounded-lg p-4">
-                  <h4 className="text-gray-900 font-medium mb-2">Database statistikk</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-gray-600">Totale bedrifter:</span>
-                      <span className="text-gray-900 ml-2">
-                        {stats?.totalCompanies?.toLocaleString() || 0}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-gray-600">Med e-post:</span>
-                      <span className="text-gray-900 ml-2">~40%</span>
-                    </div>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -438,143 +530,236 @@ export default function Admin() {
 
           {/* Subscriptions Tab */}
           <TabsContent value="subscriptions">
-            <Card className="bg-white shadow-md border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-gray-900">Abonnementer</CardTitle>
-                <CardDescription className="text-gray-600">
-                  Oversikt over alle aktive abonnementer
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Revenue Stats */}
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg p-4 border border-green-200">
-                    <p className="text-sm text-green-600">Månedlig inntekt</p>
-                    <p className="text-2xl font-bold text-green-700">
-                      {stats?.revenue?.toLocaleString() || 0} NOK
-                    </p>
-                  </div>
-                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-                    <p className="text-sm text-blue-600">Aktive abonnementer</p>
-                    <p className="text-2xl font-bold text-blue-700">
-                      {stats?.activeSubscriptions || 0}
-                    </p>
-                  </div>
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
-                    <p className="text-sm text-purple-600">Gjennomsnitt per bruker</p>
-                    <p className="text-2xl font-bold text-purple-700">
-                      {stats?.activeSubscriptions ? Math.round((stats?.revenue || 0) / stats.activeSubscriptions) : 0} NOK
-                    </p>
-                  </div>
-                </div>
+            <div className="space-y-4">
+              {/* Revenue Overview */}
+              <div className="grid grid-cols-3 gap-4">
+                <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-green-600">Månedlig inntekt</p>
+                        <p className="text-2xl font-bold text-green-700">
+                          {(stats?.revenue || 0).toLocaleString()} NOK
+                        </p>
+                      </div>
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <TrendingUp className="h-6 w-6 text-green-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-                {/* Subscription Plans Info */}
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <h4 className="text-gray-900 font-medium mb-3">Tilgjengelige planer</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white rounded-lg p-4 border border-gray-200">
-                      <h5 className="font-semibold text-gray-900">Basic</h5>
-                      <p className="text-2xl font-bold text-pink-500">499 NOK/mnd</p>
-                      <ul className="text-sm text-gray-600 mt-2 space-y-1">
+                <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-blue-600">Betalende kunder</p>
+                        <p className="text-2xl font-bold text-blue-700">
+                          {basicUsers + proUsers}
+                        </p>
+                      </div>
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <CreditCard className="h-6 w-6 text-blue-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-purple-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-purple-600">Snitt per kunde</p>
+                        <p className="text-2xl font-bold text-purple-700">
+                          {(basicUsers + proUsers) > 0 
+                            ? Math.round((stats?.revenue || 0) / (basicUsers + proUsers)) 
+                            : 0} NOK
+                        </p>
+                      </div>
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <BarChart3 className="h-6 w-6 text-purple-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Plans Overview */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Abonnementsplaner</CardTitle>
+                  <CardDescription>Oversikt over tilgjengelige planer</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4">
+                    {/* Free Plan */}
+                    <div className="rounded-lg border-2 border-gray-200 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-gray-900">Gratis</h4>
+                        <Badge variant="outline" className="text-gray-500">
+                          {freeUsers} brukere
+                        </Badge>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900 mb-3">0 NOK<span className="text-sm font-normal text-gray-500">/mnd</span></p>
+                      <ul className="text-sm text-gray-600 space-y-1">
+                        <li>• 50 bedrifter/mnd</li>
+                        <li>• 1 kampanje</li>
+                        <li>• 100 e-poster/mnd</li>
+                      </ul>
+                    </div>
+
+                    {/* Basic Plan */}
+                    <div className="rounded-lg border-2 border-blue-200 bg-blue-50/50 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-blue-900">Basic</h4>
+                        <Badge className="bg-blue-100 text-blue-700">
+                          {basicUsers} brukere
+                        </Badge>
+                      </div>
+                      <p className="text-2xl font-bold text-blue-900 mb-3">499 NOK<span className="text-sm font-normal text-blue-600">/mnd</span></p>
+                      <ul className="text-sm text-blue-700 space-y-1">
                         <li>• 1,000 bedrifter/mnd</li>
                         <li>• 5 kampanjer</li>
                         <li>• 5,000 e-poster/mnd</li>
                       </ul>
                     </div>
-                    <div className="bg-white rounded-lg p-4 border border-blue-200">
-                      <h5 className="font-semibold text-gray-900">Pro</h5>
-                      <p className="text-2xl font-bold text-blue-500">1,299 NOK/mnd</p>
-                      <ul className="text-sm text-gray-600 mt-2 space-y-1">
+
+                    {/* Pro Plan */}
+                    <div className="rounded-lg border-2 border-purple-200 bg-purple-50/50 p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-purple-900">Pro</h4>
+                        <Badge className="bg-purple-100 text-purple-700">
+                          {proUsers} brukere
+                        </Badge>
+                      </div>
+                      <p className="text-2xl font-bold text-purple-900 mb-3">1,299 NOK<span className="text-sm font-normal text-purple-600">/mnd</span></p>
+                      <ul className="text-sm text-purple-700 space-y-1">
                         <li>• Ubegrenset bedrifter</li>
                         <li>• Ubegrenset kampanjer</li>
                         <li>• 25,000 e-poster/mnd</li>
                       </ul>
                     </div>
                   </div>
-                </div>
+                </CardContent>
+              </Card>
 
-                {/* Stripe Configuration Status */}
-                <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
-                  <h4 className="text-yellow-800 font-medium mb-2 flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4" />
+              {/* Stripe Configuration */}
+              <Card className="border-yellow-200 bg-yellow-50/50">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-yellow-800 flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5" />
                     Stripe konfigurasjon
-                  </h4>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
                   <p className="text-sm text-yellow-700 mb-3">
                     For å aktivere betalinger, legg til følgende miljøvariabler i Railway:
                   </p>
-                  <div className="bg-white rounded p-3 font-mono text-xs space-y-1">
-                    <p>STRIPE_SECRET_KEY=sk_live_...</p>
-                    <p>STRIPE_PUBLISHABLE_KEY=pk_live_...</p>
-                    <p>STRIPE_WEBHOOK_SECRET=whsec_...</p>
-                    <p>STRIPE_PRICE_ID_BASIC=price_...</p>
-                    <p>STRIPE_PRICE_ID_PRO=price_...</p>
+                  <div className="bg-white rounded-lg p-3 font-mono text-xs space-y-1 border border-yellow-200">
+                    <p className="text-gray-600">STRIPE_SECRET_KEY=<span className="text-yellow-600">sk_live_...</span></p>
+                    <p className="text-gray-600">STRIPE_PUBLISHABLE_KEY=<span className="text-yellow-600">pk_live_...</span></p>
+                    <p className="text-gray-600">STRIPE_WEBHOOK_SECRET=<span className="text-yellow-600">whsec_...</span></p>
+                    <p className="text-gray-600">STRIPE_PRICE_ID_BASIC=<span className="text-yellow-600">price_...</span></p>
+                    <p className="text-gray-600">STRIPE_PRICE_ID_PRO=<span className="text-yellow-600">price_...</span></p>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* System Tab */}
           <TabsContent value="system">
-            <Card className="bg-white shadow-md border-gray-200">
-              <CardHeader>
-                <CardTitle className="text-gray-900">Systeminnstillinger</CardTitle>
-                <CardDescription className="text-gray-600">
-                  Konfigurer systemparametere
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-gray-700/30 rounded-lg p-4">
-                    <h4 className="text-gray-900 font-medium mb-2">API Status</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Systemstatus</CardTitle>
+                  <CardDescription>Oversikt over systemkomponenter</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Server className="h-5 w-5 text-gray-500" />
+                      <span>API Server</span>
+                    </div>
                     <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-green-600">Operativ</span>
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-green-600 text-sm">Operativ</span>
                     </div>
                   </div>
-                  <div className="bg-gray-700/30 rounded-lg p-4">
-                    <h4 className="text-gray-900 font-medium mb-2">Database</h4>
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-green-600">Tilkoblet</span>
-                    </div>
-                  </div>
-                </div>
 
-                <div className="bg-gray-700/30 rounded-lg p-4">
-                  <h4 className="text-gray-900 font-medium mb-2">Miljøvariabler</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">NODE_ENV</span>
-                      <Badge variant="outline" className="border-green-500 text-green-600">
-                        production
-                      </Badge>
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Database className="h-5 w-5 text-gray-500" />
+                      <span>Database</span>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Database</span>
-                      <Badge variant="outline" className="border-green-500 text-green-600">
-                        Konfigurert
-                      </Badge>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-600">Stripe</span>
-                      <Badge variant="outline" className="border-yellow-500 text-yellow-400">
-                        Venter konfigurasjon
-                      </Badge>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-green-600 text-sm">Tilkoblet</span>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-5 w-5 text-gray-500" />
+                      <span>E-post tjeneste</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-green-600 text-sm">Aktiv</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <CreditCard className="h-5 w-5 text-gray-500" />
+                      <span>Stripe</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                      <span className="text-yellow-600 text-sm">Venter konfigurasjon</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Miljøvariabler</CardTitle>
+                  <CardDescription>Status for konfigurerte variabler</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">NODE_ENV</span>
+                    <Badge className="bg-green-100 text-green-700">production</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">DATABASE_URL</span>
+                    <Badge className="bg-green-100 text-green-700">Konfigurert</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">RESEND_API_KEY</span>
+                    <Badge className="bg-green-100 text-green-700">Konfigurert</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">STRIPE_SECRET_KEY</span>
+                    <Badge className="bg-yellow-100 text-yellow-700">Mangler</Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-600">OPENAI_API_KEY</span>
+                    <Badge className="bg-green-100 text-green-700">Konfigurert</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, user: null })}>
-          <DialogContent className="bg-gray-100 border-gray-200">
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle className="text-gray-900">Slett bruker</DialogTitle>
-              <DialogDescription className="text-gray-600">
+              <DialogTitle>Slett bruker</DialogTitle>
+              <DialogDescription>
                 Er du sikker på at du vil slette {deleteDialog.user?.name || deleteDialog.user?.email}?
                 Denne handlingen kan ikke angres.
               </DialogDescription>
@@ -583,14 +768,12 @@ export default function Admin() {
               <Button
                 variant="outline"
                 onClick={() => setDeleteDialog({ open: false, user: null })}
-                className="border-gray-300 text-gray-900"
               >
                 Avbryt
               </Button>
               <Button
                 variant="destructive"
                 onClick={handleDeleteUser}
-                className="bg-red-600 hover:bg-red-700"
               >
                 Slett
               </Button>
