@@ -25,7 +25,7 @@ export const users = pgTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: varchar("role", { length: 20 }).default("admin").notNull(),
+  role: varchar("role", { length: 20 }).default("user").notNull(),
   teamId: integer("teamId"),
   subscriptionPlan: varchar("subscriptionPlan", { length: 50 }),
   monthlyLeadsQuota: integer("monthlyLeadsQuota"),
