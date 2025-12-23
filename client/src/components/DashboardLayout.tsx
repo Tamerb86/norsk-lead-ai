@@ -195,7 +195,7 @@ function DashboardLayoutContent({
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           collapsible="icon"
-          className="border-r border-gray-200 bg-white sticky top-0 h-screen"
+          className="border-r border-gray-200 bg-white fixed left-0 top-0 h-screen z-40"
           disableTransition={isResizing}
         >
           <SidebarHeader className="h-16 justify-center border-b border-gray-100">
