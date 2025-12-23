@@ -716,23 +716,59 @@ export async function getUserPassword(openId: string): Promise<string | null> {
 
 export async function getAllUsers() {
   const db = await getDb();
-  return await db
+  const allUsers = await db
     .select()
     .from(users)
     .orderBy(desc(users.createdAt));
+  
+  return {
+    users: allUsers.map(u => ({
+      id: u.id,
+      name: u.name,
+      email: u.email,
+      role: u.role,
+      createdAt: u.createdAt,
+      lastSignedIn: u.lastSignedIn,
+      subscriptionPlan: u.subscriptionPlan,
+      subscriptionStatus: u.subscriptionStatus,
+      usedLeadsThisMonth: u.usedLeadsThisMonth,
+      monthlyLeadsQuota: u.monthlyLeadsQuota,
+      isActive: u.isActive !== false,
+    }))
+  };
 }
 
-export async function updateUserRole(userId: number, role: 'admin' | 'manager' | 'viewer') {
+export async function updateUserRole(userId: number, role: string) {
   const db = await getDb();
   await db
     .update(users)
     .set({ role })
     .where(eq(users.id, userId));
+  return { success: true };
+}
+
+export async function updateUserPlan(userId: number, plan: string) {
+  const db = await getDb();
+  await db
+    .update(users)
+    .set({ subscriptionPlan: plan })
+    .where(eq(users.id, userId));
+  return { success: true };
+}
+
+export async function updateUserStatus(userId: number, isActive: boolean) {
+  const db = await getDb();
+  await db
+    .update(users)
+    .set({ isActive })
+    .where(eq(users.id, userId));
+  return { success: true };
 }
 
 export async function deleteUser(userId: number) {
   const db = await getDb();
   await db.delete(users).where(eq(users.id, userId));
+  return { success: true };
 }
 
 /**

@@ -3,10 +3,12 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -30,6 +32,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Loader2,
   Users,
@@ -57,6 +67,18 @@ import {
   PieChart,
   ArrowUpRight,
   ArrowDownRight,
+  MoreVertical,
+  UserPlus,
+  UserMinus,
+  Ban,
+  CheckCircle2,
+  Eye,
+  Edit,
+  Send,
+  FileText,
+  Clock,
+  LogIn,
+  XCircle,
 } from "lucide-react";
 
 interface AdminStats {
@@ -77,9 +99,12 @@ interface AdminUser {
   email: string | null;
   role: string;
   createdAt: string;
-  lastLogin?: string;
+  lastSignedIn?: string;
   subscriptionPlan?: string;
   subscriptionStatus?: string;
+  usedLeadsThisMonth?: number;
+  monthlyLeadsQuota?: number;
+  isActive?: boolean;
 }
 
 export default function Admin() {
@@ -91,11 +116,31 @@ export default function Admin() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterPlan, setFilterPlan] = useState<string>("all");
+  const [filterRole, setFilterRole] = useState<string>("all");
+  
+  // Dialogs
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; user: AdminUser | null }>({
     open: false,
     user: null,
   });
+  const [userDetailDialog, setUserDetailDialog] = useState<{ open: boolean; user: AdminUser | null }>({
+    open: false,
+    user: null,
+  });
+  const [changePlanDialog, setChangePlanDialog] = useState<{ open: boolean; user: AdminUser | null; newPlan: string }>({
+    open: false,
+    user: null,
+    newPlan: "",
+  });
+  const [emailDialog, setEmailDialog] = useState<{ open: boolean; users: AdminUser[]; subject: string; body: string }>({
+    open: false,
+    users: [],
+    subject: "",
+    body: "",
+  });
   const [importLoading, setImportLoading] = useState(false);
+  const [selectedUsers, setSelectedUsers] = useState<number[]>([]);
 
   // Check if user is admin
   useEffect(() => {
@@ -157,6 +202,56 @@ export default function Admin() {
     }
   };
 
+  const handlePlanChange = async () => {
+    if (!changePlanDialog.user || !changePlanDialog.newPlan) return;
+
+    try {
+      const res = await fetch(`/api/admin/users/${changePlanDialog.user.id}/plan`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ plan: changePlanDialog.newPlan }),
+      });
+
+      if (res.ok) {
+        setUsers(users.map(u => 
+          u.id === changePlanDialog.user!.id 
+            ? { ...u, subscriptionPlan: changePlanDialog.newPlan } 
+            : u
+        ));
+        setSuccess(`Plan endret til ${changePlanDialog.newPlan}`);
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError("Kunne ikke endre plan");
+      }
+    } catch (err) {
+      setError("Kunne ikke endre plan");
+    } finally {
+      setChangePlanDialog({ open: false, user: null, newPlan: "" });
+    }
+  };
+
+  const handleToggleUserStatus = async (userId: number, currentStatus: boolean) => {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ isActive: !currentStatus }),
+      });
+
+      if (res.ok) {
+        setUsers(users.map(u => u.id === userId ? { ...u, isActive: !currentStatus } : u));
+        setSuccess(currentStatus ? "Bruker deaktivert" : "Bruker aktivert");
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError("Kunne ikke endre status");
+      }
+    } catch (err) {
+      setError("Kunne ikke endre status");
+    }
+  };
+
   const handleDeleteUser = async () => {
     if (!deleteDialog.user) return;
 
@@ -178,6 +273,57 @@ export default function Admin() {
     } finally {
       setDeleteDialog({ open: false, user: null });
     }
+  };
+
+  const handleSendEmail = async () => {
+    if (!emailDialog.subject || !emailDialog.body || emailDialog.users.length === 0) return;
+
+    try {
+      const res = await fetch("/api/admin/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          userIds: emailDialog.users.map(u => u.id),
+          subject: emailDialog.subject,
+          body: emailDialog.body,
+        }),
+      });
+
+      if (res.ok) {
+        setSuccess(`E-post sendt til ${emailDialog.users.length} bruker(e)`);
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError("Kunne ikke sende e-post");
+      }
+    } catch (err) {
+      setError("Kunne ikke sende e-post");
+    } finally {
+      setEmailDialog({ open: false, users: [], subject: "", body: "" });
+      setSelectedUsers([]);
+    }
+  };
+
+  const handleExportUsers = () => {
+    const csvContent = [
+      ["ID", "Navn", "E-post", "Plan", "Rolle", "Status", "Opprettet", "Siste innlogging"].join(","),
+      ...filteredUsers.map(u => [
+        u.id,
+        u.name || "",
+        u.email || "",
+        u.subscriptionPlan || "free",
+        u.role,
+        u.isActive !== false ? "Aktiv" : "Deaktivert",
+        new Date(u.createdAt).toLocaleDateString("nb-NO"),
+        u.lastSignedIn ? new Date(u.lastSignedIn).toLocaleDateString("nb-NO") : "-"
+      ].join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `brukere_${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
   };
 
   const handleImportCompanies = async () => {
@@ -203,15 +349,43 @@ export default function Admin() {
     }
   };
 
-  const filteredUsers = users.filter(u => 
-    u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    u.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const toggleUserSelection = (userId: number) => {
+    setSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const selectAllUsers = () => {
+    if (selectedUsers.length === filteredUsers.length) {
+      setSelectedUsers([]);
+    } else {
+      setSelectedUsers(filteredUsers.map(u => u.id));
+    }
+  };
+
+  // Filter users
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = 
+      u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesPlan = filterPlan === "all" || 
+      (filterPlan === "free" && (!u.subscriptionPlan || u.subscriptionPlan === "free")) ||
+      u.subscriptionPlan === filterPlan;
+    
+    const matchesRole = filterRole === "all" || u.role === filterRole;
+    
+    return matchesSearch && matchesPlan && matchesRole;
+  });
 
   // Calculate subscription breakdown
   const freeUsers = users.filter(u => !u.subscriptionPlan || u.subscriptionPlan === 'free').length;
   const basicUsers = users.filter(u => u.subscriptionPlan === 'basic').length;
   const proUsers = users.filter(u => u.subscriptionPlan === 'pro').length;
+  const activeUsers = users.filter(u => u.isActive !== false).length;
+  const inactiveUsers = users.filter(u => u.isActive === false).length;
 
   if (authLoading || loading) {
     return (
@@ -239,10 +413,12 @@ export default function Admin() {
             </h1>
             <p className="text-gray-600">Oversikt og administrasjon av systemet</p>
           </div>
-          <Button onClick={fetchData} variant="outline" className="gap-2">
-            <RefreshCw className="h-4 w-4" />
-            Oppdater
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button onClick={fetchData} variant="outline" className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Oppdater
+            </Button>
+          </div>
         </div>
 
         {/* Alerts */}
@@ -267,7 +443,8 @@ export default function Admin() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-blue-100 text-sm">Totale brukere</p>
-                  <p className="text-3xl font-bold">{stats?.totalUsers || 0}</p>
+                  <p className="text-3xl font-bold">{stats?.totalUsers || users.length}</p>
+                  <p className="text-blue-200 text-xs mt-1">{activeUsers} aktive</p>
                 </div>
                 <Users className="h-10 w-10 text-blue-200" />
               </div>
@@ -280,6 +457,7 @@ export default function Admin() {
                 <div>
                   <p className="text-green-100 text-sm">Månedlig inntekt</p>
                   <p className="text-3xl font-bold">{(stats?.revenue || 0).toLocaleString()} kr</p>
+                  <p className="text-green-200 text-xs mt-1">{basicUsers + proUsers} betalende</p>
                 </div>
                 <DollarSign className="h-10 w-10 text-green-200" />
               </div>
@@ -291,7 +469,8 @@ export default function Admin() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-purple-100 text-sm">Aktive abonnementer</p>
-                  <p className="text-3xl font-bold">{stats?.activeSubscriptions || 0}</p>
+                  <p className="text-3xl font-bold">{stats?.activeSubscriptions || basicUsers + proUsers}</p>
+                  <p className="text-purple-200 text-xs mt-1">{freeUsers} gratis</p>
                 </div>
                 <CreditCard className="h-10 w-10 text-purple-200" />
               </div>
@@ -304,6 +483,7 @@ export default function Admin() {
                 <div>
                   <p className="text-orange-100 text-sm">E-poster sendt</p>
                   <p className="text-3xl font-bold">{(stats?.totalEmailsSent || 0).toLocaleString()}</p>
+                  <p className="text-orange-200 text-xs mt-1">{stats?.totalCampaigns || 0} kampanjer</p>
                 </div>
                 <Mail className="h-10 w-10 text-orange-200" />
               </div>
@@ -312,7 +492,7 @@ export default function Admin() {
         </div>
 
         {/* Secondary Stats */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -320,7 +500,7 @@ export default function Admin() {
                   <Zap className="h-5 w-5 text-gray-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Gratis brukere</p>
+                  <p className="text-sm text-gray-500">Gratis</p>
                   <p className="text-xl font-bold text-gray-900">{freeUsers}</p>
                 </div>
               </div>
@@ -334,7 +514,7 @@ export default function Admin() {
                   <Crown className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Basic abonnenter</p>
+                  <p className="text-sm text-gray-500">Basic</p>
                   <p className="text-xl font-bold text-gray-900">{basicUsers}</p>
                 </div>
               </div>
@@ -348,8 +528,22 @@ export default function Admin() {
                   <Crown className="h-5 w-5 text-purple-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Pro abonnenter</p>
+                  <p className="text-sm text-gray-500">Pro</p>
                   <p className="text-xl font-bold text-gray-900">{proUsers}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Ban className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-gray-500">Deaktivert</p>
+                  <p className="text-xl font-bold text-gray-900">{inactiveUsers}</p>
                 </div>
               </div>
             </CardContent>
@@ -383,12 +577,37 @@ export default function Admin() {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Brukere</CardTitle>
+                    <CardTitle>Brukeradministrasjon</CardTitle>
                     <CardDescription>
-                      Administrer brukerkontoer og tilganger
+                      Administrer brukerkontoer, tilganger og abonnementer
                     </CardDescription>
                   </div>
-                  <div className="relative w-64">
+                  <div className="flex items-center gap-2">
+                    {selectedUsers.length > 0 && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setEmailDialog({ 
+                          open: true, 
+                          users: users.filter(u => selectedUsers.includes(u.id)),
+                          subject: "",
+                          body: ""
+                        })}
+                      >
+                        <Send className="h-4 w-4 mr-2" />
+                        Send e-post ({selectedUsers.length})
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={handleExportUsers}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Eksporter
+                    </Button>
+                  </div>
+                </div>
+                
+                {/* Filters */}
+                <div className="flex items-center gap-4 mt-4">
+                  <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                     <Input
                       placeholder="Søk brukere..."
@@ -397,25 +616,71 @@ export default function Admin() {
                       className="pl-10"
                     />
                   </div>
+                  <Select value={filterPlan} onValueChange={setFilterPlan}>
+                    <SelectTrigger className="w-36">
+                      <SelectValue placeholder="Plan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Alle planer</SelectItem>
+                      <SelectItem value="free">Gratis</SelectItem>
+                      <SelectItem value="basic">Basic</SelectItem>
+                      <SelectItem value="pro">Pro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={filterRole} onValueChange={setFilterRole}>
+                    <SelectTrigger className="w-36">
+                      <SelectValue placeholder="Rolle" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Alle roller</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="user">User</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Navn</TableHead>
-                      <TableHead>E-post</TableHead>
+                      <TableHead className="w-10">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedUsers.length === filteredUsers.length && filteredUsers.length > 0}
+                          onChange={selectAllUsers}
+                          className="rounded border-gray-300"
+                        />
+                      </TableHead>
+                      <TableHead>Bruker</TableHead>
                       <TableHead>Plan</TableHead>
                       <TableHead>Rolle</TableHead>
-                      <TableHead>Opprettet</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Siste innlogging</TableHead>
                       <TableHead className="text-right">Handlinger</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredUsers.map((u) => (
-                      <TableRow key={u.id}>
-                        <TableCell className="font-medium">{u.name || "-"}</TableCell>
-                        <TableCell className="text-gray-500">{u.email || "-"}</TableCell>
+                      <TableRow key={u.id} className={u.isActive === false ? "opacity-50" : ""}>
+                        <TableCell>
+                          <input 
+                            type="checkbox" 
+                            checked={selectedUsers.includes(u.id)}
+                            onChange={() => toggleUserSelection(u.id)}
+                            className="rounded border-gray-300"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                              {(u.name || u.email || "?")[0].toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-medium">{u.name || "-"}</p>
+                              <p className="text-sm text-gray-500">{u.email || "-"}</p>
+                            </div>
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <Badge variant={
                             u.subscriptionPlan === 'pro' ? 'default' :
@@ -429,39 +694,106 @@ export default function Admin() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Select
-                            value={u.role}
-                            onValueChange={(value) => handleRoleChange(u.id, value)}
-                            disabled={u.id === user?.id}
-                          >
-                            <SelectTrigger className="w-28 h-8">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="admin">Admin</SelectItem>
-                              <SelectItem value="manager">Manager</SelectItem>
-                              <SelectItem value="viewer">Viewer</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <Badge variant={u.role === 'admin' ? 'default' : 'outline'} className={
+                            u.role === 'admin' ? 'bg-red-100 text-red-700' : ''
+                          }>
+                            {u.role === 'admin' ? 'Admin' : 'User'}
+                          </Badge>
                         </TableCell>
-                        <TableCell className="text-gray-500">
-                          {new Date(u.createdAt).toLocaleDateString("nb-NO")}
+                        <TableCell>
+                          {u.isActive !== false ? (
+                            <span className="flex items-center gap-1 text-green-600 text-sm">
+                              <CheckCircle2 className="h-4 w-4" />
+                              Aktiv
+                            </span>
+                          ) : (
+                            <span className="flex items-center gap-1 text-red-600 text-sm">
+                              <XCircle className="h-4 w-4" />
+                              Deaktivert
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-gray-500 text-sm">
+                          {u.lastSignedIn ? (
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {new Date(u.lastSignedIn).toLocaleDateString("nb-NO")}
+                            </span>
+                          ) : "-"}
                         </TableCell>
                         <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                            onClick={() => setDeleteDialog({ open: true, user: u })}
-                            disabled={u.id === user?.id}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                              <DropdownMenuLabel>Handlinger</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => setUserDetailDialog({ open: true, user: u })}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                Se detaljer
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setChangePlanDialog({ open: true, user: u, newPlan: u.subscriptionPlan || "free" })}>
+                                <CreditCard className="h-4 w-4 mr-2" />
+                                Endre plan
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setEmailDialog({ open: true, users: [u], subject: "", body: "" })}>
+                                <Send className="h-4 w-4 mr-2" />
+                                Send e-post
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {u.role !== 'admin' && (
+                                <DropdownMenuItem onClick={() => handleRoleChange(u.id, 'admin')}>
+                                  <Shield className="h-4 w-4 mr-2" />
+                                  Gjør til admin
+                                </DropdownMenuItem>
+                              )}
+                              {u.role === 'admin' && u.id !== user?.id && (
+                                <DropdownMenuItem onClick={() => handleRoleChange(u.id, 'user')}>
+                                  <UserMinus className="h-4 w-4 mr-2" />
+                                  Fjern admin
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem 
+                                onClick={() => handleToggleUserStatus(u.id, u.isActive !== false)}
+                                disabled={u.id === user?.id}
+                              >
+                                {u.isActive !== false ? (
+                                  <>
+                                    <Ban className="h-4 w-4 mr-2" />
+                                    Deaktiver
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Aktiver
+                                  </>
+                                )}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="text-red-600"
+                                onClick={() => setDeleteDialog({ open: true, user: u })}
+                                disabled={u.id === user?.id}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Slett bruker
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                
+                {filteredUsers.length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    Ingen brukere funnet
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -753,6 +1085,151 @@ export default function Admin() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* User Detail Dialog */}
+        <Dialog open={userDetailDialog.open} onOpenChange={(open) => setUserDetailDialog({ open, user: null })}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Brukerdetaljer</DialogTitle>
+            </DialogHeader>
+            {userDetailDialog.user && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-2xl font-bold">
+                    {(userDetailDialog.user.name || userDetailDialog.user.email || "?")[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold">{userDetailDialog.user.name || "Ingen navn"}</h3>
+                    <p className="text-gray-500">{userDetailDialog.user.email}</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-sm text-gray-500">Plan</p>
+                    <p className="font-medium">{userDetailDialog.user.subscriptionPlan || "Gratis"}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-sm text-gray-500">Rolle</p>
+                    <p className="font-medium">{userDetailDialog.user.role}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-sm text-gray-500">Opprettet</p>
+                    <p className="font-medium">{new Date(userDetailDialog.user.createdAt).toLocaleDateString("nb-NO")}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-sm text-gray-500">Siste innlogging</p>
+                    <p className="font-medium">
+                      {userDetailDialog.user.lastSignedIn 
+                        ? new Date(userDetailDialog.user.lastSignedIn).toLocaleDateString("nb-NO")
+                        : "-"}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-sm text-gray-500">Bedrifter brukt</p>
+                    <p className="font-medium">
+                      {userDetailDialog.user.usedLeadsThisMonth || 0} / {userDetailDialog.user.monthlyLeadsQuota || 50}
+                    </p>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg p-3">
+                    <p className="text-sm text-gray-500">Status</p>
+                    <p className="font-medium">
+                      {userDetailDialog.user.isActive !== false ? "Aktiv" : "Deaktivert"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Change Plan Dialog */}
+        <Dialog open={changePlanDialog.open} onOpenChange={(open) => setChangePlanDialog({ open, user: null, newPlan: "" })}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Endre abonnementsplan</DialogTitle>
+              <DialogDescription>
+                Endre plan for {changePlanDialog.user?.name || changePlanDialog.user?.email}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Ny plan</Label>
+                <Select 
+                  value={changePlanDialog.newPlan} 
+                  onValueChange={(value) => setChangePlanDialog({ ...changePlanDialog, newPlan: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Velg plan" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="free">Gratis (0 NOK/mnd)</SelectItem>
+                    <SelectItem value="basic">Basic (499 NOK/mnd)</SelectItem>
+                    <SelectItem value="pro">Pro (1,299 NOK/mnd)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setChangePlanDialog({ open: false, user: null, newPlan: "" })}>
+                Avbryt
+              </Button>
+              <Button onClick={handlePlanChange}>
+                Lagre endring
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Email Dialog */}
+        <Dialog open={emailDialog.open} onOpenChange={(open) => setEmailDialog({ open, users: [], subject: "", body: "" })}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Send e-post</DialogTitle>
+              <DialogDescription>
+                Send e-post til {emailDialog.users.length} bruker(e)
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label>Mottakere</Label>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {emailDialog.users.map(u => (
+                    <Badge key={u.id} variant="secondary">
+                      {u.email}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <Label>Emne</Label>
+                <Input 
+                  value={emailDialog.subject}
+                  onChange={(e) => setEmailDialog({ ...emailDialog, subject: e.target.value })}
+                  placeholder="E-post emne..."
+                />
+              </div>
+              <div>
+                <Label>Melding</Label>
+                <Textarea 
+                  value={emailDialog.body}
+                  onChange={(e) => setEmailDialog({ ...emailDialog, body: e.target.value })}
+                  placeholder="Skriv din melding her..."
+                  rows={6}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setEmailDialog({ open: false, users: [], subject: "", body: "" })}>
+                Avbryt
+              </Button>
+              <Button onClick={handleSendEmail} disabled={!emailDialog.subject || !emailDialog.body}>
+                <Send className="h-4 w-4 mr-2" />
+                Send e-post
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, user: null })}>

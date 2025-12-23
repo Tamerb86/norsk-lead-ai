@@ -36,6 +36,7 @@ export const users = pgTable("users", {
   stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
   subscriptionStatus: varchar("subscription_status", { length: 50 }),
   subscriptionPeriodEnd: timestamp("subscription_period_end"),
+  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

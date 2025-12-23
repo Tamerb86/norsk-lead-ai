@@ -1204,6 +1204,124 @@ export const appRouter = router({
   }),
 
   // ============================================
+  // ADMIN ROUTER
+  // ============================================
+  admin: router({
+    // Get admin stats
+    getStats: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new Error("Unauthorized: Admin access required");
+      }
+      return await db.getAdminStats();
+    }),
+
+    // Get all users
+    getUsers: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new Error("Unauthorized: Admin access required");
+      }
+      return await db.getAllUsers();
+    }),
+
+    // Update user role
+    updateUserRole: protectedProcedure
+      .input(z.object({
+        userId: z.number(),
+        role: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        return await db.updateUserRole(input.userId, input.role);
+      }),
+
+    // Update user plan
+    updateUserPlan: protectedProcedure
+      .input(z.object({
+        userId: z.number(),
+        plan: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        return await db.updateUserPlan(input.userId, input.plan);
+      }),
+
+    // Update user status (activate/deactivate)
+    updateUserStatus: protectedProcedure
+      .input(z.object({
+        userId: z.number(),
+        isActive: z.boolean(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        return await db.updateUserStatus(input.userId, input.isActive);
+      }),
+
+    // Delete user
+    deleteUser: protectedProcedure
+      .input(z.object({ userId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        if (input.userId === ctx.user.id) {
+          throw new Error("Cannot delete your own account");
+        }
+        return await db.deleteUser(input.userId);
+      }),
+
+    // Send email to users
+    sendEmail: protectedProcedure
+      .input(z.object({
+        userIds: z.array(z.number()),
+        subject: z.string(),
+        body: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        
+        // Get users emails
+        const users = await db.getAllUsers();
+        const targetUsers = users.users.filter(u => input.userIds.includes(u.id));
+        
+        // Send emails using Resend
+        const { Resend } = await import("resend");
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        
+        let sent = 0;
+        for (const user of targetUsers) {
+          if (user.email) {
+            try {
+              await resend.emails.send({
+                from: "NorskLeads <noreply@nexifyhub.no>",
+                to: user.email,
+                subject: input.subject,
+                html: `<div style="font-family: sans-serif;">
+                  <p>Hei ${user.name || ""},</p>
+                  <div>${input.body.replace(/\n/g, "<br>")}</div>
+                  <br>
+                  <p>Med vennlig hilsen,<br>NorskLeads Team</p>
+                </div>`,
+              });
+              sent++;
+            } catch (e) {
+              console.error(`Failed to send email to ${user.email}:`, e);
+            }
+          }
+        }
+        
+        return { success: true, sent };
+      }),
+  }),
+
+  // ============================================
   queue: router({
     // Get queue stats
     getStats: protectedProcedure.query(async ({ ctx }) => {
