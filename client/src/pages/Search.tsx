@@ -141,9 +141,12 @@ export default function Search() {
 
   const exportCompaniesToCSV = (companies: any[]) => {
 
-    const headers = [
+const headers = [
       "Bedriftsnavn",
-      "Organisasjonsnummer",
+      "Org.nr",
+      "Adresse",
+      "Postnummer",
+      "Poststed",
       "E-post",
       "Telefon",
       "Nettside",
@@ -156,6 +159,9 @@ export default function Search() {
     const rows = companies.map(company => [
       company.navn || "",
       company.organisasjonsnummer || "",
+      company.forretningsadresse || "",
+      company.postnummer || "",
+      company.poststed || "",
       company.epostadresse || "",
       company.telefon || "",
       company.hjemmeside || "",
@@ -798,6 +804,11 @@ export default function Search() {
                               <div className="flex-1">
                                 <h3 className="font-semibold text-lg text-gray-900">{company.navn}</h3>
                                 <p className="text-sm text-gray-600 mt-1">Org.nr: {company.organisasjonsnummer}</p>
+                                {(company.forretningsadresse || company.poststed) && (
+                                  <p className="text-sm text-gray-500 mt-1">
+                                    📍 {[company.forretningsadresse, company.postnummer, company.poststed].filter(Boolean).join(', ')}
+                                  </p>
+                                )}
                                 
                                 <div className="flex flex-wrap gap-4 mt-3">
                                   {company.epostadresse && (
