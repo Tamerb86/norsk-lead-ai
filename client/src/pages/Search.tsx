@@ -837,13 +837,29 @@ const headers = [
                                   )}
                                 </div>
 
-                                {company.naeringskode1 && (
-                                  <div className="mt-3 inline-block">
+                                {/* Company details badges */}
+                                <div className="flex flex-wrap gap-2 mt-3">
+                                  {company.naeringskode1 && (
                                     <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                                       {company.naeringskode1}
                                     </span>
-                                  </div>
-                                )}
+                                  )}
+                                  {company.antallAnsatte !== null && company.antallAnsatte !== undefined && (
+                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                                      👥 {company.antallAnsatte} ansatte
+                                    </span>
+                                  )}
+                                  {company.stiftelsesdato && (
+                                    <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                                      📅 Stiftet: {typeof company.stiftelsesdato === 'string' ? company.stiftelsesdato : new Date(company.stiftelsesdato).toLocaleDateString('nb-NO')}
+                                    </span>
+                                  )}
+                                  {company.organisasjonsform && (
+                                    <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
+                                      {company.organisasjonsform}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                             <div className="flex flex-col gap-2 ml-4">
