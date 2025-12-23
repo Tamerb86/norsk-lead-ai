@@ -31,6 +31,11 @@ export const users = pgTable("users", {
   monthlyLeadsQuota: integer("monthlyLeadsQuota"),
   usedLeadsThisMonth: integer("usedLeadsThisMonth"),
   passwordHash: varchar("password_hash", { length: 255 }),
+  // Stripe subscription fields
+  stripeCustomerId: varchar("stripe_customer_id", { length: 255 }),
+  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 255 }),
+  subscriptionStatus: varchar("subscription_status", { length: 50 }),
+  subscriptionPeriodEnd: timestamp("subscription_period_end"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

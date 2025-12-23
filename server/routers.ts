@@ -903,12 +903,78 @@ export const appRouter = router({
 
     // Get subscription status
     getSubscription: protectedProcedure.query(async ({ ctx }) => {
-      // TODO: Implement subscription status retrieval from database
+      const subscription = await db.getUserSubscription(ctx.user.id);
+      
+      if (!subscription || !subscription.subscriptionPlan) {
+        return {
+          status: "none" as const,
+          planId: null,
+          currentPeriodEnd: null,
+          monthlyLeadsQuota: 0,
+          usedLeadsThisMonth: 0,
+        };
+      }
+
       return {
-        status: "none" as const,
-        planId: null,
-        currentPeriodEnd: null,
+        status: subscription.subscriptionStatus || "active",
+        planId: subscription.subscriptionPlan,
+        currentPeriodEnd: subscription.subscriptionPeriodEnd,
+        monthlyLeadsQuota: subscription.monthlyLeadsQuota || 0,
+        usedLeadsThisMonth: subscription.usedLeadsThisMonth || 0,
       };
+    }),
+
+    // Cancel subscription
+    cancelSubscription: protectedProcedure.mutation(async ({ ctx }) => {
+      const subscription = await db.getUserSubscription(ctx.user.id);
+      
+      if (!subscription?.stripeSubscriptionId) {
+        throw new Error("No active subscription found");
+      }
+
+      const Stripe = (await import("stripe")).default;
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+        apiVersion: "2025-12-15.clover",
+      });
+
+      // Cancel at period end (user keeps access until end of billing period)
+      await stripe.subscriptions.update(subscription.stripeSubscriptionId, {
+        cancel_at_period_end: true,
+      });
+
+      return { success: true, message: "Subscription will be cancelled at end of billing period" };
+    }),
+
+    // Create customer portal session (for managing billing)
+    createPortalSession: protectedProcedure.mutation(async ({ ctx }) => {
+      const subscription = await db.getUserSubscription(ctx.user.id);
+      
+      if (!subscription?.stripeCustomerId) {
+        throw new Error("No Stripe customer found");
+      }
+
+      const Stripe = (await import("stripe")).default;
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+        apiVersion: "2025-12-15.clover",
+      });
+
+      const origin = ctx.req.headers.origin || "http://localhost:3000";
+
+      const session = await stripe.billingPortal.sessions.create({
+        customer: subscription.stripeCustomerId,
+        return_url: `${origin}/dashboard`,
+      });
+
+      return { url: session.url };
+    }),
+
+    // Get all subscriptions (admin only)
+    getAllSubscriptions: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "admin") {
+        throw new Error("Unauthorized: Admin access required");
+      }
+
+      return await db.getAllSubscriptions();
     }),
   }),
 

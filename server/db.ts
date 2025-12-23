@@ -715,6 +715,17 @@ export async function deleteUser(userId: number) {
   await db.delete(users).where(eq(users.id, userId));
 }
 
+/**
+ * Calculate estimated monthly revenue based on active subscriptions
+ * Basic plan: 499 NOK, Pro plan: 1299 NOK
+ */
+function calculateMonthlyRevenue(activeSubscriptions: number): number {
+  // For now, estimate average revenue per subscription
+  // TODO: Calculate actual revenue from Stripe when integrated
+  const averageRevenuePerSubscription = 899; // Average of Basic (499) and Pro (1299)
+  return activeSubscriptions * averageRevenuePerSubscription;
+}
+
 export async function getAdminStats() {
   const db = await getDb();
   
@@ -749,7 +760,7 @@ export async function getAdminStats() {
     totalCampaigns: Number(campaignStats?.totalCampaigns) || 0,
     totalEmailsSent: Number(emailStats?.totalEmailsSent) || 0,
     activeSubscriptions: Number(userStats?.activeSubscriptions) || 0,
-    revenue: 0, // TODO: Implement revenue tracking with Stripe
+    revenue: calculateMonthlyRevenue(Number(userStats?.activeSubscriptions) || 0),
   };
 }
 
@@ -920,6 +931,168 @@ export async function createNotification(data: {
     sql`INSERT INTO notifications (user_id, type, title, message, related_id, related_type, is_read, created_at)
         VALUES (${data.userId}, ${data.type}, ${data.title}, ${data.message || null}, 
                 ${data.relatedId || null}, ${data.relatedType || null}, false, NOW())`
+  );
+
+  return { success: true };
+}
+
+
+// ============================================
+// SUBSCRIPTION FUNCTIONS
+// ============================================
+
+/**
+ * Update user subscription after successful checkout
+ */
+export async function updateUserSubscription(data: {
+  userId: number;
+  planId: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  status: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Get plan limits
+  const planLimits: Record<string, { leads: number }> = {
+    basic: { leads: 1000 },
+    pro: { leads: -1 }, // -1 = unlimited
+  };
+
+  const limits = planLimits[data.planId] || planLimits.basic;
+
+  await db.execute(
+    sql`UPDATE users 
+        SET "subscriptionPlan" = ${data.planId},
+            stripe_customer_id = ${data.stripeCustomerId},
+            stripe_subscription_id = ${data.stripeSubscriptionId},
+            subscription_status = ${data.status},
+            "monthlyLeadsQuota" = ${limits.leads},
+            "updatedAt" = NOW()
+        WHERE id = ${data.userId}`
+  );
+
+  return { success: true };
+}
+
+/**
+ * Update subscription status by Stripe customer ID
+ */
+export async function updateSubscriptionByStripeCustomerId(data: {
+  stripeCustomerId: string;
+  status: string;
+  periodEnd?: Date;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  if (data.periodEnd) {
+    await db.execute(
+      sql`UPDATE users 
+          SET subscription_status = ${data.status},
+              subscription_period_end = ${data.periodEnd},
+              "updatedAt" = NOW()
+          WHERE stripe_customer_id = ${data.stripeCustomerId}`
+    );
+  } else {
+    await db.execute(
+      sql`UPDATE users 
+          SET subscription_status = ${data.status},
+              "updatedAt" = NOW()
+          WHERE stripe_customer_id = ${data.stripeCustomerId}`
+    );
+  }
+
+  return { success: true };
+}
+
+/**
+ * Cancel subscription by Stripe customer ID
+ */
+export async function cancelSubscriptionByStripeCustomerId(stripeCustomerId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.execute(
+    sql`UPDATE users 
+        SET subscription_status = 'cancelled',
+            "subscriptionPlan" = NULL,
+            stripe_subscription_id = NULL,
+            "updatedAt" = NOW()
+        WHERE stripe_customer_id = ${stripeCustomerId}`
+  );
+
+  return { success: true };
+}
+
+/**
+ * Get user subscription details
+ */
+export async function getUserSubscription(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.execute(
+    sql`SELECT "subscriptionPlan", subscription_status as "subscriptionStatus", 
+               subscription_period_end as "subscriptionPeriodEnd",
+               stripe_customer_id as "stripeCustomerId",
+               stripe_subscription_id as "stripeSubscriptionId",
+               "monthlyLeadsQuota", "usedLeadsThisMonth"
+        FROM users WHERE id = ${userId}`
+  );
+
+  if (!result.rows || result.rows.length === 0) {
+    return null;
+  }
+
+  return result.rows[0];
+}
+
+/**
+ * Get all subscriptions for admin panel
+ */
+export async function getAllSubscriptions() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.execute(
+    sql`SELECT id, name, email, "subscriptionPlan", subscription_status as "subscriptionStatus",
+               subscription_period_end as "subscriptionPeriodEnd",
+               "monthlyLeadsQuota", "usedLeadsThisMonth", "createdAt"
+        FROM users 
+        WHERE "subscriptionPlan" IS NOT NULL
+        ORDER BY "createdAt" DESC`
+  );
+
+  return result.rows || [];
+}
+
+/**
+ * Reset monthly leads usage (should be called monthly via cron)
+ */
+export async function resetMonthlyLeadsUsage() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.execute(
+    sql`UPDATE users SET "usedLeadsThisMonth" = 0 WHERE "subscriptionPlan" IS NOT NULL`
+  );
+
+  return { success: true };
+}
+
+/**
+ * Increment used leads for a user
+ */
+export async function incrementUsedLeads(userId: number, count: number = 1) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.execute(
+    sql`UPDATE users 
+        SET "usedLeadsThisMonth" = COALESCE("usedLeadsThisMonth", 0) + ${count}
+        WHERE id = ${userId}`
   );
 
   return { success: true };

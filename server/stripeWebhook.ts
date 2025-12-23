@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import Stripe from "stripe";
+import * as db from "./db";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-12-15.clover",
@@ -106,16 +107,20 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
-  // TODO: Update user subscription in database
-  // await db.updateUserSubscription({
-  //   userId: parseInt(userId),
-  //   planId,
-  //   stripeCustomerId: customerId,
-  //   stripeSubscriptionId: subscriptionId,
-  //   status: 'active',
-  // });
+  try {
+    // Update user subscription in database
+    await db.updateUserSubscription({
+      userId: parseInt(userId),
+      planId,
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: subscriptionId,
+      status: 'active',
+    });
 
-  console.log(`[Stripe] User ${userId} subscribed to plan ${planId}`);
+    console.log(`[Stripe] User ${userId} subscribed to plan ${planId}`);
+  } catch (error) {
+    console.error("[Stripe] Failed to update user subscription:", error);
+  }
 }
 
 /**
@@ -126,9 +131,18 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
 
   const customerId = subscription.customer as string;
   const status = subscription.status;
+  const periodEnd = new Date(subscription.current_period_end * 1000);
 
-  // TODO: Update subscription status in database
-  console.log(`[Stripe] Customer ${customerId} subscription status: ${status}`);
+  try {
+    await db.updateSubscriptionByStripeCustomerId({
+      stripeCustomerId: customerId,
+      status,
+      periodEnd,
+    });
+    console.log(`[Stripe] Customer ${customerId} subscription status: ${status}`);
+  } catch (error) {
+    console.error("[Stripe] Failed to update subscription:", error);
+  }
 }
 
 /**
@@ -140,9 +154,18 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
   const customerId = subscription.customer as string;
   const status = subscription.status;
+  const periodEnd = new Date(subscription.current_period_end * 1000);
 
-  // TODO: Update subscription status in database
-  console.log(`[Stripe] Customer ${customerId} subscription updated to: ${status}`);
+  try {
+    await db.updateSubscriptionByStripeCustomerId({
+      stripeCustomerId: customerId,
+      status,
+      periodEnd,
+    });
+    console.log(`[Stripe] Customer ${customerId} subscription updated to: ${status}`);
+  } catch (error) {
+    console.error("[Stripe] Failed to update subscription:", error);
+  }
 }
 
 /**
@@ -153,8 +176,12 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   const customerId = subscription.customer as string;
 
-  // TODO: Update subscription status to cancelled in database
-  console.log(`[Stripe] Customer ${customerId} subscription cancelled`);
+  try {
+    await db.cancelSubscriptionByStripeCustomerId(customerId);
+    console.log(`[Stripe] Customer ${customerId} subscription cancelled`);
+  } catch (error) {
+    console.error("[Stripe] Failed to cancel subscription:", error);
+  }
 }
 
 /**
@@ -167,7 +194,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string;
   const subscriptionId = (invoice as any).subscription as string;
 
-  // TODO: Log payment in database
+  // Log payment
   console.log(`[Stripe] Customer ${customerId} paid invoice for subscription ${subscriptionId}`);
 }
 
@@ -181,7 +208,14 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const customerId = invoice.customer as string;
   const subscriptionId = (invoice as any).subscription as string;
 
-  // TODO: Notify user about failed payment
-  // TODO: Update subscription status if needed
-  console.log(`[Stripe] Customer ${customerId} payment failed for subscription ${subscriptionId}`);
+  try {
+    // Update subscription status to past_due
+    await db.updateSubscriptionByStripeCustomerId({
+      stripeCustomerId: customerId,
+      status: 'past_due',
+    });
+    console.log(`[Stripe] Customer ${customerId} payment failed for subscription ${subscriptionId}`);
+  } catch (error) {
+    console.error("[Stripe] Failed to update subscription status:", error);
+  }
 }
