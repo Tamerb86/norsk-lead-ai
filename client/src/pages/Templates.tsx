@@ -6,32 +6,34 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Building2, FileText, Plus, Edit, Trash2, Mail, Sparkles, Eye, Copy } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Building2, FileText, Plus, Edit, Trash2, Mail, Sparkles, Eye, Copy, Download, Search, Filter, BookTemplate, CheckCircle } from "lucide-react";
 import { TemplatesListSkeleton } from "@/components/SkeletonLoaders";
 import { Link } from "wouter";
 import { toast } from "sonner";
-import { toastSuccess, toastError, toastDeleteWithUndo } from "@/lib/toast-utils";
+import { toastSuccess, toastError } from "@/lib/toast-utils";
 import { VariableInserter } from "@/components/VariableInserter";
 import { replaceVariables } from "@/lib/template-variables";
+import { prebuiltTemplates, templateCategories, EmailTemplate } from "@/data/emailTemplates";
 
 export default function Templates() {
   const { user } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<any>(null);
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeTab, setActiveTab] = useState("my-templates");
   const [formData, setFormData] = useState({
     name: "",
     subject: "",
     body: "",
   });
-  const [subjectCursorPos, setSubjectCursorPos] = useState(0);
-  const [bodyCursorPos, setBodyCursorPos] = useState(0);
-  const subjectInputRef = useState<HTMLInputElement | null>(null)[0];
-  const bodyTextareaRef = useState<HTMLTextAreaElement | null>(null)[0];
 
   const { data: templates, isLoading, refetch } = trpc.templates.list.useQuery();
   const createMutation = trpc.templates.create.useMutation({
     onSuccess: () => {
-      toastSuccess("Template opprettet!", {
+      toastSuccess("Mal opprettet!", {
         description: "Malen er klar til bruk i kampanjer"
       });
       setShowCreateForm(false);
@@ -39,7 +41,7 @@ export default function Templates() {
       refetch();
     },
     onError: (error) => {
-      toastError("Kunne ikke opprette template", {
+      toastError("Kunne ikke opprette mal", {
         description: error.message
       });
     },
@@ -47,13 +49,13 @@ export default function Templates() {
 
   const deleteMutation = trpc.templates.delete.useMutation({
     onSuccess: () => {
-      toastSuccess("Template slettet", {
+      toastSuccess("Mal slettet", {
         description: "Malen er fjernet fra listen"
       });
       refetch();
     },
     onError: (error) => {
-      toastError("Kunne ikke slette template", {
+      toastError("Kunne ikke slette mal", {
         description: error.message
       });
     },
@@ -73,6 +75,19 @@ export default function Templates() {
     navigator.clipboard.writeText(text);
     toastSuccess("Kopiert!", {
       description: "Teksten er kopiert til utklippstavlen"
+    });
+  };
+
+  const usePrebuiltTemplate = (template: EmailTemplate) => {
+    setFormData({
+      name: template.nameNo,
+      subject: template.subject,
+      body: template.body,
+    });
+    setShowCreateForm(true);
+    setActiveTab("my-templates");
+    toastSuccess("Mal lastet!", {
+      description: "Rediger malen og lagre den som din egen"
     });
   };
 
@@ -102,6 +117,16 @@ export default function Templates() {
     }
   };
 
+  // Filter prebuilt templates
+  const filteredPrebuiltTemplates = prebuiltTemplates.filter(template => {
+    const matchesCategory = selectedCategory === "all" || template.category === selectedCategory;
+    const matchesSearch = searchQuery === "" || 
+      template.nameNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      template.descriptionNo.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
+
   if (!user) return null;
 
   return (
@@ -110,7 +135,7 @@ export default function Templates() {
       <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Link href="/">
+            <Link href="/dashboard">
               <div className="flex items-center gap-3 cursor-pointer">
                 <div className="w-12 h-12 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
                   <Building2 className="w-7 h-7 text-white" />
@@ -119,266 +144,429 @@ export default function Templates() {
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                     NorskLeads
                   </h1>
-                  <p className="text-sm text-gray-600">Email Templates</p>
+                  <p className="text-sm text-gray-600">E-postmaler</p>
                 </div>
               </div>
             </Link>
             <Button 
-              onClick={() => setShowCreateForm(!showCreateForm)}
+              onClick={() => {
+                setShowCreateForm(!showCreateForm);
+                setActiveTab("my-templates");
+              }}
               className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30"
             >
               <Plus className="w-4 h-4 mr-2" />
-              New Template
+              Ny mal
             </Button>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {/* Create Form */}
-        {showCreateForm && (
-          <Card className="mb-6 border-0 shadow-xl bg-white/90 backdrop-blur-sm">
-            <CardHeader className="border-b border-gray-100">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-blue-600" />
-                <CardTitle className="text-xl">Create New Template</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-5">
-                <div>
-                  <Label htmlFor="name" className="text-sm font-semibold text-gray-700">
-                    Template Name *
-                  </Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Cold Outreach Template"
-                    className="mt-1.5 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
+            <TabsTrigger value="my-templates" className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Mine maler
+            </TabsTrigger>
+            <TabsTrigger value="prebuilt" className="flex items-center gap-2">
+              <BookTemplate className="w-4 h-4" />
+              Ferdiglagde maler
+            </TabsTrigger>
+          </TabsList>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <Label htmlFor="subject" className="text-sm font-semibold text-gray-700">
-                      Email Subject *
-                    </Label>
-                    <VariableInserter onInsert={insertVariableInSubject} />
+          {/* My Templates Tab */}
+          <TabsContent value="my-templates">
+            {/* Create Form */}
+            {showCreateForm && (
+              <Card className="mb-6 border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+                <CardHeader className="border-b border-gray-100">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-blue-600" />
+                    <CardTitle className="text-xl">Opprett ny mal</CardTitle>
                   </div>
-                  <Input
-                    id="subject"
-                    value={formData.subject}
-                    onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                    placeholder="Partnership Opportunity with {{company_name}}"
-                    className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-                  />
-                  {formData.subject && (
-                    <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
-                      <p className="text-xs text-green-700 font-medium mb-1">Forhåndsvisning:</p>
-                      <p className="text-sm text-gray-800">{replaceVariables(formData.subject)}</p>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="space-y-5">
+                    <div>
+                      <Label htmlFor="name" className="text-sm font-semibold text-gray-700">
+                        Malnavn *
+                      </Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="F.eks. Kald kontakt - Introduksjon"
+                        className="mt-1.5 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      />
                     </div>
-                  )}
-                </div>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <Label htmlFor="body" className="text-sm font-semibold text-gray-700">
-                      Email Body *
-                    </Label>
-                    <VariableInserter onInsert={insertVariableInBody} />
-                  </div>
-                  <Textarea
-                    id="body"
-                    value={formData.body}
-                    onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-                    placeholder="Hi {{contact_name}},&#10;&#10;I noticed {{company_name}} is doing great work in..."
-                    rows={12}
-                    className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
-                  />
-                  {formData.body && (
-                    <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
-                      <p className="text-xs text-green-700 font-medium mb-1">Forhåndsvisning:</p>
-                      <div className="text-sm text-gray-800 whitespace-pre-wrap">{replaceVariables(formData.body)}</div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <Button 
-                    onClick={handleCreate} 
-                    disabled={createMutation.isPending}
-                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                  >
-                    {createMutation.isPending ? "Creating..." : "Create Template"}
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowCreateForm(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Preview Modal */}
-        {previewTemplate && (
-          <Card className="mb-6 border-0 shadow-2xl bg-white">
-            <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Eye className="w-5 h-5 text-blue-600" />
-                  <CardTitle className="text-xl">Template Preview</CardTitle>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setPreviewTemplate(null)}>
-                  Close
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="space-y-4">
-                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                  <p className="text-xs text-gray-500 font-medium mb-2">SUBJECT:</p>
-                  <p className="text-base font-semibold text-gray-900">{previewTemplate.subject}</p>
-                </div>
-                <div className="p-6 bg-white rounded-lg border-2 border-gray-200 shadow-inner">
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                    {previewTemplate.body}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Templates Grid */}
-        <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
-          <CardHeader className="border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-blue-600" />
-                <CardTitle className="text-xl">Your Templates</CardTitle>
-              </div>
-              {templates && templates.length > 0 && (
-                <span className="text-sm text-gray-500">
-                  {templates.length} template{templates.length !== 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="pt-6">
-            {isLoading ? (
-              <TemplatesListSkeleton />
-            ) : templates && templates.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {templates.map((template) => (
-                  <div
-                    key={template.id}
-                    className="group p-6 rounded-xl border-2 border-gray-100 hover:border-blue-300 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-gray-50"
-                  >
-                    {/* Template Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                          <FileText className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-bold text-gray-900">{template.name}</h3>
-                          <p className="text-xs text-gray-500">Email Template</p>
-                        </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <Label htmlFor="subject" className="text-sm font-semibold text-gray-700">
+                          E-postemne *
+                        </Label>
+                        <VariableInserter onInsert={insertVariableInSubject} />
                       </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="hover:bg-red-50 hover:text-red-700"
-                        onClick={() => {
-                          if (confirm("Are you sure you want to delete this template?")) {
-                            deleteMutation.mutate({ id: template.id });
-                          }
-                        }}
+                      <Input
+                        id="subject"
+                        value={formData.subject}
+                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                        placeholder="Samarbeidsmulighet med {{company_name}}"
+                        className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                      />
+                      {formData.subject && (
+                        <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                          <p className="text-xs text-green-700 font-medium mb-1">Forhåndsvisning:</p>
+                          <p className="text-sm text-gray-800">{replaceVariables(formData.subject)}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <Label htmlFor="body" className="text-sm font-semibold text-gray-700">
+                          E-postinnhold *
+                        </Label>
+                        <VariableInserter onInsert={insertVariableInBody} />
+                      </div>
+                      <Textarea
+                        id="body"
+                        value={formData.body}
+                        onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+                        placeholder="Hei {{contact_name}},&#10;&#10;Jeg la merke til at {{company_name}} gjør flott arbeid..."
+                        rows={12}
+                        className="border-gray-200 focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
+                      />
+                      {formData.body && (
+                        <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                          <p className="text-xs text-green-700 font-medium mb-1">Forhåndsvisning:</p>
+                          <div className="text-sm text-gray-800 whitespace-pre-wrap">{replaceVariables(formData.body)}</div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3 pt-2">
+                      <Button 
+                        onClick={handleCreate} 
+                        disabled={createMutation.isPending}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        {createMutation.isPending ? "Oppretter..." : "Opprett mal"}
+                      </Button>
+                      <Button variant="outline" onClick={() => setShowCreateForm(false)}>
+                        Avbryt
                       </Button>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-                    {/* Subject Preview */}
-                    <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-xs text-blue-600 font-semibold">SUBJECT</p>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 px-2 hover:bg-blue-100"
-                          onClick={() => copyToClipboard(template.subject)}
-                        >
-                          <Copy className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      <p className="text-sm text-gray-700 font-medium">{template.subject}</p>
+            {/* Preview Modal */}
+            {previewTemplate && (
+              <Card className="mb-6 border-0 shadow-2xl bg-white">
+                <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-5 h-5 text-blue-600" />
+                      <CardTitle className="text-xl">Forhåndsvisning</CardTitle>
                     </div>
-
-                    {/* Body Preview */}
-                    <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-xs text-gray-600 font-semibold">BODY</p>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 px-2 hover:bg-gray-200"
-                          onClick={() => copyToClipboard(template.body)}
-                        >
-                          <Copy className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      <p className="text-sm text-gray-600 whitespace-pre-wrap line-clamp-3">
-                        {template.body}
+                    <Button variant="ghost" size="sm" onClick={() => setPreviewTemplate(null)}>
+                      Lukk
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <p className="text-xs text-gray-500 font-medium mb-2">EMNE:</p>
+                      <p className="text-base font-semibold text-gray-900">{previewTemplate.subject}</p>
+                    </div>
+                    <div className="p-6 bg-white rounded-lg border-2 border-gray-200 shadow-inner">
+                      <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                        {previewTemplate.body}
                       </p>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
-                        onClick={() => setPreviewTemplate(template)}
+            {/* Templates Grid */}
+            <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+              <CardHeader className="border-b border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <CardTitle className="text-xl">Mine maler</CardTitle>
+                  </div>
+                  {templates && templates.length > 0 && (
+                    <span className="text-sm text-gray-500">
+                      {templates.length} mal{templates.length !== 1 ? 'er' : ''}
+                    </span>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6">
+                {isLoading ? (
+                  <TemplatesListSkeleton />
+                ) : templates && templates.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {templates.map((template) => (
+                      <div
+                        key={template.id}
+                        className="group p-6 rounded-xl border-2 border-gray-100 hover:border-blue-300 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-gray-50"
                       >
-                        <Eye className="w-4 h-4 mr-1" />
-                        Preview
+                        {/* Template Header */}
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                              <FileText className="w-6 h-6 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="text-lg font-bold text-gray-900">{template.name}</h3>
+                              <p className="text-xs text-gray-500">E-postmal</p>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="hover:bg-red-50 hover:text-red-700"
+                            onClick={() => {
+                              if (confirm("Er du sikker på at du vil slette denne malen?")) {
+                                deleteMutation.mutate({ id: template.id });
+                              }
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        {/* Subject Preview */}
+                        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-xs text-blue-600 font-semibold">EMNE</p>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 hover:bg-blue-100"
+                              onClick={() => copyToClipboard(template.subject)}
+                            >
+                              <Copy className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          <p className="text-sm text-gray-700 font-medium">{template.subject}</p>
+                        </div>
+
+                        {/* Body Preview */}
+                        <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-xs text-gray-600 font-semibold">INNHOLD</p>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 hover:bg-gray-200"
+                              onClick={() => copyToClipboard(template.body)}
+                            >
+                              <Copy className="w-3 h-3" />
+                            </Button>
+                          </div>
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap line-clamp-3">
+                            {template.body}
+                          </p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
+                            onClick={() => setPreviewTemplate(template)}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Forhåndsvis
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
+                            onClick={() => {
+                              setFormData({
+                                name: template.name,
+                                subject: template.subject,
+                                body: template.body,
+                              });
+                              setShowCreateForm(true);
+                            }}
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Rediger
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-16">
+                    <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                      <FileText className="w-10 h-10 text-blue-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Ingen maler ennå</h3>
+                    <p className="text-sm text-gray-500 mb-6">Opprett din første e-postmal eller bruk en ferdiglagd mal</p>
+                    <div className="flex gap-3 justify-center">
+                      <Button 
+                        onClick={() => setShowCreateForm(true)}
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Opprett ny mal
                       </Button>
-                      <Button
-                        size="sm"
+                      <Button 
                         variant="outline"
-                        className="flex-1 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
-                        onClick={() => {
-                          toast.info("Edit feature coming soon!");
-                        }}
+                        onClick={() => setActiveTab("prebuilt")}
                       >
-                        <Edit className="w-4 h-4 mr-1" />
-                        Edit
+                        <BookTemplate className="w-4 h-4 mr-2" />
+                        Se ferdiglagde maler
                       </Button>
                     </div>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-16">
-                <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                  <FileText className="w-10 h-10 text-blue-600" />
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Prebuilt Templates Tab */}
+          <TabsContent value="prebuilt">
+            <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
+              <CardHeader className="border-b border-gray-100">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BookTemplate className="w-5 h-5 text-purple-600" />
+                      <CardTitle className="text-xl">Ferdiglagde maler</CardTitle>
+                    </div>
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                      {prebuiltTemplates.length} maler
+                    </Badge>
+                  </div>
+                  
+                  {/* Search and Filter */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        placeholder="Søk i maler..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      {templateCategories.slice(0, 6).map((category) => (
+                        <Button
+                          key={category.id}
+                          variant={selectedCategory === category.id ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setSelectedCategory(category.id)}
+                          className={selectedCategory === category.id ? "bg-purple-600 hover:bg-purple-700" : ""}
+                        >
+                          {category.nameNo}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No templates yet</h3>
-                <p className="text-sm text-gray-500 mb-6">Create your first email template to streamline your outreach</p>
-                <Button 
-                  onClick={() => setShowCreateForm(true)}
-                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Your First Template
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardHeader>
+              <CardContent className="pt-6">
+                {filteredPrebuiltTemplates.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredPrebuiltTemplates.map((template) => (
+                      <div
+                        key={template.id}
+                        className="group p-5 rounded-xl border-2 border-gray-100 hover:border-purple-300 hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-purple-50/30"
+                      >
+                        {/* Template Header */}
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-md">
+                              <Mail className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="text-base font-bold text-gray-900">{template.nameNo}</h3>
+                              <Badge variant="outline" className="text-xs mt-1">
+                                {template.categoryNo}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Description */}
+                        <p className="text-sm text-gray-600 mb-3">
+                          {template.descriptionNo}
+                        </p>
+
+                        {/* Subject Preview */}
+                        <div className="mb-3 p-2 bg-purple-50 rounded-lg border border-purple-100">
+                          <p className="text-xs text-purple-600 font-semibold mb-1">EMNE</p>
+                          <p className="text-sm text-gray-700 truncate">{template.subject}</p>
+                        </div>
+
+                        {/* Body Preview */}
+                        <div className="mb-4 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                          <p className="text-xs text-gray-500 font-semibold mb-1">INNHOLD</p>
+                          <p className="text-xs text-gray-600 line-clamp-3 whitespace-pre-wrap">
+                            {template.body}
+                          </p>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
+                            onClick={() => setPreviewTemplate(template)}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Se
+                          </Button>
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                            onClick={() => usePrebuiltTemplate(template)}
+                          >
+                            <Download className="w-4 h-4 mr-1" />
+                            Bruk
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-16">
+                    <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+                      <Search className="w-10 h-10 text-purple-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Ingen maler funnet</h3>
+                    <p className="text-sm text-gray-500 mb-4">Prøv et annet søk eller velg en annen kategori</p>
+                    <Button 
+                      variant="outline"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setSelectedCategory("all");
+                      }}
+                    >
+                      Nullstill filter
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
