@@ -56,7 +56,7 @@ export function registerAdminRoutes(app: Express) {
       const userId = parseInt(req.params.id);
       const { role } = req.body;
 
-      if (!["admin", "manager", "viewer"].includes(role)) {
+      if (!["admin", "user", "manager", "viewer"].includes(role)) {
         return res.status(400).json({ error: "Invalid role" });
       }
 

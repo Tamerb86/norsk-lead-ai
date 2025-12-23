@@ -8,6 +8,7 @@ import {
   campaigns,
   leads,
   emailTemplates,
+  emailEvents,
   activities,
   dataUpdateLogs,
   savedFilters
@@ -808,7 +809,7 @@ export async function getAdminStats() {
     .select({
       totalEmailsSent: sql<number>`count(*)`,
     })
-    .from(emails);
+    .from(emailEvents);
 
   return {
     totalUsers: Number(userStats?.totalUsers) || 0,
