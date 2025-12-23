@@ -209,13 +209,13 @@ export default function Admin() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
               <Shield className="h-6 w-6 text-pink-500" />
               Admin Panel
             </h1>
-            <p className="text-gray-400">Administrer brukere og systeminnstillinger</p>
+            <p className="text-gray-600">Administrer brukere og systeminnstillinger</p>
           </div>
-          <Button onClick={fetchData} variant="outline" className="border-gray-600 text-white">
+          <Button onClick={fetchData} variant="outline" className="border-gray-300 text-gray-900">
             <RefreshCw className="h-4 w-4 mr-2" />
             Oppdater
           </Button>
@@ -223,39 +223,39 @@ export default function Admin() {
 
         {/* Alerts */}
         {error && (
-          <Alert variant="destructive" className="bg-red-900/50 border-red-800">
+          <Alert variant="destructive" className="bg-red-50 border-red-200">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
         
         {success && (
-          <Alert className="bg-green-900/50 border-green-800">
-            <CheckCircle className="h-4 w-4 text-green-400" />
-            <AlertDescription className="text-green-400">{success}</AlertDescription>
+          <Alert className="bg-green-50 border-green-200">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-600">{success}</AlertDescription>
           </Alert>
         )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="bg-gray-800/50 border-gray-700">
+          <Card className="bg-white shadow-md border-gray-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">Totale brukere</p>
-                  <p className="text-2xl font-bold text-white">{stats?.totalUsers || 0}</p>
+                  <p className="text-sm text-gray-600">Totale brukere</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.totalUsers || 0}</p>
                 </div>
                 <Users className="h-8 w-8 text-pink-500" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-gray-800/50 border-gray-700">
+          <Card className="bg-white shadow-md border-gray-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">Bedrifter i database</p>
-                  <p className="text-2xl font-bold text-white">
+                  <p className="text-sm text-gray-600">Bedrifter i database</p>
+                  <p className="text-2xl font-bold text-gray-900">
                     {stats?.totalCompanies?.toLocaleString() || 0}
                   </p>
                 </div>
@@ -264,12 +264,12 @@ export default function Admin() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gray-800/50 border-gray-700">
+          <Card className="bg-white shadow-md border-gray-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">E-poster sendt</p>
-                  <p className="text-2xl font-bold text-white">
+                  <p className="text-sm text-gray-600">E-poster sendt</p>
+                  <p className="text-2xl font-bold text-gray-900">
                     {stats?.totalEmailsSent?.toLocaleString() || 0}
                   </p>
                 </div>
@@ -278,12 +278,12 @@ export default function Admin() {
             </CardContent>
           </Card>
 
-          <Card className="bg-gray-800/50 border-gray-700">
+          <Card className="bg-white shadow-md border-gray-200">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">Aktive abonnementer</p>
-                  <p className="text-2xl font-bold text-white">{stats?.activeSubscriptions || 0}</p>
+                  <p className="text-sm text-gray-600">Aktive abonnementer</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.activeSubscriptions || 0}</p>
                 </div>
                 <TrendingUp className="h-8 w-8 text-purple-500" />
               </div>
@@ -293,7 +293,7 @@ export default function Admin() {
 
         {/* Tabs */}
         <Tabs defaultValue="users" className="space-y-4">
-          <TabsList className="bg-gray-800 border-gray-700">
+          <TabsList className="bg-gray-100 border-gray-200">
             <TabsTrigger value="users" className="data-[state=active]:bg-pink-500">
               Brukere
             </TabsTrigger>
@@ -307,12 +307,12 @@ export default function Admin() {
 
           {/* Users Tab */}
           <TabsContent value="users">
-            <Card className="bg-gray-800/50 border-gray-700">
+            <Card className="bg-white shadow-md border-gray-200">
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-white">Brukere</CardTitle>
-                    <CardDescription className="text-gray-400">
+                    <CardTitle className="text-gray-900">Brukere</CardTitle>
+                    <CardDescription className="text-gray-600">
                       Administrer brukerkontoer og tilganger
                     </CardDescription>
                   </div>
@@ -322,7 +322,7 @@ export default function Admin() {
                       placeholder="Søk brukere..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 bg-gray-700/50 border-gray-600 text-white"
+                      className="pl-10 bg-gray-700/50 border-gray-300 text-gray-900"
                     />
                   </div>
                 </div>
@@ -330,18 +330,18 @@ export default function Admin() {
               <CardContent>
                 <Table>
                   <TableHeader>
-                    <TableRow className="border-gray-700">
-                      <TableHead className="text-gray-400">Navn</TableHead>
-                      <TableHead className="text-gray-400">E-post</TableHead>
-                      <TableHead className="text-gray-400">Rolle</TableHead>
-                      <TableHead className="text-gray-400">Opprettet</TableHead>
-                      <TableHead className="text-gray-400">Handlinger</TableHead>
+                    <TableRow className="border-gray-200">
+                      <TableHead className="text-gray-600">Navn</TableHead>
+                      <TableHead className="text-gray-600">E-post</TableHead>
+                      <TableHead className="text-gray-600">Rolle</TableHead>
+                      <TableHead className="text-gray-600">Opprettet</TableHead>
+                      <TableHead className="text-gray-600">Handlinger</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredUsers.map((u) => (
-                      <TableRow key={u.id} className="border-gray-700">
-                        <TableCell className="text-white">{u.name || "-"}</TableCell>
+                      <TableRow key={u.id} className="border-gray-200">
+                        <TableCell className="text-gray-900">{u.name || "-"}</TableCell>
                         <TableCell className="text-gray-300">{u.email || "-"}</TableCell>
                         <TableCell>
                           <Select
@@ -349,17 +349,17 @@ export default function Admin() {
                             onValueChange={(value) => handleRoleChange(u.id, value)}
                             disabled={u.id === user?.id}
                           >
-                            <SelectTrigger className="w-32 bg-gray-700/50 border-gray-600 text-white">
+                            <SelectTrigger className="w-32 bg-gray-700/50 border-gray-300 text-gray-900">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-gray-800 border-gray-700">
+                            <SelectContent className="bg-gray-100 border-gray-200">
                               <SelectItem value="admin">Admin</SelectItem>
                               <SelectItem value="manager">Manager</SelectItem>
                               <SelectItem value="viewer">Viewer</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className="text-gray-400">
+                        <TableCell className="text-gray-600">
                           {new Date(u.createdAt).toLocaleDateString("nb-NO")}
                         </TableCell>
                         <TableCell>
@@ -383,10 +383,10 @@ export default function Admin() {
 
           {/* Companies Tab */}
           <TabsContent value="companies">
-            <Card className="bg-gray-800/50 border-gray-700">
+            <Card className="bg-white shadow-md border-gray-200">
               <CardHeader>
-                <CardTitle className="text-white">Bedriftsdatabase</CardTitle>
-                <CardDescription className="text-gray-400">
+                <CardTitle className="text-gray-900">Bedriftsdatabase</CardTitle>
+                <CardDescription className="text-gray-600">
                   Administrer bedriftsdata fra Brønnøysund
                 </CardDescription>
               </CardHeader>
@@ -409,23 +409,23 @@ export default function Admin() {
                       </>
                     )}
                   </Button>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-gray-600">
                     Sist oppdatert: {stats?.totalCompanies ? "I dag" : "Aldri"}
                   </p>
                 </div>
 
                 <div className="bg-gray-700/30 rounded-lg p-4">
-                  <h4 className="text-white font-medium mb-2">Database statistikk</h4>
+                  <h4 className="text-gray-900 font-medium mb-2">Database statistikk</h4>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                      <span className="text-gray-400">Totale bedrifter:</span>
-                      <span className="text-white ml-2">
+                      <span className="text-gray-600">Totale bedrifter:</span>
+                      <span className="text-gray-900 ml-2">
                         {stats?.totalCompanies?.toLocaleString() || 0}
                       </span>
                     </div>
                     <div>
-                      <span className="text-gray-400">Med e-post:</span>
-                      <span className="text-white ml-2">~40%</span>
+                      <span className="text-gray-600">Med e-post:</span>
+                      <span className="text-gray-900 ml-2">~40%</span>
                     </div>
                   </div>
                 </div>
@@ -435,48 +435,48 @@ export default function Admin() {
 
           {/* System Tab */}
           <TabsContent value="system">
-            <Card className="bg-gray-800/50 border-gray-700">
+            <Card className="bg-white shadow-md border-gray-200">
               <CardHeader>
-                <CardTitle className="text-white">Systeminnstillinger</CardTitle>
-                <CardDescription className="text-gray-400">
+                <CardTitle className="text-gray-900">Systeminnstillinger</CardTitle>
+                <CardDescription className="text-gray-600">
                   Konfigurer systemparametere
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-700/30 rounded-lg p-4">
-                    <h4 className="text-white font-medium mb-2">API Status</h4>
+                    <h4 className="text-gray-900 font-medium mb-2">API Status</h4>
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-green-400">Operativ</span>
+                      <span className="text-green-600">Operativ</span>
                     </div>
                   </div>
                   <div className="bg-gray-700/30 rounded-lg p-4">
-                    <h4 className="text-white font-medium mb-2">Database</h4>
+                    <h4 className="text-gray-900 font-medium mb-2">Database</h4>
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                      <span className="text-green-400">Tilkoblet</span>
+                      <span className="text-green-600">Tilkoblet</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-gray-700/30 rounded-lg p-4">
-                  <h4 className="text-white font-medium mb-2">Miljøvariabler</h4>
+                  <h4 className="text-gray-900 font-medium mb-2">Miljøvariabler</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400">NODE_ENV</span>
-                      <Badge variant="outline" className="border-green-500 text-green-400">
+                      <span className="text-gray-600">NODE_ENV</span>
+                      <Badge variant="outline" className="border-green-500 text-green-600">
                         production
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Database</span>
-                      <Badge variant="outline" className="border-green-500 text-green-400">
+                      <span className="text-gray-600">Database</span>
+                      <Badge variant="outline" className="border-green-500 text-green-600">
                         Konfigurert
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Stripe</span>
+                      <span className="text-gray-600">Stripe</span>
                       <Badge variant="outline" className="border-yellow-500 text-yellow-400">
                         Venter konfigurasjon
                       </Badge>
@@ -490,10 +490,10 @@ export default function Admin() {
 
         {/* Delete Confirmation Dialog */}
         <Dialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, user: null })}>
-          <DialogContent className="bg-gray-800 border-gray-700">
+          <DialogContent className="bg-gray-100 border-gray-200">
             <DialogHeader>
-              <DialogTitle className="text-white">Slett bruker</DialogTitle>
-              <DialogDescription className="text-gray-400">
+              <DialogTitle className="text-gray-900">Slett bruker</DialogTitle>
+              <DialogDescription className="text-gray-600">
                 Er du sikker på at du vil slette {deleteDialog.user?.name || deleteDialog.user?.email}?
                 Denne handlingen kan ikke angres.
               </DialogDescription>
@@ -502,7 +502,7 @@ export default function Admin() {
               <Button
                 variant="outline"
                 onClick={() => setDeleteDialog({ open: false, user: null })}
-                className="border-gray-600 text-white"
+                className="border-gray-300 text-gray-900"
               >
                 Avbryt
               </Button>
