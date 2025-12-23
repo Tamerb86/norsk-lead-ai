@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Building2, Mail, Plus, Trash2, Send, Eye, Clock, CheckCircle2, Sparkles, Users, X } from "lucide-react";
+import { Building2, Mail, Plus, Trash2, Send, Eye, Clock, CheckCircle2, Sparkles, Users, X, Settings, Shield, User, LogOut, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CampaignsListSkeleton } from "@/components/SkeletonLoaders";
 import { Link, useSearch } from "wouter";
@@ -171,14 +172,65 @@ export default function Campaigns() {
                 </div>
               </div>
             </Link>
-            <Button 
-              onClick={() => setShowCreateForm(!showCreateForm)}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30"
-              data-onboarding="new-campaign"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Campaign
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button 
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30"
+                data-onboarding="new-campaign"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Campaign
+              </Button>
+              {user && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-lg border border-blue-200/50">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-white" />
+                      </div>
+                      <ChevronDown className="w-4 h-4 text-gray-500" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user.name || 'User'}</p>
+                        <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <Link href="/dashboard">
+                      <DropdownMenuItem className="cursor-pointer">
+                        <Building2 className="mr-2 h-4 w-4" />
+                        <span>Dashboard</span>
+                      </DropdownMenuItem>
+                    </Link>
+                    <Link href="/account">
+                      <DropdownMenuItem className="cursor-pointer">
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Min konto</span>
+                      </DropdownMenuItem>
+                    </Link>
+                    {user.role === 'admin' && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <Link href="/admin">
+                          <DropdownMenuItem className="cursor-pointer text-purple-600">
+                            <Shield className="mr-2 h-4 w-4" />
+                            <span>Admin Panel</span>
+                          </DropdownMenuItem>
+                        </Link>
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem className="cursor-pointer text-red-600" onClick={() => window.location.href = '/api/auth/logout'}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Logg ut</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           </div>
         </div>
       </header>
