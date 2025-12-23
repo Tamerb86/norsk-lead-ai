@@ -93,6 +93,20 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       updateSet.role = 'admin';
     }
 
+    // Handle subscription fields
+    if (user.subscriptionPlan !== undefined) {
+      values.subscriptionPlan = user.subscriptionPlan;
+      updateSet.subscriptionPlan = user.subscriptionPlan;
+    }
+    if (user.monthlyLeadsQuota !== undefined) {
+      values.monthlyLeadsQuota = user.monthlyLeadsQuota;
+      updateSet.monthlyLeadsQuota = user.monthlyLeadsQuota;
+    }
+    if (user.usedLeadsThisMonth !== undefined) {
+      values.usedLeadsThisMonth = user.usedLeadsThisMonth;
+      updateSet.usedLeadsThisMonth = user.usedLeadsThisMonth;
+    }
+
     if (!values.lastSignedIn) {
       values.lastSignedIn = new Date();
     }
@@ -664,9 +678,8 @@ export async function queueCampaignEmails(
 // ============================================
 
 /**
- * User passwords table (stored separately for security)
+ * User authentication functions
  */
-const userPasswordsCache = new Map<string, string>();
 
 export async function getUserByEmail(email: string) {
   const db = await getDb();
@@ -681,17 +694,22 @@ export async function getUserByEmail(email: string) {
 }
 
 export async function setUserPassword(openId: string, passwordHash: string) {
-  // In production, store in a separate passwords table
-  // For now, we'll use a simple in-memory cache (not recommended for production)
-  userPasswordsCache.set(openId, passwordHash);
-  
-  // TODO: Create a passwords table and store there
-  // const db = await getDb();
-  // await db.insert(userPasswords).values({ openId, passwordHash }).onDuplicateKeyUpdate({ set: { passwordHash } });
+  const db = await getDb();
+  // Store password hash in the users table password_hash column
+  await db
+    .update(users)
+    .set({ passwordHash })
+    .where(eq(users.openId, openId));
 }
 
 export async function getUserPassword(openId: string): Promise<string | null> {
-  return userPasswordsCache.get(openId) || null;
+  const db = await getDb();
+  const result = await db
+    .select({ passwordHash: users.passwordHash })
+    .from(users)
+    .where(eq(users.openId, openId))
+    .limit(1);
+  return result[0]?.passwordHash || null;
 }
 
 export async function getAllUsers() {

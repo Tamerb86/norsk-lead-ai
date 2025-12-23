@@ -6,9 +6,11 @@ import { SUBSCRIPTION_PLANS, formatPrice } from "@shared/products";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useLocation } from "wouter";
 
 export default function Pricing() {
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
+  const [, setLocation] = useLocation();
 
   const createCheckoutMutation = trpc.stripe.createCheckoutSession.useMutation({
     onSuccess: (data: any) => {
@@ -27,7 +29,12 @@ export default function Pricing() {
     },
   });
 
-  const handleSubscribe = (planId: string) => {
+  const handleSubscribe = (planId: string, isFree?: boolean) => {
+    if (isFree) {
+      // For free plan, redirect to register/dashboard
+      setLocation("/register");
+      return;
+    }
     setLoadingPlanId(planId);
     createCheckoutMutation.mutate({ planId: planId as "basic" | "pro" });
   };
@@ -72,7 +79,10 @@ export default function Pricing() {
             </div>
           </Link>
           <div className="flex items-center gap-4">
-            <Link href="/dashboard">
+            <Link href="/login">
+              <Button variant="outline">Logg inn</Button>
+            </Link>
+            <Link href="/register">
               <Button>Kom i gang gratis</Button>
             </Link>
           </div>
@@ -89,8 +99,7 @@ export default function Pricing() {
             </span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto mb-8">
-            Velg planen som passer din bedrift. Alle planer inkluderer 14 dagers gratis
-            prøveperiode.
+            Start gratis og oppgrader når du er klar. Ingen kredittkort påkrevd for gratis plan.
           </p>
         </div>
       </section>
@@ -105,6 +114,8 @@ export default function Pricing() {
                 className={`p-8 relative ${
                   plan.popular
                     ? "border-2 border-blue-600 shadow-2xl scale-105"
+                    : plan.isFree
+                    ? "border-2 border-green-500"
                     : "shadow-lg"
                 }`}
               >
@@ -113,28 +124,37 @@ export default function Pricing() {
                     Mest populær
                   </div>
                 )}
+                {plan.isFree && (
+                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-gradient-to-r from-green-500 to-emerald-500 text-white px-6 py-2 rounded-full text-sm font-semibold">
+                    Gratis for alltid
+                  </div>
+                )}
                 <div className="text-center mb-8">
                   <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
 
                   <div className="mb-6">
                     <span className="text-5xl font-black">{formatPrice(plan.priceMonthly)}</span>
-                    <span className="text-gray-600">/mnd</span>
+                    {!plan.isFree && <span className="text-gray-600">/mnd</span>}
                   </div>
                   <Button
-                    onClick={() => handleSubscribe(plan.id)}
+                    onClick={() => handleSubscribe(plan.id, plan.isFree)}
                     disabled={loadingPlanId === plan.id}
                     className={`w-full ${
                       plan.popular
                         ? "bg-gradient-to-r from-blue-600 to-indigo-600"
+                        : plan.isFree
+                        ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
                         : ""
                     }`}
-                    variant={plan.popular ? "default" : "outline"}
+                    variant={plan.popular || plan.isFree ? "default" : "outline"}
                   >
                     {loadingPlanId === plan.id ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Laster...
                       </>
+                    ) : plan.isFree ? (
+                      "Start gratis nå"
                     ) : (
                       "Start abonnement"
                     )}
@@ -184,11 +204,11 @@ export default function Pricing() {
             Klar til å komme i gang?
           </h2>
           <p className="text-xl mb-8 opacity-90">
-            Prøv NorskLeads gratis i 14 dager. Ingen kredittkort påkrevd.
+            Start gratis i dag. Ingen kredittkort påkrevd.
           </p>
-          <Link href="/dashboard">
+          <Link href="/register">
             <Button size="lg" variant="secondary" className="text-lg px-10 py-6">
-              Start gratis prøveperiode
+              Opprett gratis konto
             </Button>
           </Link>
         </div>

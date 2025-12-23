@@ -11,6 +11,7 @@ export interface SubscriptionPlan {
   stripePriceId: string; // Set this after creating prices in Stripe Dashboard
   features: string[];
   popular?: boolean;
+  isFree?: boolean;
   limits: {
     companiesPerMonth: number;
     campaignsPerMonth: number;
@@ -21,6 +22,29 @@ export interface SubscriptionPlan {
 }
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
+  {
+    id: "free",
+    name: "Gratis",
+    priceMonthly: 0,
+    currency: "NOK",
+    stripePriceId: "", // No Stripe price for free plan
+    isFree: true,
+    features: [
+      "Søk i 1.1M norske bedrifter",
+      "Inntil 50 bedrifter per måned",
+      "1 aktiv kampanje",
+      "100 e-poster per måned",
+      "Grunnleggende e-postmaler",
+      "E-postsporing (åpninger)",
+    ],
+    limits: {
+      companiesPerMonth: 50,
+      campaignsPerMonth: 1,
+      emailsPerMonth: 100,
+      sequences: 1,
+      templates: 3,
+    },
+  },
   {
     id: "basic",
     name: "Basic",
@@ -88,9 +112,19 @@ export function getPlanByStripePriceId(stripePriceId: string): SubscriptionPlan 
 }
 
 /**
+ * Get free plan
+ */
+export function getFreePlan(): SubscriptionPlan {
+  return SUBSCRIPTION_PLANS.find((plan) => plan.isFree) || SUBSCRIPTION_PLANS[0];
+}
+
+/**
  * Format price for display
  */
 export function formatPrice(amount: number, currency: string = "NOK"): string {
+  if (amount === 0) {
+    return "Gratis";
+  }
   return new Intl.NumberFormat("nb-NO", {
     style: "currency",
     currency: currency,

@@ -180,6 +180,9 @@ class AuthService {
       name: data.name,
       loginMethod: "email",
       lastSignedIn: new Date(),
+      subscriptionPlan: "free", // Start with free plan
+      monthlyLeadsQuota: 50, // Free plan limit
+      usedLeadsThisMonth: 0,
     });
 
     // Store password hash separately
