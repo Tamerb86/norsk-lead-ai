@@ -721,7 +721,7 @@ export async function getAdminStats() {
   const [userStats] = await db
     .select({
       totalUsers: sql<number>`count(*)`,
-      adminCount: sql<number>`sum(case when role = 'admin' then 1 else 0 end)`,
+      activeSubscriptions: sql<number>`sum(case when "subscriptionPlan" is not null and "subscriptionPlan" != '' then 1 else 0 end)`,
     })
     .from(users);
 
@@ -734,21 +734,22 @@ export async function getAdminStats() {
   const [campaignStats] = await db
     .select({
       totalCampaigns: sql<number>`count(*)`,
-      activeCampaigns: sql<number>`sum(case when status = 'sending' then 1 else 0 end)`,
     })
     .from(campaigns);
 
-  const [leadStats] = await db
+  const [emailStats] = await db
     .select({
-      totalLeads: sql<number>`count(*)`,
+      totalEmailsSent: sql<number>`count(*)`,
     })
-    .from(leads);
+    .from(emails);
 
   return {
-    users: userStats,
-    companies: companyStats,
-    campaigns: campaignStats,
-    leads: leadStats,
+    totalUsers: Number(userStats?.totalUsers) || 0,
+    totalCompanies: Number(companyStats?.totalCompanies) || 0,
+    totalCampaigns: Number(campaignStats?.totalCampaigns) || 0,
+    totalEmailsSent: Number(emailStats?.totalEmailsSent) || 0,
+    activeSubscriptions: Number(userStats?.activeSubscriptions) || 0,
+    revenue: 0, // TODO: Implement revenue tracking with Stripe
   };
 }
 
