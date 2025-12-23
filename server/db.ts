@@ -488,10 +488,9 @@ export async function createTemplate(data: {
   const result = await db.insert(emailTemplates).values({
     ...data,
     isDefault: false,
-  });
+  }).returning({ id: emailTemplates.id });
 
-  const insertId = (result as any).insertId;
-  return { id: Number(insertId) };
+  return { id: result[0]?.id || 0 };
 }
 
 export async function updateTemplate(
