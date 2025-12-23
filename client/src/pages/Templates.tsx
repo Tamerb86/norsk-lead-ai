@@ -176,6 +176,91 @@ export default function Templates() {
             </TabsTrigger>
           </TabsList>
 
+          {/* Preview Modal - Shared */}
+          {previewTemplate && (
+            <Card className="mb-6 border-0 shadow-2xl bg-white fixed inset-4 z-50 overflow-auto">
+              <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50 sticky top-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Eye className="w-5 h-5 text-blue-600" />
+                    <CardTitle className="text-xl">Forhåndsvisning: {previewTemplate.name || previewTemplate.nameNo}</CardTitle>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => setPreviewTemplate(null)}>
+                    ✕ Lukk
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6 max-w-4xl mx-auto">
+                <div className="space-y-6">
+                  {/* Variables Info */}
+                  <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="w-4 h-4 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800 mb-1">Om dynamiske variabler</p>
+                        <p className="text-xs text-amber-700">Tekst i doble klammer som <code className="bg-amber-100 px-1 rounded">{'{{company_name}}'}</code> erstattes automatisk med ekte data når e-posten sendes. For eksempel blir <code className="bg-amber-100 px-1 rounded">{'{{company_name}}'}</code> til "Bedrift AS".</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Subject */}
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-600 font-semibold mb-2">EMNE:</p>
+                    <p className="text-base font-semibold text-gray-900">{previewTemplate.subject}</p>
+                  </div>
+
+                  {/* Body */}
+                  <div className="p-6 bg-white rounded-lg border-2 border-gray-200 shadow-inner">
+                    <p className="text-xs text-gray-500 font-semibold mb-3">INNHOLD:</p>
+                    <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
+                      {previewTemplate.body}
+                    </p>
+                  </div>
+
+                  {/* Available Variables */}
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-xs text-gray-600 font-semibold mb-3">TILGJENGELIGE VARIABLER:</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {[
+                        { var: '{{company_name}}', desc: 'Bedriftsnavn' },
+                        { var: '{{contact_name}}', desc: 'Kontaktperson' },
+                        { var: '{{industry}}', desc: 'Bransje' },
+                        { var: '{{sender_name}}', desc: 'Ditt navn' },
+                        { var: '{{sender_company}}', desc: 'Din bedrift' },
+                        { var: '{{sender_phone}}', desc: 'Ditt telefonnummer' },
+                      ].map((item) => (
+                        <div key={item.var} className="flex items-center gap-2 p-2 bg-white rounded border">
+                          <code className="text-xs text-purple-600 font-mono">{item.var}</code>
+                          <span className="text-xs text-gray-500">→ {item.desc}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={() => {
+                        usePrebuiltTemplate(previewTemplate);
+                        setPreviewTemplate(null);
+                      }}
+                      className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      Bruk denne malen
+                    </Button>
+                    <Button variant="outline" onClick={() => setPreviewTemplate(null)}>
+                      Lukk
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {previewTemplate && <div className="fixed inset-0 bg-black/50 z-40" onClick={() => setPreviewTemplate(null)} />}
+
           {/* My Templates Tab */}
           <TabsContent value="my-templates">
             {/* Create Form */}
@@ -258,36 +343,6 @@ export default function Templates() {
                       <Button variant="outline" onClick={() => setShowCreateForm(false)}>
                         Avbryt
                       </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Preview Modal */}
-            {previewTemplate && (
-              <Card className="mb-6 border-0 shadow-2xl bg-white">
-                <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-purple-50">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Eye className="w-5 h-5 text-blue-600" />
-                      <CardTitle className="text-xl">Forhåndsvisning</CardTitle>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => setPreviewTemplate(null)}>
-                      Lukk
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6">
-                  <div className="space-y-4">
-                    <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                      <p className="text-xs text-gray-500 font-medium mb-2">EMNE:</p>
-                      <p className="text-base font-semibold text-gray-900">{previewTemplate.subject}</p>
-                    </div>
-                    <div className="p-6 bg-white rounded-lg border-2 border-gray-200 shadow-inner">
-                      <p className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">
-                        {previewTemplate.body}
-                      </p>
                     </div>
                   </div>
                 </CardContent>

@@ -181,7 +181,13 @@ function DashboardLayoutContent({
     localStorage.removeItem("onboarding_completed");
     localStorage.removeItem("onboarding_dismissed");
     localStorage.removeItem("onboarding_progress");
-    window.location.reload();
+    // Navigate to dashboard and reload to show tutorial
+    if (location !== "/dashboard") {
+      setLocation("/dashboard");
+      setTimeout(() => window.location.reload(), 100);
+    } else {
+      window.location.reload();
+    }
   };
 
   return (
@@ -189,7 +195,7 @@ function DashboardLayoutContent({
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           collapsible="icon"
-          className="border-r border-gray-200 bg-white"
+          className="border-r border-gray-200 bg-white sticky top-0 h-screen"
           disableTransition={isResizing}
         >
           <SidebarHeader className="h-16 justify-center border-b border-gray-100">
@@ -214,7 +220,7 @@ function DashboardLayoutContent({
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0 py-2">
+          <SidebarContent className="gap-0 py-2 overflow-y-auto">
             <SidebarMenu className="px-2 py-1 space-y-1">
               {menuItems.map(item => {
                 const isActive = location === item.path;
