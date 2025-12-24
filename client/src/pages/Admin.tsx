@@ -493,7 +493,7 @@ export default function Admin() {
         </div>
 
         {/* Secondary Stats */}
-        <div className="grid grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -817,7 +817,7 @@ export default function Admin() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
                     <div className="flex items-center gap-2 mb-2">
                       <Database className="h-5 w-5 text-blue-600" />
@@ -873,7 +873,7 @@ export default function Admin() {
           <TabsContent value="subscriptions">
             <div className="space-y-4">
               {/* Revenue Overview */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -932,7 +932,7 @@ export default function Admin() {
                   <CardDescription>Oversikt over tilgjengelige planer</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Free Plan */}
                     <div className="rounded-lg border-2 border-gray-200 p-4">
                       <div className="flex items-center justify-between mb-3">
@@ -1012,7 +1012,7 @@ export default function Admin() {
           <TabsContent value="invoices">
             <div className="space-y-4">
               {/* Invoice Stats */}
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -1089,7 +1089,7 @@ export default function Admin() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <Label htmlFor="invoice-user">Velg bruker</Label>
                       <Select>
