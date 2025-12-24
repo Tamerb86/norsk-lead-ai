@@ -1228,33 +1228,36 @@ export async function updateUserSubscriptionPartial(userId: number, data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const updates: string[] = [];
-  const values: any[] = [];
+  // Validate userId is a number to prevent SQL injection
+  if (typeof userId !== 'number' || !Number.isInteger(userId) || userId <= 0) {
+    throw new Error("Invalid user ID");
+  }
+
+  // Use Drizzle ORM for safe updates
+  const updateData: Record<string, unknown> = {
+    updatedAt: new Date(),
+  };
 
   if (data.subscriptionPlan !== undefined) {
-    updates.push(`"subscriptionPlan" = $${values.length + 1}`);
-    values.push(data.subscriptionPlan);
+    updateData.subscriptionPlan = data.subscriptionPlan;
   }
 
   if (data.subscriptionStatus !== undefined) {
-    updates.push(`subscription_status = $${values.length + 1}`);
-    values.push(data.subscriptionStatus);
+    updateData.subscriptionStatus = data.subscriptionStatus;
   }
 
   if (data.subscriptionPeriodEnd !== undefined) {
-    updates.push(`subscription_period_end = $${values.length + 1}`);
-    values.push(data.subscriptionPeriodEnd);
+    updateData.subscriptionPeriodEnd = data.subscriptionPeriodEnd;
   }
 
-  if (updates.length === 0) {
+  if (Object.keys(updateData).length === 1) {
+    // Only updatedAt, no actual changes
     return { success: true };
   }
 
-  updates.push(`"updatedAt" = NOW()`);
-
-  await db.execute(
-    sql.raw(`UPDATE users SET ${updates.join(', ')} WHERE id = ${userId}`)
-  );
+  await db.update(users)
+    .set(updateData)
+    .where(eq(users.id, userId));
 
   return { success: true };
 }
