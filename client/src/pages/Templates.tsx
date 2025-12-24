@@ -151,7 +151,6 @@ export default function Templates() {
           </Button>
         </div>
 
-        <div>
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">

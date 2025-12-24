@@ -173,7 +173,6 @@ export default function Campaigns() {
           </Button>
         </div>
 
-        <div>
         {/* Create Form */}
         {showCreateForm && (
           <Card className="mb-6 border-0 shadow-xl bg-white/90 backdrop-blur-sm">
@@ -490,8 +489,6 @@ export default function Campaigns() {
             )}
           </CardContent>
         </Card>
-      </main>
-
       {/* Email Preview Modal */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-2xl">
