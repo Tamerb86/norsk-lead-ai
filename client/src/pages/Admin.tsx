@@ -566,6 +566,10 @@ export default function Admin() {
               <CreditCard className="h-4 w-4 mr-2" />
               Abonnementer
             </TabsTrigger>
+            <TabsTrigger value="invoices" className="data-[state=active]:bg-white data-[state=active]:text-blue-600">
+              <FileText className="h-4 w-4 mr-2" />
+              Fakturaer
+            </TabsTrigger>
             <TabsTrigger value="system" className="data-[state=active]:bg-white data-[state=active]:text-blue-600">
               <Settings className="h-4 w-4 mr-2" />
               System
@@ -602,6 +606,10 @@ export default function Admin() {
                     <Button variant="outline" size="sm" onClick={handleExportUsers}>
                       <Download className="h-4 w-4 mr-2" />
                       Eksporter
+                    </Button>
+                    <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Ny bruker
                     </Button>
                   </div>
                 </div>
@@ -995,6 +1003,179 @@ export default function Admin() {
                     <p className="text-gray-600">STRIPE_PRICE_ID_BASIC=<span className="text-yellow-600">price_...</span></p>
                     <p className="text-gray-600">STRIPE_PRICE_ID_PRO=<span className="text-yellow-600">price_...</span></p>
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Invoices Tab */}
+          <TabsContent value="invoices">
+            <div className="space-y-4">
+              {/* Invoice Stats */}
+              <div className="grid grid-cols-4 gap-4">
+                <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-green-600">Total inntekt</p>
+                        <p className="text-2xl font-bold text-green-700">
+                          {((stats?.revenue || 0) * 12).toLocaleString()} NOK
+                        </p>
+                        <p className="text-xs text-green-500">Siste 12 måneder</p>
+                      </div>
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <DollarSign className="h-6 w-6 text-green-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-blue-600">Betalte fakturaer</p>
+                        <p className="text-2xl font-bold text-blue-700">
+                          {(basicUsers + proUsers) * 12}
+                        </p>
+                        <p className="text-xs text-blue-500">Siste 12 måneder</p>
+                      </div>
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <CheckCircle className="h-6 w-6 text-blue-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-yellow-50 to-orange-50 border-yellow-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-yellow-600">Ventende</p>
+                        <p className="text-2xl font-bold text-yellow-700">0</p>
+                        <p className="text-xs text-yellow-500">Ubetalte fakturaer</p>
+                      </div>
+                      <div className="p-2 bg-yellow-100 rounded-lg">
+                        <Clock className="h-6 w-6 text-yellow-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-br from-red-50 to-pink-50 border-red-200">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-red-600">Forfalt</p>
+                        <p className="text-2xl font-bold text-red-700">0</p>
+                        <p className="text-xs text-red-500">Krever oppfølging</p>
+                      </div>
+                      <div className="p-2 bg-red-100 rounded-lg">
+                        <AlertTriangle className="h-6 w-6 text-red-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Create Invoice */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Opprett faktura</CardTitle>
+                      <CardDescription>Send faktura til en bruker manuelt</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="invoice-user">Velg bruker</Label>
+                      <Select>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Velg bruker" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(Array.isArray(users) ? users : []).map(u => (
+                            <SelectItem key={u.id} value={u.id.toString()}>
+                              {u.name || u.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="invoice-amount">Beløp (NOK)</Label>
+                      <Input id="invoice-amount" type="number" placeholder="499" className="mt-1" />
+                    </div>
+                    <div>
+                      <Label htmlFor="invoice-desc">Beskrivelse</Label>
+                      <Input id="invoice-desc" placeholder="Månedlig abonnement" className="mt-1" />
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-4">
+                    <Button className="bg-blue-600 hover:bg-blue-700">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Opprett faktura
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recent Invoices */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Siste fakturaer</CardTitle>
+                  <CardDescription>Oversikt over nylige transaksjoner</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Faktura ID</TableHead>
+                        <TableHead>Bruker</TableHead>
+                        <TableHead>Beløp</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Dato</TableHead>
+                        <TableHead>Handlinger</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(Array.isArray(users) ? users : []).filter(u => u.subscriptionPlan && u.subscriptionPlan !== 'free').slice(0, 5).map((u, index) => (
+                        <TableRow key={u.id}>
+                          <TableCell className="font-mono text-sm">INV-{2024001 + index}</TableCell>
+                          <TableCell>{u.name || u.email}</TableCell>
+                          <TableCell className="font-medium">
+                            {u.subscriptionPlan === 'pro' ? '1,299' : '499'} NOK
+                          </TableCell>
+                          <TableCell>
+                            <Badge className="bg-green-100 text-green-700">Betalt</Badge>
+                          </TableCell>
+                          <TableCell className="text-gray-500">
+                            {new Date().toLocaleDateString('nb-NO')}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="sm">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {(Array.isArray(users) ? users : []).filter(u => u.subscriptionPlan && u.subscriptionPlan !== 'free').length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                            Ingen fakturaer ennå
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             </div>
