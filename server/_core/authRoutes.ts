@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { authService } from "./auth";
 import { ENV } from "./env";
+import { logSecurityEvent, SecurityEventType, getClientInfo } from "./securityLogger";
 
 export function registerAuthRoutes(app: Express) {
   /**
@@ -32,6 +33,14 @@ export function registerAuthRoutes(app: Express) {
 
       // Set session cookie
       authService.setSessionCookie(res, req, token);
+
+      // Log successful registration
+      logSecurityEvent({
+        type: SecurityEventType.REGISTRATION,
+        userId: user.id,
+        email: user.email || undefined,
+        ...getClientInfo(req),
+      });
 
       res.json({
         success: true,
@@ -75,6 +84,14 @@ export function registerAuthRoutes(app: Express) {
       // Set session cookie
       authService.setSessionCookie(res, req, token);
 
+      // Log successful login
+      logSecurityEvent({
+        type: SecurityEventType.LOGIN_SUCCESS,
+        userId: user.id,
+        email: user.email || undefined,
+        ...getClientInfo(req),
+      });
+
       res.json({
         success: true,
         user: {
@@ -85,6 +102,14 @@ export function registerAuthRoutes(app: Express) {
         },
       });
     } catch (error) {
+      // Log failed login attempt
+      logSecurityEvent({
+        type: SecurityEventType.LOGIN_FAILURE,
+        email: req.body?.email,
+        ...getClientInfo(req),
+        details: { reason: error instanceof Error ? error.message : "Unknown" },
+      });
+
       console.error("[Auth] Login failed:", error);
       const message = error instanceof Error ? error.message : "Login failed";
       res.status(401).json({ error: message });
