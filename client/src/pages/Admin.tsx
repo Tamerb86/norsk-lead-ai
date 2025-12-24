@@ -365,8 +365,8 @@ export default function Admin() {
     }
   };
 
-  // Filter users
-  const filteredUsers = users.filter(u => {
+  // Filter users - ensure users is an array
+  const filteredUsers = (Array.isArray(users) ? users : []).filter(u => {
     const matchesSearch = 
       u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -380,12 +380,13 @@ export default function Admin() {
     return matchesSearch && matchesPlan && matchesRole;
   });
 
-  // Calculate subscription breakdown
-  const freeUsers = users.filter(u => !u.subscriptionPlan || u.subscriptionPlan === 'free').length;
-  const basicUsers = users.filter(u => u.subscriptionPlan === 'basic').length;
-  const proUsers = users.filter(u => u.subscriptionPlan === 'pro').length;
-  const activeUsers = users.filter(u => u.isActive !== false).length;
-  const inactiveUsers = users.filter(u => u.isActive === false).length;
+  // Calculate subscription breakdown - ensure users is an array
+  const usersArray = Array.isArray(users) ? users : [];
+  const freeUsers = usersArray.filter(u => !u.subscriptionPlan || u.subscriptionPlan === 'free').length;
+  const basicUsers = usersArray.filter(u => u.subscriptionPlan === 'basic').length;
+  const proUsers = usersArray.filter(u => u.subscriptionPlan === 'pro').length;
+  const activeUsers = usersArray.filter(u => u.isActive !== false).length;
+  const inactiveUsers = usersArray.filter(u => u.isActive === false).length;
 
   if (authLoading || loading) {
     return (
