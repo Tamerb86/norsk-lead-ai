@@ -1,9 +1,10 @@
-import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { COOKIE_NAME, REFRESH_COOKIE_NAME, ACCESS_TOKEN_EXPIRY_MS, REFRESH_TOKEN_EXPIRY_MS } from "@shared/const";
 import { ForbiddenError } from "@shared/_core/errors";
 import { parse as parseCookieHeader } from "cookie";
 import type { Request, Response } from "express";
 import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
 import { ENV } from "./env";
@@ -15,6 +16,7 @@ export type SessionPayload = {
   name: string;
   email?: string;
   role?: string;
+  type?: "access" | "refresh";
 };
 
 class AuthService {
@@ -53,15 +55,25 @@ class AuthService {
   }
 
   /**
-   * Create a session token
+   * Generate a secure random token
    */
-  async createSessionToken(
-    payload: SessionPayload,
-    options: { expiresInMs?: number } = {}
-  ): Promise<string> {
+  generateRefreshToken(): string {
+    return crypto.randomBytes(64).toString("hex");
+  }
+
+  /**
+   * Hash a refresh token for storage
+   */
+  hashRefreshToken(token: string): string {
+    return crypto.createHash("sha256").update(token).digest("hex");
+  }
+
+  /**
+   * Create an access token (short-lived)
+   */
+  async createAccessToken(payload: SessionPayload): Promise<string> {
     const issuedAt = Date.now();
-    const expiresInMs = options.expiresInMs ?? ONE_YEAR_MS;
-    const expirationSeconds = Math.floor((issuedAt + expiresInMs) / 1000);
+    const expirationSeconds = Math.floor((issuedAt + ACCESS_TOKEN_EXPIRY_MS) / 1000);
     const secretKey = this.getSessionSecret();
 
     return new SignJWT({
@@ -70,10 +82,21 @@ class AuthService {
       name: payload.name,
       email: payload.email,
       role: payload.role,
+      type: "access",
     })
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
       .setExpirationTime(expirationSeconds)
       .sign(secretKey);
+  }
+
+  /**
+   * Create a session token (legacy - for backward compatibility)
+   */
+  async createSessionToken(
+    payload: SessionPayload,
+    options: { expiresInMs?: number } = {}
+  ): Promise<string> {
+    return this.createAccessToken(payload);
   }
 
   /**
@@ -92,7 +115,7 @@ class AuthService {
         algorithms: ["HS256"],
       });
       
-      const { openId, appId, name, email, role } = payload as Record<string, unknown>;
+      const { openId, appId, name, email, role, type } = payload as Record<string, unknown>;
 
       if (typeof openId !== "string" || typeof appId !== "string") {
         return null;
@@ -104,19 +127,117 @@ class AuthService {
         name: (name as string) || "",
         email: email as string | undefined,
         role: role as string | undefined,
+        type: type as "access" | "refresh" | undefined,
       };
     } catch (error) {
-      console.warn("[Auth] Session verification failed", String(error));
+      // Token expired or invalid
       return null;
     }
   }
 
   /**
-   * Set session cookie
+   * Store refresh token in database
+   */
+  async storeRefreshToken(
+    userId: number,
+    token: string,
+    req: Request
+  ): Promise<void> {
+    const tokenHash = this.hashRefreshToken(token);
+    const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS);
+    const userAgent = req.headers["user-agent"] || null;
+    const ipAddress = req.ip || req.headers["x-forwarded-for"]?.toString() || null;
+
+    await db.createRefreshToken({
+      userId,
+      tokenHash,
+      expiresAt,
+      userAgent,
+      ipAddress,
+    });
+  }
+
+  /**
+   * Verify and rotate refresh token
+   */
+  async verifyAndRotateRefreshToken(
+    token: string,
+    req: Request
+  ): Promise<{ user: User; newRefreshToken: string } | null> {
+    const tokenHash = this.hashRefreshToken(token);
+    
+    // Find the token in database
+    const storedToken = await db.getRefreshTokenByHash(tokenHash);
+    
+    if (!storedToken) {
+      return null;
+    }
+
+    // Check if token is expired
+    if (new Date() > storedToken.expiresAt) {
+      await db.revokeRefreshToken(storedToken.id);
+      return null;
+    }
+
+    // Check if token is revoked
+    if (storedToken.revokedAt) {
+      // Possible token reuse attack - revoke all tokens for this user
+      await db.revokeAllUserRefreshTokens(storedToken.userId);
+      console.warn(`[Security] Possible refresh token reuse detected for user ${storedToken.userId}`);
+      return null;
+    }
+
+    // Get user
+    const user = await db.getUserById(storedToken.userId);
+    if (!user) {
+      return null;
+    }
+
+    // Revoke old token
+    await db.revokeRefreshToken(storedToken.id);
+
+    // Generate new refresh token (rotation)
+    const newRefreshToken = this.generateRefreshToken();
+    await this.storeRefreshToken(user.id, newRefreshToken, req);
+
+    return { user, newRefreshToken };
+  }
+
+  /**
+   * Revoke all refresh tokens for a user (logout from all devices)
+   */
+  async revokeAllUserTokens(userId: number): Promise<void> {
+    await db.revokeAllUserRefreshTokens(userId);
+  }
+
+  /**
+   * Set access token cookie
+   */
+  setAccessTokenCookie(res: Response, req: Request, token: string): void {
+    const cookieOptions = getSessionCookieOptions(req);
+    res.cookie(COOKIE_NAME, token, { 
+      ...cookieOptions, 
+      maxAge: ACCESS_TOKEN_EXPIRY_MS 
+    });
+  }
+
+  /**
+   * Set refresh token cookie
+   */
+  setRefreshTokenCookie(res: Response, req: Request, token: string): void {
+    const cookieOptions = getSessionCookieOptions(req);
+    res.cookie(REFRESH_COOKIE_NAME, token, { 
+      ...cookieOptions, 
+      maxAge: REFRESH_TOKEN_EXPIRY_MS,
+      path: "/api/auth", // Only send to auth endpoints
+    });
+  }
+
+  /**
+   * Set session cookie (legacy - calls both)
    */
   setSessionCookie(res: Response, req: Request, token: string): void {
-    const cookieOptions = getSessionCookieOptions(req);
-    res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+    this.setAccessTokenCookie(res, req, token);
   }
 
   /**
@@ -125,6 +246,15 @@ class AuthService {
   clearSessionCookie(res: Response, req: Request): void {
     const cookieOptions = getSessionCookieOptions(req);
     res.clearCookie(COOKIE_NAME, cookieOptions);
+    res.clearCookie(REFRESH_COOKIE_NAME, { ...cookieOptions, path: "/api/auth" });
+  }
+
+  /**
+   * Get refresh token from request
+   */
+  getRefreshTokenFromRequest(req: Request): string | null {
+    const cookies = this.parseCookies(req.headers.cookie);
+    return cookies.get(REFRESH_COOKIE_NAME) || null;
   }
 
   /**

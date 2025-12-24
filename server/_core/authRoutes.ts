@@ -22,8 +22,8 @@ export function registerAuthRoutes(app: Express) {
 
       const user = await authService.register({ email, password, name });
 
-      // Create session token
-      const token = await authService.createSessionToken({
+      // Create access token
+      const accessToken = await authService.createAccessToken({
         openId: user.openId,
         appId: ENV.appId,
         name: user.name || "",
@@ -31,8 +31,13 @@ export function registerAuthRoutes(app: Express) {
         role: user.role,
       });
 
-      // Set session cookie
-      authService.setSessionCookie(res, req, token);
+      // Create and store refresh token
+      const refreshToken = authService.generateRefreshToken();
+      await authService.storeRefreshToken(user.id, refreshToken, req);
+
+      // Set cookies
+      authService.setAccessTokenCookie(res, req, accessToken);
+      authService.setRefreshTokenCookie(res, req, refreshToken);
 
       // Log successful registration
       logSecurityEvent({
@@ -72,8 +77,8 @@ export function registerAuthRoutes(app: Express) {
 
       const user = await authService.login(email, password);
 
-      // Create session token
-      const token = await authService.createSessionToken({
+      // Create access token
+      const accessToken = await authService.createAccessToken({
         openId: user.openId,
         appId: ENV.appId,
         name: user.name || "",
@@ -81,8 +86,13 @@ export function registerAuthRoutes(app: Express) {
         role: user.role,
       });
 
-      // Set session cookie
-      authService.setSessionCookie(res, req, token);
+      // Create and store refresh token
+      const refreshToken = authService.generateRefreshToken();
+      await authService.storeRefreshToken(user.id, refreshToken, req);
+
+      // Set cookies
+      authService.setAccessTokenCookie(res, req, accessToken);
+      authService.setRefreshTokenCookie(res, req, refreshToken);
 
       // Log successful login
       logSecurityEvent({
@@ -117,12 +127,110 @@ export function registerAuthRoutes(app: Express) {
   });
 
   /**
+   * POST /api/auth/refresh
+   * Refresh access token using refresh token
+   */
+  app.post("/api/auth/refresh", async (req: Request, res: Response) => {
+    try {
+      const refreshToken = authService.getRefreshTokenFromRequest(req);
+
+      if (!refreshToken) {
+        return res.status(401).json({ error: "No refresh token provided" });
+      }
+
+      const result = await authService.verifyAndRotateRefreshToken(refreshToken, req);
+
+      if (!result) {
+        // Clear cookies on invalid refresh token
+        authService.clearSessionCookie(res, req);
+        return res.status(401).json({ error: "Invalid or expired refresh token" });
+      }
+
+      const { user, newRefreshToken } = result;
+
+      // Create new access token
+      const accessToken = await authService.createAccessToken({
+        openId: user.openId,
+        appId: ENV.appId,
+        name: user.name || "",
+        email: user.email || undefined,
+        role: user.role,
+      });
+
+      // Set new cookies
+      authService.setAccessTokenCookie(res, req, accessToken);
+      authService.setRefreshTokenCookie(res, req, newRefreshToken);
+
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      });
+    } catch (error) {
+      console.error("[Auth] Token refresh failed:", error);
+      authService.clearSessionCookie(res, req);
+      res.status(401).json({ error: "Token refresh failed" });
+    }
+  });
+
+  /**
    * POST /api/auth/logout
    * Logout current user
    */
-  app.post("/api/auth/logout", (req: Request, res: Response) => {
+  app.post("/api/auth/logout", async (req: Request, res: Response) => {
+    try {
+      // Try to get user to revoke their tokens
+      const user = await authService.authenticateRequest(req).catch(() => null);
+      
+      if (user) {
+        // Revoke all refresh tokens for this user
+        await authService.revokeAllUserTokens(user.id);
+        
+        logSecurityEvent({
+          type: SecurityEventType.LOGOUT,
+          userId: user.id,
+          email: user.email || undefined,
+          ...getClientInfo(req),
+        });
+      }
+    } catch (error) {
+      // Ignore errors during logout
+    }
+
     authService.clearSessionCookie(res, req);
     res.json({ success: true });
+  });
+
+  /**
+   * POST /api/auth/logout-all
+   * Logout from all devices
+   */
+  app.post("/api/auth/logout-all", async (req: Request, res: Response) => {
+    try {
+      const user = await authService.authenticateRequest(req);
+      
+      // Revoke all refresh tokens
+      await authService.revokeAllUserTokens(user.id);
+      
+      // Clear current session
+      authService.clearSessionCookie(res, req);
+
+      logSecurityEvent({
+        type: SecurityEventType.LOGOUT,
+        userId: user.id,
+        email: user.email || undefined,
+        ...getClientInfo(req),
+        details: { allDevices: true },
+      });
+
+      res.json({ success: true, message: "Logged out from all devices" });
+    } catch (error) {
+      res.status(401).json({ error: "Not authenticated" });
+    }
   });
 
   /**
@@ -230,6 +338,30 @@ export function registerAuthRoutes(app: Express) {
 
       const newHash = await authService.hashPassword(newPassword);
       await setUserPassword(user.openId, newHash);
+
+      // Revoke all refresh tokens except current session (force re-login on other devices)
+      await authService.revokeAllUserTokens(user.id);
+
+      // Create new tokens for current session
+      const accessToken = await authService.createAccessToken({
+        openId: user.openId,
+        appId: ENV.appId,
+        name: user.name || "",
+        email: user.email || undefined,
+        role: user.role,
+      });
+      const refreshToken = authService.generateRefreshToken();
+      await authService.storeRefreshToken(user.id, refreshToken, req);
+
+      authService.setAccessTokenCookie(res, req, accessToken);
+      authService.setRefreshTokenCookie(res, req, refreshToken);
+
+      logSecurityEvent({
+        type: SecurityEventType.PASSWORD_CHANGE,
+        userId: user.id,
+        email: user.email || undefined,
+        ...getClientInfo(req),
+      });
 
       res.json({ success: true });
     } catch (error) {

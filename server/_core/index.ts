@@ -12,7 +12,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import trackingRoutes from "../trackingRoutes";
 import { initSentry, setupSentryErrorHandler } from "./sentry";
-import { apiRateLimiter, authRateLimiter } from "./rateLimit";
+import { apiRateLimiter, authRateLimiter, checkLockout, registrationRateLimiter, passwordResetRateLimiter } from "./rateLimit";
 import { ENV } from "./env";
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -63,13 +63,45 @@ async function startServer() {
     })
   );
   
-  // Security: CORS configuration - Allow all origins in production for now
+  // Security: CORS configuration - Strict origin control
+  const allowedOrigins = [
+    "https://lead.nexifyhub.no",
+    "https://www.lead.nexifyhub.no",
+    "https://norskleads.com",
+    "https://www.norskleads.com",
+    "https://app.norskleads.com",
+    // Development origins (only in non-production)
+    ...(ENV.isProduction ? [] : [
+      "http://localhost:3000",
+      "http://localhost:5173",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:5173",
+    ]),
+  ];
+  
   app.use(
     cors({
-      origin: true, // Allow all origins
+      origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl)
+        if (!origin) {
+          return callback(null, true);
+        }
+        
+        if (allowedOrigins.includes(origin)) {
+          return callback(null, true);
+        }
+        
+        // Log blocked origins in production
+        if (ENV.isProduction) {
+          console.warn(`[CORS] Blocked request from origin: ${origin}`);
+        }
+        
+        return callback(new Error("Not allowed by CORS"), false);
+      },
       credentials: true,
       methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       allowedHeaders: ["Content-Type", "Authorization", "stripe-signature"],
+      maxAge: 86400, // Cache preflight for 24 hours
     })
   );
   
@@ -77,7 +109,14 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   
-  // Auth routes (login, register, logout)
+  // Auth routes with advanced rate limiting
+  // Login: strict rate limit + lockout check
+  app.use("/api/auth/login", authRateLimiter, checkLockout);
+  // Register: separate rate limit
+  app.use("/api/auth/register", registrationRateLimiter);
+  // Password reset: strict rate limit
+  app.use("/api/auth/forgot-password", passwordResetRateLimiter);
+  // Other auth routes: general auth rate limit
   app.use("/api/auth", authRateLimiter);
   registerAuthRoutes(app);
   

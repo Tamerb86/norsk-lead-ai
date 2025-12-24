@@ -11,7 +11,9 @@ import {
   emailEvents,
   activities,
   dataUpdateLogs,
-  savedFilters
+  savedFilters,
+  refreshTokens,
+  InsertRefreshToken
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1260,4 +1262,86 @@ export async function updateUserSubscriptionPartial(userId: number, data: {
     .where(eq(users.id, userId));
 
   return { success: true };
+}
+
+
+// ============================================
+// Refresh Token Functions
+// ============================================
+
+/**
+ * Create a new refresh token
+ */
+export async function createRefreshToken(data: {
+  userId: number;
+  tokenHash: string;
+  expiresAt: Date;
+  userAgent?: string | null;
+  ipAddress?: string | null;
+}) {
+  const db = await getDb();
+  const result = await db.insert(refreshTokens).values({
+    userId: data.userId,
+    tokenHash: data.tokenHash,
+    expiresAt: data.expiresAt,
+    userAgent: data.userAgent,
+    ipAddress: data.ipAddress,
+  }).returning();
+  return result[0];
+}
+
+/**
+ * Get refresh token by hash
+ */
+export async function getRefreshTokenByHash(tokenHash: string) {
+  const db = await getDb();
+  const result = await db.select()
+    .from(refreshTokens)
+    .where(eq(refreshTokens.tokenHash, tokenHash))
+    .limit(1);
+  return result[0] || null;
+}
+
+/**
+ * Revoke a refresh token
+ */
+export async function revokeRefreshToken(tokenId: number) {
+  const db = await getDb();
+  await db.update(refreshTokens)
+    .set({ revokedAt: new Date() })
+    .where(eq(refreshTokens.id, tokenId));
+}
+
+/**
+ * Revoke all refresh tokens for a user
+ */
+export async function revokeAllUserRefreshTokens(userId: number) {
+  const db = await getDb();
+  await db.update(refreshTokens)
+    .set({ revokedAt: new Date() })
+    .where(and(
+      eq(refreshTokens.userId, userId),
+      sql`${refreshTokens.revokedAt} IS NULL`
+    ));
+}
+
+/**
+ * Clean up expired refresh tokens (should be run periodically)
+ */
+export async function cleanupExpiredRefreshTokens() {
+  const db = await getDb();
+  await db.delete(refreshTokens)
+    .where(sql`${refreshTokens.expiresAt} < NOW()`);
+}
+
+/**
+ * Get user by ID
+ */
+export async function getUserById(userId: number) {
+  const db = await getDb();
+  const result = await db.select()
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return result[0] || null;
 }

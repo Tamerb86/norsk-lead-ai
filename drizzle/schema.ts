@@ -373,3 +373,21 @@ export const userOnboarding = pgTable("user_onboarding", {
 
 export type UserOnboarding = typeof userOnboarding.$inferSelect;
 export type InsertUserOnboarding = typeof userOnboarding.$inferInsert;
+
+
+/**
+ * Refresh tokens table for JWT rotation
+ */
+export const refreshTokens = pgTable("refresh_tokens", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: varchar("tokenHash", { length: 255 }).notNull().unique(),
+  expiresAt: timestamp("expiresAt").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  revokedAt: timestamp("revokedAt"),
+  userAgent: text("userAgent"),
+  ipAddress: varchar("ipAddress", { length: 45 }),
+});
+
+export type RefreshToken = typeof refreshTokens.$inferSelect;
+export type InsertRefreshToken = typeof refreshTokens.$inferInsert;
