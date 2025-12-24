@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -130,39 +131,27 @@ export default function Templates() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      {/* Modern Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/dashboard">
-              <div className="flex items-center gap-3 cursor-pointer">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
-                  <Building2 className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    NorskLeads
-                  </h1>
-                  <p className="text-sm text-gray-600">E-postmaler</p>
-                </div>
-              </div>
-            </Link>
-            <Button 
-              onClick={() => {
-                setShowCreateForm(!showCreateForm);
-                setActiveTab("my-templates");
-              }}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-500/30"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Ny mal
-            </Button>
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">E-postmaler</h1>
+            <p className="text-gray-600">Lag og administrer e-postmaler</p>
           </div>
+          <Button 
+            onClick={() => {
+              setShowCreateForm(!showCreateForm);
+              setActiveTab("my-templates");
+            }}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            Ny mal
+          </Button>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8">
+        <div>
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="mb-6">
           <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
@@ -622,7 +611,7 @@ export default function Templates() {
             </Card>
           </TabsContent>
         </Tabs>
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

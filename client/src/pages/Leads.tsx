@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, Users, Mail, Phone, Globe, Briefcase, Hash, Clock, AlertCircle, Sparkles, ArrowRight, CheckCircle2, TrendingUp, Trash2, X } from "lucide-react";
@@ -172,29 +173,8 @@ export default function Leads() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-      {/* Modern Header */}
-      <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200/50 sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Link href="/">
-              <div className="flex items-center gap-3 cursor-pointer">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
-                  <Building2 className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                    NorskLeads
-                  </h1>
-                  <p className="text-sm text-gray-600">Administrer Leads</p>
-                </div>
-              </div>
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
+    <DashboardLayout>
+      <div className="space-y-6">
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card className="border-0 bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg">
@@ -444,7 +424,7 @@ export default function Leads() {
             </CardContent>
           </Card>
         )}
-      </main>
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }

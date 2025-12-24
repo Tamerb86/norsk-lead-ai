@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "wouter";
 import { trpc } from "@/lib/trpc";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -112,15 +113,16 @@ export default function Sequences() {
   }
 
   return (
-    <div className="container py-8">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Email Sequences</h1>
-          <p className="text-muted-foreground mt-2">
-            Automatiser oppfølgings-e-poster med multi-step workflows
-          </p>
-        </div>
+    <DashboardLayout>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">E-postsekvenser</h1>
+            <p className="text-gray-600">
+              Automatiser oppfølgings-e-poster med multi-step workflows
+            </p>
+          </div>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
             <Button className="gap-2">
@@ -296,6 +298,7 @@ export default function Sequences() {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </DashboardLayout>
   );
 }
