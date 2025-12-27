@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import { Search, Book, MessageCircle, Mail, HelpCircle } from "lucide-react";
 import { useState } from "react";
+import { SEOHead } from "@/components/SEOHead";
 
 export default function Help() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -45,6 +46,13 @@ export default function Help() {
   ];
 
   return (
+    <>
+      <SEOHead
+        title="Hjelp og support - NorskLeads"
+        description="Få hjelp med NorskLeads. Finn svar på vanlige spørsmål, lær å bruke plattformen, og kontakt vårt supportteam."
+        keywords="norskleads hjelp, support, faq, vanlige spørsmål, brukerveiledning"
+        canonicalUrl="https://lead.nexifyhub.no/help"
+      />
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/30 to-white">
       {/* Header */}
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
@@ -156,5 +164,6 @@ export default function Help() {
         </div>
       </footer>
     </div>
+    </>
   );
 }

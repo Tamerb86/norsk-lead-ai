@@ -33,6 +33,10 @@ import Profile from "./pages/Profile";
 import Account from "./pages/Account";
 import Admin from "./pages/Admin";
 import ForgotPassword from "@/pages/ForgotPassword";
+import Blog from "./pages/Blog";
+import Guide from "./pages/Guide";
+import CityLanding from "./pages/CityLanding";
+import IndustryLanding from "./pages/IndustryLanding";
 
 function Router() {
   return (
@@ -65,6 +69,10 @@ function Router() {
       <Route path="/status" component={Status} />
       <Route path="/sentry-test" component={SentryTest} />
       <Route path="/enrichment" component={LeadEnrichment} />
+      <Route path="/blog" component={Blog} />
+      <Route path="/guide" component={Guide} />
+      <Route path="/bedrifter/:city" component={CityLanding} />
+      <Route path="/bransjer/:industry" component={IndustryLanding} />
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />
     </Switch>

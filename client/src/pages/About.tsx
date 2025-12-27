@@ -2,9 +2,18 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
 import { Building2, Mail, Phone, MapPin, Users, Target, Zap } from "lucide-react";
+import { SEOHead } from "@/components/SEOHead";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function About() {
   return (
+    <>
+      <SEOHead
+        title="Om oss - NorskLeads"
+        description="Lær mer om NorskLeads og Nexify CRM Systems AS. Vi hjelper norske bedrifter med å finne sine neste kunder gjennom smart leadgenerering."
+        keywords="om norskleads, nexify crm, b2b leadgenerering norge, norsk bedrift"
+        canonicalUrl="https://lead.nexifyhub.no/about"
+      />
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Navigation */}
       <nav className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
@@ -256,5 +265,6 @@ export default function About() {
         </div>
       </footer>
     </div>
+    </>
   );
 }

@@ -1,0 +1,64 @@
+# NorskLeads - robots.txt
+# https://lead.nexifyhub.no
+
+User-agent: *
+Allow: /
+Allow: /search
+Allow: /pricing
+Allow: /features
+Allow: /about
+Allow: /contact
+Allow: /help
+Allow: /docs
+Allow: /privacy
+Allow: /terms
+Allow: /blog
+Allow: /guide
+
+# Disallow private/authenticated areas
+Disallow: /dashboard
+Disallow: /admin
+Disallow: /account
+Disallow: /profile
+Disallow: /settings
+Disallow: /campaigns
+Disallow: /leads
+Disallow: /templates
+Disallow: /sequences
+Disallow: /analytics
+Disallow: /api/
+Disallow: /trpc/
+
+# Disallow auth pages
+Disallow: /login
+Disallow: /register
+Disallow: /forgot-password
+
+# Crawl-delay for polite crawling
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://lead.nexifyhub.no/sitemap.xml
+
+# Google specific
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+# Bing specific
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+# Block bad bots
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /

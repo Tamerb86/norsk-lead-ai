@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Link } from "wouter";
+import { SEOHead } from "@/components/SEOHead";
 import {
   Search,
   Mail,
@@ -147,6 +148,13 @@ export default function Features() {
   ];
 
   return (
+    <>
+      <SEOHead
+        title="Funksjoner - Alt du trenger for B2B leadgenerering"
+        description="Oppdag alle funksjonene i NorskLeads: Intelligent bedriftssøk, e-postkampanjer, automatiserte sekvenser, CRM-integrasjon, og mer. Start gratis i dag!"
+        keywords="b2b funksjoner, leadgenerering verktøy, e-postkampanjer, CRM integrasjon, bedriftssøk norge"
+        canonicalUrl="https://lead.nexifyhub.no/features"
+      />
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/30 to-white">
       {/* Header */}
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
@@ -258,5 +266,6 @@ export default function Features() {
         </div>
       </footer>
     </div>
+    </>
   );
 }

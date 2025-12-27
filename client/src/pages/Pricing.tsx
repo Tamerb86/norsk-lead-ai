@@ -7,6 +7,8 @@ import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { SEOHead } from "@/components/SEOHead";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function Pricing() {
   const [loadingPlanId, setLoadingPlanId] = useState<string | null>(null);
@@ -62,7 +64,30 @@ export default function Pricing() {
     },
   ];
 
+  // Structured data for pricing
+  const pricingStructuredData = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "name": "NorskLeads B2B Lead Generator",
+    "description": "Plattform for B2B leadgenerering i Norge",
+    "offers": SUBSCRIPTION_PLANS.map(plan => ({
+      "@type": "Offer",
+      "name": plan.name,
+      "price": plan.price,
+      "priceCurrency": "NOK",
+      "availability": "https://schema.org/InStock"
+    }))
+  };
+
   return (
+    <>
+      <SEOHead
+        title="Priser - Velg din plan"
+        description="Enkel og transparent prising for NorskLeads. Start gratis med 50 bedrifter/måned, eller velg Basic (499 NOK) eller Pro (1299 NOK) for flere funksjoner."
+        keywords="norskleads priser, b2b leads pris, leadgenerering kostnad, bedriftsdatabase abonnement"
+        canonicalUrl="https://lead.nexifyhub.no/pricing"
+        structuredData={pricingStructuredData}
+      />
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/30 to-white">
       {/* Header */}
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
@@ -221,5 +246,6 @@ export default function Pricing() {
         </div>
       </footer>
     </div>
+    </>
   );
 }

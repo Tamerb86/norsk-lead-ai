@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { SEOHead, structuredDataGenerators } from "@/components/SEOHead";
 import {
   Search,
   Mail,
@@ -102,7 +103,23 @@ export default function Landing() {
     }
   };
 
+  // FAQ data for structured data
+  const faqData = [
+    { question: "Hva er NorskLeads?", answer: "NorskLeads er Norges ledende plattform for B2B leadgenerering. Vi gir deg tilgang til over 500,000 norske bedrifter med kontaktinformasjon." },
+    { question: "Er det gratis å prøve?", answer: "Ja! Du kan starte med vår gratis plan som gir deg tilgang til 50 bedrifter per måned." },
+    { question: "Hvordan finner jeg leads?", answer: "Bruk vårt avanserte søkeverktøy for å filtrere bedrifter etter bransje, lokasjon, størrelse og mer." },
+    { question: "Kan jeg eksportere data?", answer: "Ja, du kan eksportere bedriftsdata til Excel eller CSV for bruk i ditt CRM-system." },
+  ];
+
   return (
+    <>
+      <SEOHead
+        title="Finn Bedriftskontakter i Norge - B2B Lead Generator"
+        description="Norges ledende plattform for B2B leadgenerering. Søk blant 500,000+ norske bedrifter, finn kontaktinformasjon, og automatiser din salgsutvikling. Gratis prøveperiode!"
+        keywords="leads norge, b2b leads, bedriftskontakter, salgsleads, leadgenerering, norske bedrifter, bedriftsdatabase, prospektering"
+        canonicalUrl="https://lead.nexifyhub.no/"
+        structuredData={structuredDataGenerators.faqPage(faqData)}
+      />
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/30 to-white">
       {/* Header */}
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
@@ -949,5 +966,6 @@ export default function Landing() {
         </div>
       )}
     </div>
+    </>
   );
 }

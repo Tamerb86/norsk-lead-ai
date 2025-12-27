@@ -6,6 +6,8 @@ import { Link } from "wouter";
 import { Search, Mail, Phone, MapPin, MessageCircle, Clock } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { SEOHead } from "@/components/SEOHead";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function Contact() {
   const [formData, setFormData] = useState({
@@ -51,6 +53,13 @@ export default function Contact() {
   ];
 
   return (
+    <>
+      <SEOHead
+        title="Kontakt oss - NorskLeads"
+        description="Ta kontakt med NorskLeads-teamet. Vi er her for å hjelpe deg med B2B leadgenerering i Norge. Send oss en melding eller ring oss."
+        keywords="kontakt norskleads, kundeservice, support, hjelp b2b leads"
+        canonicalUrl="https://lead.nexifyhub.no/contact"
+      />
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/30 to-white">
       {/* Header */}
       <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
@@ -223,5 +232,6 @@ export default function Contact() {
         </div>
       </footer>
     </div>
+    </>
   );
 }

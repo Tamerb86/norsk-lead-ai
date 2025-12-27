@@ -1,17 +1,143 @@
 <!doctype html>
-<html lang="en">
+<html lang="no">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1" />
-    <title>AI Lead Generator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5" />
+    
+    <!-- Primary Meta Tags -->
+    <title>NorskLeads - Finn Bedriftskontakter i Norge | B2B Lead Generator</title>
+    <meta name="title" content="NorskLeads - Finn Bedriftskontakter i Norge | B2B Lead Generator" />
+    <meta name="description" content="Norges ledende plattform for B2B leadgenerering. Søk blant 500,000+ norske bedrifter, finn kontaktinformasjon, og automatiser din salgsutvikling. Gratis prøveperiode!" />
+    <meta name="keywords" content="leads norge, b2b leads, bedriftskontakter, salgsleads, leadgenerering, norske bedrifter, bedriftsdatabase, prospektering, salgsprospekter, CRM" />
+    <meta name="author" content="NorskLeads" />
+    <meta name="robots" content="index, follow" />
+    <meta name="language" content="Norwegian" />
+    <meta name="revisit-after" content="7 days" />
+    
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://lead.nexifyhub.no/" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://lead.nexifyhub.no/" />
+    <meta property="og:title" content="NorskLeads - Finn Bedriftskontakter i Norge" />
+    <meta property="og:description" content="Norges ledende plattform for B2B leadgenerering. Søk blant 500,000+ norske bedrifter og automatiser din salgsutvikling." />
+    <meta property="og:image" content="https://lead.nexifyhub.no/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="nb_NO" />
+    <meta property="og:site_name" content="NorskLeads" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://lead.nexifyhub.no/" />
+    <meta property="twitter:title" content="NorskLeads - Finn Bedriftskontakter i Norge" />
+    <meta property="twitter:description" content="Norges ledende plattform for B2B leadgenerering. Søk blant 500,000+ norske bedrifter." />
+    <meta property="twitter:image" content="https://lead.nexifyhub.no/og-image.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#2563eb" />
+    
+    <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    
+    <!-- DNS Prefetch -->
+    <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+    <link rel="dns-prefetch" href="https://www.googletagmanager.com" />
+    
+    <!-- Structured Data - Organization -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "NorskLeads",
+      "alternateName": "Norsk Leads",
+      "url": "https://lead.nexifyhub.no",
+      "logo": "https://lead.nexifyhub.no/logo.png",
+      "description": "Norges ledende plattform for B2B leadgenerering og bedriftskontakter",
+      "foundingDate": "2024",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "NO",
+        "addressLocality": "Oslo"
+      },
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "email": "support@nexifyhub.no",
+        "availableLanguage": ["Norwegian", "English"]
+      },
+      "sameAs": [
+        "https://www.linkedin.com/company/norskleads"
+      ]
+    }
+    </script>
+    
+    <!-- Structured Data - SoftwareApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "NorskLeads",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "NOK",
+        "description": "Gratis prøveperiode tilgjengelig"
+      },
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.8",
+        "ratingCount": "150"
+      },
+      "featureList": [
+        "Søk blant 500,000+ norske bedrifter",
+        "Automatisk leadgenerering",
+        "E-postkampanjer",
+        "CRM-integrasjon",
+        "Eksport til Excel/CSV"
+      ]
+    }
+    </script>
+    
+    <!-- Structured Data - WebSite with SearchAction -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "NorskLeads",
+      "url": "https://lead.nexifyhub.no",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://lead.nexifyhub.no/search?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Google Analytics 4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-XXXXXXXXXX');
+    </script>
   </body>
 </html>
