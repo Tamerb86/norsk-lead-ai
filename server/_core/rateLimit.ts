@@ -91,10 +91,8 @@ export const authRateLimiter = rateLimit({
   // Skip rate limiting in development
   skip: () => !ENV.isProduction,
   
-  // Custom key generator
-  keyGenerator: (req) => {
-    return req.ip || req.headers["x-forwarded-for"]?.toString() || "unknown";
-  },
+  // Use default key generator (handles IPv6 properly)
+  // keyGenerator removed to use built-in IP handling
   
   handler: (req: Request, res: Response) => {
     const ip = req.ip || "unknown";
@@ -260,10 +258,7 @@ export function createUserRateLimiter() {
     legacyHeaders: false,
     skip: () => !ENV.isProduction,
     
-    // Key by user ID if authenticated, otherwise by IP
-    keyGenerator: (req: any) => {
-      return req.user?.id?.toString() || req.ip || "unknown";
-    },
+    // Key by user ID if authenticated (falls back to default IP handling)
     
     handler: (req: Request, res: Response) => {
       res.status(429).json({
