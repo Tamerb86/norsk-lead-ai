@@ -59,9 +59,9 @@ export function recordFailedLogin(ip: string): void {
   
   record.count++;
   
-  // Lock out after 5 failed attempts
-  if (record.count >= 5) {
-    record.lockedUntil = now + 15 * 60 * 1000; // 15 minutes lockout
+  // Lock out after 15 failed attempts (increased from 5)
+  if (record.count >= 15) {
+    record.lockedUntil = now + 5 * 60 * 1000; // 5 minutes lockout (reduced from 15)
     console.warn(`[Security] IP ${ip} locked out for 15 minutes after ${record.count} failed login attempts`);
   }
 }
@@ -79,8 +79,8 @@ export function clearFailedLogins(ip: string): void {
  * - Lockout after 5 failed attempts for 15 minutes
  */
 export const authRateLimiter = rateLimit({
-  windowMs: 10 * 60 * 1000, // 10 minutes
-  max: 10, // 10 attempts per 10 minutes
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // 50 attempts per 15 minutes (increased for better UX)
   message: {
     error: "Too many login attempts, please try again later.",
     retryAfter: "10 minutes",
