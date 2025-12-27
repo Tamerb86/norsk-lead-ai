@@ -153,7 +153,9 @@ function EmailFinderTab() {
       const res = await fetch("/api/trpc/emailFinder.getStats", { credentials: "include" });
       if (res.ok) {
         const data = await res.json();
-        setStats(data.result?.data);
+        // Handle tRPC response format
+        const statsData = data.result?.data?.json || data.result?.data;
+        setStats(statsData);
       }
     } catch (err) {
       console.error("Failed to fetch stats:", err);
@@ -164,15 +166,19 @@ function EmailFinderTab() {
     setLoading(true);
     setError(null);
     try {
+      // Use correct tRPC input format with json wrapper
+      const inputData = { json: { limit, fylke: filterFylke || undefined, hasWebsite: true } };
       const params = new URLSearchParams();
-      params.append("input", JSON.stringify({ limit, fylke: filterFylke || undefined, hasWebsite: true }));
+      params.append("input", JSON.stringify(inputData));
       
       const res = await fetch(`/api/trpc/emailFinder.getCompaniesWithoutEmail?${params}`, { 
         credentials: "include" 
       });
       if (res.ok) {
         const data = await res.json();
-        setCompanies(data.result?.data || []);
+        // Handle tRPC response format
+        const companiesData = data.result?.data?.json || data.result?.data || [];
+        setCompanies(companiesData);
       } else {
         setError("Kunne ikke hente bedrifter");
       }
@@ -191,12 +197,12 @@ function EmailFinderTab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ companyId }),
+        body: JSON.stringify({ json: { companyId } }),
       });
       
       if (res.ok) {
         const data = await res.json();
-        const result = data.result?.data;
+        const result = data.result?.data?.json || data.result?.data;
         
         if (result?.email) {
           setSuccess(`Fant e-post: ${result.email}`);
@@ -233,12 +239,12 @@ function EmailFinderTab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ limit, fylke: filterFylke || undefined }),
+        body: JSON.stringify({ json: { limit, fylke: filterFylke || undefined } }),
       });
       
       if (res.ok) {
         const data = await res.json();
-        const result = data.result?.data;
+        const result = data.result?.data?.json || data.result?.data;
         setSuccess(`Ferdig! Fant ${result?.found || 0} e-poster, oppdaterte ${result?.updated || 0} bedrifter`);
         fetchStats();
         fetchCompaniesWithoutEmail();
