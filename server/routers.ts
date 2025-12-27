@@ -1322,6 +1322,178 @@ export const appRouter = router({
   }),
 
   // ============================================
+  // EMAIL FINDER ROUTER (Google Maps Scraping)
+  // ============================================
+  emailFinder: router({
+    // Get companies without email
+    getCompaniesWithoutEmail: protectedProcedure
+      .input(z.object({
+        limit: z.number().optional().default(100),
+        fylke: z.string().optional(),
+        kommune: z.string().optional(),
+        hasWebsite: z.boolean().optional(),
+      }))
+      .query(async ({ input }) => {
+        return await db.getCompaniesWithoutEmail(input);
+      }),
+
+    // Find email for a single company
+    findEmail: protectedProcedure
+      .input(z.object({
+        companyId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const company = await db.getCompanyById(input.companyId);
+        if (!company) {
+          throw new Error("Company not found");
+        }
+
+        const { findCompanyEmail } = await import("./enrichment/googleMapsEmailFinder");
+        
+        const result = await findCompanyEmail(
+          company.navn,
+          company.organisasjonsnummer,
+          company.hjemmeside,
+          company.telefon,
+          company.kommune
+        );
+
+        // Update company if email found
+        if (result.email) {
+          await db.updateCompanyContact(input.companyId, {
+            epostadresse: result.email,
+            telefon: result.phone || company.telefon,
+            hjemmeside: result.website || company.hjemmeside,
+          });
+        }
+
+        return result;
+      }),
+
+    // Batch find emails for multiple companies
+    findEmailsBatch: protectedProcedure
+      .input(z.object({
+        companyIds: z.array(z.number()),
+      }))
+      .mutation(async ({ input }) => {
+        const companies = await Promise.all(
+          input.companyIds.map(id => db.getCompanyById(id))
+        );
+
+        const validCompanies = companies.filter(c => c !== null) as NonNullable<typeof companies[0]>[];
+
+        const { findCompanyEmailsBatch } = await import("./enrichment/googleMapsEmailFinder");
+        
+        const results = await findCompanyEmailsBatch(
+          validCompanies.map(c => ({
+            navn: c.navn,
+            organisasjonsnummer: c.organisasjonsnummer,
+            hjemmeside: c.hjemmeside,
+            telefon: c.telefon,
+            kommune: c.kommune,
+          }))
+        );
+
+        // Update companies with found emails
+        let updated = 0;
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+          const company = validCompanies[i];
+          
+          if (result.email) {
+            await db.updateCompanyContact(company.id, {
+              epostadresse: result.email,
+              telefon: result.phone || company.telefon,
+              hjemmeside: result.website || company.hjemmeside,
+            });
+            updated++;
+          }
+        }
+
+        return {
+          total: results.length,
+          found: results.filter(r => r.email).length,
+          updated,
+          results,
+        };
+      }),
+
+    // Auto-enrich: Find emails for companies without email (background job)
+    autoEnrich: protectedProcedure
+      .input(z.object({
+        limit: z.number().optional().default(50),
+        fylke: z.string().optional(),
+        kommune: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Only admin can run auto-enrich
+        if (ctx.user.role !== "admin") {
+          throw new Error("Unauthorized: Admin access required");
+        }
+
+        const companies = await db.getCompaniesWithoutEmail({
+          limit: input.limit,
+          fylke: input.fylke,
+          kommune: input.kommune,
+          hasWebsite: true, // Prioritize companies with websites
+        });
+
+        const { findCompanyEmailsBatch } = await import("./enrichment/googleMapsEmailFinder");
+        
+        const results = await findCompanyEmailsBatch(
+          companies.map(c => ({
+            navn: c.navn,
+            organisasjonsnummer: c.organisasjonsnummer,
+            hjemmeside: c.hjemmeside,
+            telefon: c.telefon,
+            kommune: c.kommune,
+          })),
+          2, // Lower concurrency for background job
+          3000 // Longer delay
+        );
+
+        // Update companies with found emails
+        let updated = 0;
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+          const company = companies[i];
+          
+          if (result.email) {
+            await db.updateCompanyContact(company.id, {
+              epostadresse: result.email,
+              telefon: result.phone || company.telefon,
+              hjemmeside: result.website || company.hjemmeside,
+            });
+            updated++;
+          }
+        }
+
+        // Log activity
+        await db.createActivity({
+          userId: ctx.user.id,
+          type: "email_enrichment",
+          description: `Auto-enriched ${updated} companies with emails`,
+          metadata: {
+            total: results.length,
+            found: results.filter(r => r.email).length,
+            updated,
+          },
+        });
+
+        return {
+          total: results.length,
+          found: results.filter(r => r.email).length,
+          updated,
+        };
+      }),
+
+    // Get enrichment stats
+    getStats: protectedProcedure.query(async () => {
+      return await db.getEmailEnrichmentStats();
+    }),
+  }),
+
+  // ============================================
   queue: router({
     // Get queue stats
     getStats: protectedProcedure.query(async ({ ctx }) => {

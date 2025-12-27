@@ -107,6 +107,371 @@ interface AdminUser {
   isActive?: boolean;
 }
 
+// Email Finder Tab Component
+function EmailFinderTab() {
+  const [stats, setStats] = useState<{
+    total: number;
+    withEmail: number;
+    withoutEmail: number;
+    websiteNoEmail: number;
+    withPhone: number;
+    withWebsite: number;
+    emailCoverage: number;
+    phoneCoverage: number;
+    websiteCoverage: number;
+  } | null>(null);
+  const [companies, setCompanies] = useState<Array<{
+    id: number;
+    organisasjonsnummer: string;
+    navn: string;
+    hjemmeside: string | null;
+    telefon: string | null;
+    kommune: string | null;
+    fylke: string | null;
+  }>>([]);
+  const [loading, setLoading] = useState(false);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichingId, setEnrichingId] = useState<number | null>(null);
+  const [results, setResults] = useState<Array<{
+    companyName: string;
+    email: string | null;
+    source: string;
+    confidence: number;
+  }>>([]);
+  const [filterFylke, setFilterFylke] = useState<string>("");
+  const [limit, setLimit] = useState<number>(50);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  // Fetch stats on mount
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch("/api/trpc/emailFinder.getStats", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data.result?.data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch stats:", err);
+    }
+  };
+
+  const fetchCompaniesWithoutEmail = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      params.append("input", JSON.stringify({ limit, fylke: filterFylke || undefined, hasWebsite: true }));
+      
+      const res = await fetch(`/api/trpc/emailFinder.getCompaniesWithoutEmail?${params}`, { 
+        credentials: "include" 
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCompanies(data.result?.data || []);
+      } else {
+        setError("Kunne ikke hente bedrifter");
+      }
+    } catch (err) {
+      setError("Kunne ikke hente bedrifter");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const findEmailForCompany = async (companyId: number) => {
+    setEnrichingId(companyId);
+    setError(null);
+    try {
+      const res = await fetch("/api/trpc/emailFinder.findEmail", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ companyId }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        const result = data.result?.data;
+        
+        if (result?.email) {
+          setSuccess(`Fant e-post: ${result.email}`);
+          // Remove from list
+          setCompanies(companies.filter(c => c.id !== companyId));
+          // Add to results
+          setResults([...results, {
+            companyName: result.companyName,
+            email: result.email,
+            source: result.source,
+            confidence: result.confidence,
+          }]);
+          // Refresh stats
+          fetchStats();
+        } else {
+          setError(`Ingen e-post funnet for denne bedriften`);
+        }
+      } else {
+        setError("Kunne ikke søke etter e-post");
+      }
+    } catch (err) {
+      setError("Kunne ikke søke etter e-post");
+    } finally {
+      setEnrichingId(null);
+      setTimeout(() => { setSuccess(null); setError(null); }, 3000);
+    }
+  };
+
+  const runAutoEnrich = async () => {
+    setEnriching(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/trpc/emailFinder.autoEnrich", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ limit, fylke: filterFylke || undefined }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        const result = data.result?.data;
+        setSuccess(`Ferdig! Fant ${result?.found || 0} e-poster, oppdaterte ${result?.updated || 0} bedrifter`);
+        fetchStats();
+        fetchCompaniesWithoutEmail();
+      } else {
+        setError("Kunne ikke kjøre auto-enrichment");
+      }
+    } catch (err) {
+      setError("Kunne ikke kjøre auto-enrichment");
+    } finally {
+      setEnriching(false);
+      setTimeout(() => { setSuccess(null); setError(null); }, 5000);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Totalt bedrifter</p>
+                <p className="text-2xl font-bold">{stats?.total?.toLocaleString() || "-"}</p>
+              </div>
+              <Building2 className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Med e-post</p>
+                <p className="text-2xl font-bold text-green-600">{stats?.withEmail?.toLocaleString() || "-"}</p>
+                <p className="text-xs text-gray-400">{stats?.emailCoverage || 0}% dekning</p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Uten e-post</p>
+                <p className="text-2xl font-bold text-orange-600">{stats?.withoutEmail?.toLocaleString() || "-"}</p>
+              </div>
+              <AlertTriangle className="h-8 w-8 text-orange-500" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Med nettside (uten e-post)</p>
+                <p className="text-2xl font-bold text-purple-600">{stats?.websiteNoEmail?.toLocaleString() || "-"}</p>
+                <p className="text-xs text-gray-400">Gode kandidater</p>
+              </div>
+              <Globe className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Alerts */}
+      {error && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      {success && (
+        <Alert className="bg-green-50 border-green-200">
+          <CheckCircle className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-700">{success}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Controls */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Email Finder</CardTitle>
+          <CardDescription>
+            Finn e-postadresser for bedrifter ved å søke på nettsider og Google Maps
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-end gap-4">
+            <div className="flex-1">
+              <Label>Fylke (valgfritt)</Label>
+              <Input
+                placeholder="F.eks. Oslo, Vestland..."
+                value={filterFylke}
+                onChange={(e) => setFilterFylke(e.target.value)}
+              />
+            </div>
+            <div className="w-32">
+              <Label>Antall</Label>
+              <Select value={limit.toString()} onValueChange={(v) => setLimit(parseInt(v))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={fetchCompaniesWithoutEmail} disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Search className="h-4 w-4 mr-2" />}
+              Hent bedrifter
+            </Button>
+            <Button onClick={runAutoEnrich} disabled={enriching} variant="default" className="bg-green-600 hover:bg-green-700">
+              {enriching ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2" />}
+              Auto-berik ({limit})
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Companies Table */}
+      {companies.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Bedrifter uten e-post ({companies.length})</CardTitle>
+            <CardDescription>Klikk "Finn e-post" for å søke etter e-postadresse</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Bedrift</TableHead>
+                  <TableHead>Org.nr</TableHead>
+                  <TableHead>Kommune</TableHead>
+                  <TableHead>Nettside</TableHead>
+                  <TableHead>Telefon</TableHead>
+                  <TableHead className="text-right">Handling</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {companies.map((company) => (
+                  <TableRow key={company.id}>
+                    <TableCell className="font-medium">{company.navn}</TableCell>
+                    <TableCell className="text-gray-500">{company.organisasjonsnummer}</TableCell>
+                    <TableCell>{company.kommune || "-"}</TableCell>
+                    <TableCell>
+                      {company.hjemmeside ? (
+                        <a 
+                          href={company.hjemmeside.startsWith("http") ? company.hjemmeside : `https://${company.hjemmeside}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline flex items-center gap-1"
+                        >
+                          <Globe className="h-3 w-3" />
+                          {company.hjemmeside.replace(/^https?:\/\//, "").slice(0, 25)}
+                        </a>
+                      ) : "-"}
+                    </TableCell>
+                    <TableCell>{company.telefon || "-"}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        onClick={() => findEmailForCompany(company.id)}
+                        disabled={enrichingId === company.id}
+                      >
+                        {enrichingId === company.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Mail className="h-4 w-4 mr-1" />
+                            Finn e-post
+                          </>
+                        )}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Results */}
+      {results.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-green-600">Funnet e-poster ({results.length})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Bedrift</TableHead>
+                  <TableHead>E-post</TableHead>
+                  <TableHead>Kilde</TableHead>
+                  <TableHead>Konfidens</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {results.map((result, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell className="font-medium">{result.companyName}</TableCell>
+                    <TableCell>
+                      <a href={`mailto:${result.email}`} className="text-blue-600 hover:underline">
+                        {result.email}
+                      </a>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {result.source === "website_scrape" ? "Nettside" : "Google"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={result.confidence >= 80 ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"}>
+                        {result.confidence}%
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
 export default function Admin() {
   const { user, loading: authLoading } = useAuth({ redirectOnUnauthenticated: true });
   
@@ -573,6 +938,10 @@ export default function Admin() {
             <TabsTrigger value="system" className="data-[state=active]:bg-white data-[state=active]:text-blue-600">
               <Settings className="h-4 w-4 mr-2" />
               System
+            </TabsTrigger>
+            <TabsTrigger value="emailfinder" className="data-[state=active]:bg-white data-[state=active]:text-green-600">
+              <Mail className="h-4 w-4 mr-2" />
+              Email Finder
             </TabsTrigger>
           </TabsList>
 
@@ -1265,6 +1634,11 @@ export default function Admin() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Email Finder Tab */}
+          <TabsContent value="emailfinder">
+            <EmailFinderTab />
           </TabsContent>
         </Tabs>
 

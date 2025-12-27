@@ -1345,3 +1345,154 @@ export async function getUserById(userId: number) {
     .limit(1);
   return result[0] || null;
 }
+
+
+// ============================================
+// EMAIL FINDER / ENRICHMENT FUNCTIONS
+// ============================================
+
+/**
+ * Get companies without email address
+ */
+export async function getCompaniesWithoutEmail(params: {
+  limit?: number;
+  fylke?: string;
+  kommune?: string;
+  hasWebsite?: boolean;
+}) {
+  const db = await getDb();
+  
+  let query = sql`
+    SELECT id, organisasjonsnummer, navn, hjemmeside, telefon, kommune, fylke, poststed
+    FROM norwegian_companies
+    WHERE (epostadresse IS NULL OR epostadresse = '')
+    AND konkurs = false
+    AND "underAvvikling" = false
+  `;
+
+  if (params.fylke) {
+    query = sql`${query} AND fylke = ${params.fylke}`;
+  }
+
+  if (params.kommune) {
+    query = sql`${query} AND kommune = ${params.kommune}`;
+  }
+
+  if (params.hasWebsite) {
+    query = sql`${query} AND hjemmeside IS NOT NULL AND hjemmeside != ''`;
+  }
+
+  query = sql`${query} ORDER BY RANDOM() LIMIT ${params.limit || 100}`;
+
+  const result = await db.execute(query);
+  return (result.rows || []) as Array<{
+    id: number;
+    organisasjonsnummer: string;
+    navn: string;
+    hjemmeside: string | null;
+    telefon: string | null;
+    kommune: string | null;
+    fylke: string | null;
+    poststed: string | null;
+  }>;
+}
+
+/**
+ * Update company contact information
+ */
+export async function updateCompanyContact(companyId: number, data: {
+  epostadresse?: string | null;
+  telefon?: string | null;
+  hjemmeside?: string | null;
+}) {
+  const db = await getDb();
+
+  // Validate companyId
+  if (typeof companyId !== 'number' || !Number.isInteger(companyId) || companyId <= 0) {
+    throw new Error("Invalid company ID");
+  }
+
+  const updateData: Record<string, unknown> = {
+    updatedAt: new Date(),
+  };
+
+  if (data.epostadresse !== undefined) {
+    updateData.epostadresse = data.epostadresse;
+  }
+
+  if (data.telefon !== undefined) {
+    updateData.telefon = data.telefon;
+  }
+
+  if (data.hjemmeside !== undefined) {
+    updateData.hjemmeside = data.hjemmeside;
+  }
+
+  if (Object.keys(updateData).length === 1) {
+    return { success: true };
+  }
+
+  await db.update(norwegianCompanies)
+    .set(updateData)
+    .where(eq(norwegianCompanies.id, companyId));
+
+  return { success: true };
+}
+
+/**
+ * Get email enrichment statistics
+ */
+export async function getEmailEnrichmentStats() {
+  const db = await getDb();
+
+  // Total companies
+  const totalResult = await db.execute(
+    sql`SELECT COUNT(*) as count FROM norwegian_companies WHERE konkurs = false`
+  );
+  const total = Number((totalResult.rows?.[0] as any)?.count) || 0;
+
+  // Companies with email
+  const withEmailResult = await db.execute(
+    sql`SELECT COUNT(*) as count FROM norwegian_companies 
+        WHERE epostadresse IS NOT NULL AND epostadresse != '' AND konkurs = false`
+  );
+  const withEmail = Number((withEmailResult.rows?.[0] as any)?.count) || 0;
+
+  // Companies without email
+  const withoutEmail = total - withEmail;
+
+  // Companies with website but no email (good candidates for enrichment)
+  const websiteNoEmailResult = await db.execute(
+    sql`SELECT COUNT(*) as count FROM norwegian_companies 
+        WHERE (epostadresse IS NULL OR epostadresse = '')
+        AND hjemmeside IS NOT NULL AND hjemmeside != ''
+        AND konkurs = false`
+  );
+  const websiteNoEmail = Number((websiteNoEmailResult.rows?.[0] as any)?.count) || 0;
+
+  // Companies with phone
+  const withPhoneResult = await db.execute(
+    sql`SELECT COUNT(*) as count FROM norwegian_companies 
+        WHERE telefon IS NOT NULL AND telefon != '' AND konkurs = false`
+  );
+  const withPhone = Number((withPhoneResult.rows?.[0] as any)?.count) || 0;
+
+  // Companies with website
+  const withWebsiteResult = await db.execute(
+    sql`SELECT COUNT(*) as count FROM norwegian_companies 
+        WHERE hjemmeside IS NOT NULL AND hjemmeside != '' AND konkurs = false`
+  );
+  const withWebsite = Number((withWebsiteResult.rows?.[0] as any)?.count) || 0;
+
+  return {
+    total,
+    withEmail,
+    withoutEmail,
+    websiteNoEmail,
+    withPhone,
+    withWebsite,
+    emailCoverage: total > 0 ? Math.round((withEmail / total) * 100) : 0,
+    phoneCoverage: total > 0 ? Math.round((withPhone / total) * 100) : 0,
+    websiteCoverage: total > 0 ? Math.round((withWebsite / total) * 100) : 0,
+  };
+}
