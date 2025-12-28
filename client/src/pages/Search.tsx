@@ -8,7 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Building2, Search as SearchIcon, Mail, Phone, Globe, Filter, X, ArrowUpDown, Info, Download, ChevronLeft, ChevronRight, Save, Bookmark, Trash2, LogIn, Settings, Shield, User, LogOut, ChevronDown } from "lucide-react";
+import { Building2, Search as SearchIcon, Mail, Phone, Globe, Filter, X, ArrowUpDown, Info, Download, ChevronLeft, ChevronRight, Save, Bookmark, Trash2, LogIn, Settings, Shield, User, LogOut, ChevronDown, Sparkles, TrendingUp, ShieldCheck } from "lucide-react";
+import { LeadScoreBadge } from "@/components/LeadScoreBadge";
+import { EmailVerificationBadge } from "@/components/EmailVerificationBadge";
+import { AIEmailWriter } from "@/components/AIEmailWriter";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { SearchTableSkeleton } from "@/components/SkeletonLoaders";
@@ -847,6 +850,21 @@ const headers = [
                               </div>
                             </div>
                             <div className="flex flex-col gap-2 ml-4">
+                              {/* Lead Score Badge */}
+                              <LeadScoreBadge companyId={company.id} />
+                              
+                              {/* AI Email Writer */}
+                              <AIEmailWriter 
+                                companyName={company.navn}
+                                companyIndustry={company.naeringsbeskrivelse1}
+                                companyEmail={company.epostadresse}
+                              />
+                              
+                              {/* Email Verification */}
+                              {company.epostadresse && (
+                                <EmailVerificationBadge email={company.epostadresse} />
+                              )}
+                              
                               <Button 
                                 size="sm" 
                                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
