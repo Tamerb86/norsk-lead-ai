@@ -1766,6 +1766,13 @@ export const appRouter = router({
   // BRREG INTEGRATION ROUTER
   // ============================================
   brreg: router({
+    // Check if Brreg is enabled
+    isEnabled: protectedProcedure
+      .query(async () => {
+        const setting = await db.getSystemSetting('brreg_enabled');
+        return setting?.value !== 'false'; // Default to enabled
+      }),
+
     // Search companies in Brreg
     search: protectedProcedure
       .input(z.object({
@@ -1781,6 +1788,11 @@ export const appRouter = router({
         page: z.number().optional().default(0),
       }))
       .query(async ({ input }) => {
+        // Check if Brreg is enabled
+        const setting = await db.getSystemSetting('brreg_enabled');
+        if (setting?.value === 'false') {
+          throw new Error('Brreg-integrasjonen er deaktivert. Aktiver den i AI-innstillinger.');
+        }
         const { searchBrregCompanies } = await import('./services/brregIntegration');
         return await searchBrregCompanies(input);
       }),
@@ -1789,6 +1801,11 @@ export const appRouter = router({
     getCompany: protectedProcedure
       .input(z.object({ orgNr: z.string() }))
       .query(async ({ input }) => {
+        // Check if Brreg is enabled
+        const setting = await db.getSystemSetting('brreg_enabled');
+        if (setting?.value === 'false') {
+          throw new Error('Brreg-integrasjonen er deaktivert. Aktiver den i AI-innstillinger.');
+        }
         const { getBrregCompany } = await import('./services/brregIntegration');
         return await getBrregCompany(input.orgNr);
       }),
@@ -1797,6 +1814,11 @@ export const appRouter = router({
     getCompanyRoles: protectedProcedure
       .input(z.object({ orgNr: z.string() }))
       .query(async ({ input }) => {
+        // Check if Brreg is enabled
+        const setting = await db.getSystemSetting('brreg_enabled');
+        if (setting?.value === 'false') {
+          throw new Error('Brreg-integrasjonen er deaktivert. Aktiver den i AI-innstillinger.');
+        }
         const { getBrregCompanyRoles, extractCEO, extractBoardMembers } = await import('./services/brregIntegration');
         const roles = await getBrregCompanyRoles(input.orgNr);
         return {
@@ -1810,6 +1832,11 @@ export const appRouter = router({
     enrichCompany: protectedProcedure
       .input(z.object({ orgNr: z.string() }))
       .query(async ({ input }) => {
+        // Check if Brreg is enabled
+        const setting = await db.getSystemSetting('brreg_enabled');
+        if (setting?.value === 'false') {
+          throw new Error('Brreg-integrasjonen er deaktivert. Aktiver den i AI-innstillinger.');
+        }
         const { enrichCompanyFromBrreg } = await import('./services/brregIntegration');
         return await enrichCompanyFromBrreg(input.orgNr);
       }),
@@ -1818,6 +1845,11 @@ export const appRouter = router({
     syncCompany: protectedProcedure
       .input(z.object({ companyId: z.number() }))
       .mutation(async ({ input }) => {
+        // Check if Brreg is enabled
+        const setting = await db.getSystemSetting('brreg_enabled');
+        if (setting?.value === 'false') {
+          throw new Error('Brreg-integrasjonen er deaktivert. Aktiver den i AI-innstillinger.');
+        }
         const { enrichCompanyFromBrreg } = await import('./services/brregIntegration');
         
         // Get local company
@@ -1863,6 +1895,11 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         if (ctx.user?.role !== 'admin') {
           throw new Error('Unauthorized: Admin access required');
+        }
+        // Check if Brreg is enabled
+        const setting = await db.getSystemSetting('brreg_enabled');
+        if (setting?.value === 'false') {
+          throw new Error('Brreg-integrasjonen er deaktivert. Aktiver den i AI-innstillinger.');
         }
 
         const { enrichCompanyFromBrreg } = await import('./services/brregIntegration');
@@ -1937,6 +1974,11 @@ export const appRouter = router({
         if (ctx.user?.role !== 'admin') {
           throw new Error('Unauthorized: Admin access required');
         }
+        // Check if Brreg is enabled
+        const setting = await db.getSystemSetting('brreg_enabled');
+        if (setting?.value === 'false') {
+          throw new Error('Brreg-integrasjonen er deaktivert. Aktiver den i AI-innstillinger.');
+        }
         const { getBrregUpdates } = await import('./services/brregIntegration');
         return await getBrregUpdates(input);
       }),
@@ -1955,6 +1997,11 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         if (ctx.user?.role !== 'admin') {
           throw new Error('Unauthorized: Admin access required');
+        }
+        // Check if Brreg is enabled
+        const setting = await db.getSystemSetting('brreg_enabled');
+        if (setting?.value === 'false') {
+          throw new Error('Brreg-integrasjonen er deaktivert. Aktiver den i AI-innstillinger.');
         }
 
         const { searchAndImportFromBrreg } = await import('./services/brregIntegration');

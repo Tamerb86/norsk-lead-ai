@@ -160,6 +160,9 @@ export function AISettingsTab() {
         </CardContent>
       </Card>
 
+      {/* Brreg Settings Card */}
+      <BrregSettingsCard />
+
       {/* Integrations List */}
       <div className="grid gap-4">
         {integrations && integrations.length > 0 ? (
@@ -558,6 +561,152 @@ function EditIntegrationForm({
         </Button>
       </DialogFooter>
     </form>
+  );
+}
+
+// Brreg Settings Card Component
+function BrregSettingsCard() {
+  const [brregEnabled, setBrregEnabled] = useState(true);
+  const [dailyLimit, setDailyLimit] = useState("1000");
+  const [saving, setSaving] = useState(false);
+
+  // Fetch current Brreg settings
+  const { data: settings, refetch } = trpc.aiSettings.getSettings.useQuery(
+    { category: "brreg" },
+    {
+      onSuccess: (data) => {
+        const enabledSetting = data?.find((s: any) => s.key === "brreg_enabled");
+        const limitSetting = data?.find((s: any) => s.key === "brreg_daily_limit");
+        if (enabledSetting) setBrregEnabled(enabledSetting.value === "true");
+        if (limitSetting) setDailyLimit(limitSetting.value);
+      },
+    }
+  );
+
+  const setSettingMutation = trpc.aiSettings.setSetting.useMutation({
+    onSuccess: () => {
+      refetch();
+    },
+  });
+
+  const handleToggle = async (enabled: boolean) => {
+    setBrregEnabled(enabled);
+    setSaving(true);
+    try {
+      await setSettingMutation.mutateAsync({
+        key: "brreg_enabled",
+        value: enabled.toString(),
+        description: "Enable/disable Brreg API integration",
+        category: "brreg",
+        isSecret: false,
+      });
+      toastSuccess(
+        enabled ? "Brreg aktivert" : "Brreg deaktivert",
+        { description: enabled ? "Brreg-integrasjonen er n\u00e5 aktiv" : "Brreg-integrasjonen er n\u00e5 deaktivert" }
+      );
+    } catch (error) {
+      toastError("Feil", { description: "Kunne ikke lagre innstillingen" });
+      setBrregEnabled(!enabled);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveLimit = async () => {
+    setSaving(true);
+    try {
+      await setSettingMutation.mutateAsync({
+        key: "brreg_daily_limit",
+        value: dailyLimit,
+        description: "Daily request limit for Brreg API",
+        category: "brreg",
+        isSecret: false,
+      });
+      toastSuccess("Lagret", { description: "Daglig grense oppdatert" });
+    } catch (error) {
+      toastError("Feil", { description: "Kunne ikke lagre grensen" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="border-red-200 bg-gradient-to-r from-red-50 to-orange-50">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center">
+              <Database className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">Br\u00f8nn\u00f8ysundregistrene (Brreg)</CardTitle>
+              <CardDescription>Offisiell norsk bedriftsregister - Gratis API</CardDescription>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            {brregEnabled ? (
+              <Badge className="bg-green-100 text-green-800">Aktiv</Badge>
+            ) : (
+              <Badge variant="secondary">Deaktivert</Badge>
+            )}
+            <Switch
+              checked={brregEnabled}
+              onCheckedChange={handleToggle}
+              disabled={saving}
+            />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label className="text-sm text-gray-600">Daglig grense (foresp\u00f8rsler)</Label>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                value={dailyLimit}
+                onChange={(e) => setDailyLimit(e.target.value)}
+                className="w-32"
+                disabled={!brregEnabled}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSaveLimit}
+                disabled={saving || !brregEnabled}
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Lagre"}
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-sm text-gray-600">Status</Label>
+            <div className="flex items-center gap-2">
+              {brregEnabled ? (
+                <>
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                  <span className="text-sm text-green-700">Klar til bruk</span>
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-4 h-4 text-gray-400" />
+                  <span className="text-sm text-gray-500">Deaktivert</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 pt-4 border-t border-red-200">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-gray-600">API-n\u00f8kkel</span>
+            <Badge variant="outline" className="bg-white">Ikke p\u00e5krevd (gratis)</Badge>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Brreg API er gratis og krever ingen autentisering. Du kan s\u00f8ke, hente og synkronisere bedriftsdata direkte.
+          </p>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
