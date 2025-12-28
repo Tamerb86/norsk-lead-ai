@@ -40,6 +40,7 @@ import {
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
+import { SmartTips } from './SmartTips';
 import { Button } from "./ui/button";
 
 const menuItems = [
@@ -336,6 +337,7 @@ function DashboardLayoutContent({
           </div>
         )}
         <main className="flex-1 p-4 bg-gray-50">{children}</main>
+        <SmartTips />
       </SidebarInset>
     </>
   );
