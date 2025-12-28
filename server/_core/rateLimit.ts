@@ -223,11 +223,11 @@ export const generalRateLimiter = rateLimit({
 
 /**
  * Standard API rate limiter (for most endpoints)
- * - 100 requests per 15 minutes per IP
+ * - 500 requests per 15 minutes per IP (increased for better UX)
  */
 export const apiRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per 15 minutes
+  max: 500, // 500 requests per 15 minutes (increased from 100)
   message: {
     error: "Too many requests from this IP, please try again later.",
     retryAfter: "15 minutes",
