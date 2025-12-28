@@ -157,16 +157,23 @@ function AnalyticsContent() {
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - parseInt(dateRange));
 
-  // Fetch analytics data
+  // Fetch analytics data with caching to reduce API calls
+  const queryOptions = {
+    staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh
+    gcTime: 10 * 60 * 1000, // 10 minutes - cache time
+    refetchOnWindowFocus: false,
+    retry: 1,
+  };
+
   const { data: campaignPerf, isLoading: loadingCampaign } = trpc.analytics.campaignPerformance.useQuery({
     startDate: startDate.toISOString(),
     endDate: endDate.toISOString(),
-  });
+  }, queryOptions);
 
-  const { data: leadAnalytics, isLoading: loadingLeads } = trpc.analytics.leadAnalytics.useQuery();
-  const { data: sequenceAnalytics, isLoading: loadingSequences } = trpc.analytics.sequenceAnalytics.useQuery();
-  const { data: heatmap, isLoading: loadingHeatmap } = trpc.analytics.engagementHeatmap.useQuery();
-  const { data: topPerformers, isLoading: loadingTop } = trpc.analytics.topPerformers.useQuery();
+  const { data: leadAnalytics, isLoading: loadingLeads } = trpc.analytics.leadAnalytics.useQuery(undefined, queryOptions);
+  const { data: sequenceAnalytics, isLoading: loadingSequences } = trpc.analytics.sequenceAnalytics.useQuery(undefined, queryOptions);
+  const { data: heatmap, isLoading: loadingHeatmap } = trpc.analytics.engagementHeatmap.useQuery(undefined, queryOptions);
+  const { data: topPerformers, isLoading: loadingTop } = trpc.analytics.topPerformers.useQuery(undefined, queryOptions);
 
   const isLoading = loadingCampaign || loadingLeads || loadingSequences || loadingHeatmap || loadingTop;
 
