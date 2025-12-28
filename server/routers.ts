@@ -1510,6 +1510,117 @@ export const appRouter = router({
       return await queueDb.processQueue();
     }),
   }),
+
+  // ============================================
+  // LEAD SCORING ROUTER
+  // ============================================
+  leadScoring: router({
+    // Calculate score for a single company
+    scoreCompany: protectedProcedure
+      .input(z.object({
+        companyId: z.number(),
+        targetIndustries: z.array(z.string()).optional(),
+        targetLocations: z.array(z.string()).optional(),
+      }))
+      .query(async ({ input }) => {
+        const company = await db.getCompanyById(input.companyId);
+        if (!company) {
+          throw new Error("Company not found");
+        }
+        const { calculateLeadScore } = await import("./services/leadScoring");
+        return calculateLeadScore(company as any, {
+          targetIndustries: input.targetIndustries,
+          targetLocations: input.targetLocations,
+        });
+      }),
+
+    // Calculate scores for search results
+    scoreSearchResults: protectedProcedure
+      .input(z.object({
+        companyIds: z.array(z.number()),
+        targetIndustries: z.array(z.string()).optional(),
+        targetLocations: z.array(z.string()).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const companies = await Promise.all(
+          input.companyIds.map(id => db.getCompanyById(id))
+        );
+        const validCompanies = companies.filter(c => c !== null);
+        const { calculateLeadScoresBatch } = await import("./services/leadScoring");
+        return calculateLeadScoresBatch(validCompanies as any[], {
+          targetIndustries: input.targetIndustries,
+          targetLocations: input.targetLocations,
+        });
+      }),
+  }),
+
+  // ============================================
+  // AI EMAIL WRITER ROUTER
+  // ============================================
+  ai: router({
+    // Generate email using AI
+    generateEmail: protectedProcedure
+      .input(z.object({
+        companyName: z.string(),
+        industry: z.string().optional(),
+        location: z.string().optional(),
+        contactName: z.string().optional(),
+        purpose: z.enum(["sales", "partnership", "introduction", "followup", "custom"]),
+        customPurpose: z.string().optional(),
+        tone: z.enum(["formal", "friendly", "professional"]),
+        language: z.enum(["norwegian", "english"]),
+        additionalContext: z.string().optional(),
+        productOrService: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { generateEmail } = await import("./services/aiEmailWriter");
+        return await generateEmail(input);
+      }),
+
+    // Improve existing email
+    improveEmail: protectedProcedure
+      .input(z.object({
+        originalEmail: z.string(),
+        instruction: z.string(),
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { improveEmail } = await import("./services/aiEmailWriter");
+        return await improveEmail(input.originalEmail, input.instruction, input.language);
+      }),
+
+    // Verify email address
+    verifyEmail: protectedProcedure
+      .input(z.object({
+        email: z.string().email(),
+      }))
+      .mutation(async ({ input }) => {
+        const { verifyEmail } = await import("./services/emailVerification");
+        return await verifyEmail(input.email);
+      }),
+
+    // Verify multiple emails
+    verifyEmailBatch: protectedProcedure
+      .input(z.object({
+        emails: z.array(z.string()),
+      }))
+      .mutation(async ({ input }) => {
+        const { verifyEmailBatch } = await import("./services/emailVerification");
+        return await verifyEmailBatch(input.emails);
+      }),
+
+    // Generate subject line variants
+    generateSubjects: protectedProcedure
+      .input(z.object({
+        emailBody: z.string(),
+        count: z.number().optional(),
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { generateSubjectVariants } = await import("./services/aiEmailWriter");
+        return await generateSubjectVariants(input.emailBody, input.count, input.language);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
