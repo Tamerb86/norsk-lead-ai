@@ -81,6 +81,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { AISettingsTab } from "@/components/admin/AISettingsTab";
+import { BrregTab } from "@/components/admin/BrregTab";
 
 interface AdminStats {
   totalUsers: number;
@@ -954,6 +955,10 @@ export default function Admin() {
               <Zap className="h-4 w-4 mr-2" />
               AI-innstillinger
             </TabsTrigger>
+            <TabsTrigger value="brreg" className="data-[state=active]:bg-white data-[state=active]:text-red-600">
+              <Database className="h-4 w-4 mr-2" />
+              Brreg
+            </TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -1655,6 +1660,11 @@ export default function Admin() {
           {/* AI Settings Tab */}
           <TabsContent value="ai-settings">
             <AISettingsTab />
+          </TabsContent>
+
+          {/* Brreg Tab */}
+          <TabsContent value="brreg">
+            <BrregTab />
           </TabsContent>
         </Tabs>
 

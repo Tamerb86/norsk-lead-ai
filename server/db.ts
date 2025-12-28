@@ -1730,3 +1730,120 @@ export async function deleteSystemSetting(key: string) {
   await db.delete(systemSettings).where(eq(systemSettings.key, key));
   return { success: true };
 }
+
+// ============================================
+// BRREG INTEGRATION FUNCTIONS
+// ============================================
+
+/**
+ * Get company by organization number
+ */
+export async function getCompanyByOrgNr(orgNr: string) {
+  const db = await getDb();
+  const result = await db.select()
+    .from(norwegianCompanies)
+    .where(eq(norwegianCompanies.organisasjonsnummer, orgNr))
+    .limit(1);
+  return result[0] || null;
+}
+
+/**
+ * Get companies that need Brreg sync (no recent update)
+ */
+export async function getCompaniesNeedingBrregSync(limit: number = 50) {
+  const db = await getDb();
+  
+  // Get companies with org number that haven't been synced recently
+  const result = await db.select()
+    .from(norwegianCompanies)
+    .where(sql`${norwegianCompanies.organisasjonsnummer} IS NOT NULL AND ${norwegianCompanies.organisasjonsnummer} != ''`)
+    .limit(limit);
+  
+  return result;
+}
+
+/**
+ * Update company with Brreg data
+ */
+export async function updateCompanyFromBrreg(companyId: number, data: {
+  navn?: string;
+  hjemmeside?: string | null;
+  epostadresse?: string | null;
+  telefon?: string | null;
+  forretningsadresse?: string | null;
+  poststed?: string | null;
+  postnummer?: string | null;
+  kommune?: string | null;
+  antallAnsatte?: number | null;
+  dagligLeder?: string | null;
+}) {
+  const db = await getDb();
+  
+  const updateData: Record<string, any> = {};
+  
+  // Map Brreg fields to our database fields
+  if (data.navn) updateData.navn = data.navn;
+  if (data.hjemmeside) updateData.hjemmeside = data.hjemmeside;
+  if (data.epostadresse) updateData.epostadresse = data.epostadresse;
+  if (data.telefon) updateData.telefon = data.telefon;
+  if (data.forretningsadresse) updateData.forretningsadresse = data.forretningsadresse;
+  if (data.poststed) updateData.poststed = data.poststed;
+  if (data.postnummer) updateData.postnummer = data.postnummer;
+  if (data.kommune) updateData.kommune = data.kommune;
+  if (data.antallAnsatte !== undefined) updateData.antallAnsatte = data.antallAnsatte;
+  if (data.dagligLeder) updateData.dagligLeder = data.dagligLeder;
+  
+  if (Object.keys(updateData).length === 0) {
+    return null;
+  }
+  
+  const result = await db.update(norwegianCompanies)
+    .set(updateData)
+    .where(eq(norwegianCompanies.id, companyId))
+    .returning();
+  
+  return result[0] || null;
+}
+
+/**
+ * Insert a new company from Brreg data
+ */
+export async function insertCompanyFromBrreg(data: {
+  organisasjonsnummer: string;
+  navn: string;
+  organisasjonsform?: string;
+  hjemmeside?: string | null;
+  epostadresse?: string | null;
+  telefon?: string | null;
+  forretningsadresse?: string | null;
+  poststed?: string | null;
+  postnummer?: string | null;
+  kommune?: string | null;
+  fylke?: string | null;
+  naeringskode?: string | null;
+  antallAnsatte?: number | null;
+  stiftelsesdato?: string | null;
+}) {
+  const db = await getDb();
+  
+  const result = await db.insert(norwegianCompanies)
+    .values({
+      organisasjonsnummer: data.organisasjonsnummer,
+      navn: data.navn,
+      organisasjonsform: data.organisasjonsform,
+      hjemmeside: data.hjemmeside,
+      epostadresse: data.epostadresse,
+      telefon: data.telefon,
+      forretningsadresse: data.forretningsadresse,
+      poststed: data.poststed,
+      postnummer: data.postnummer,
+      kommune: data.kommune,
+      fylke: data.fylke,
+      naeringskode1: data.naeringskode,
+      antallAnsatte: data.antallAnsatte,
+      stiftelsesdato: data.stiftelsesdato,
+    })
+    .returning();
+  
+  return result[0];
+}

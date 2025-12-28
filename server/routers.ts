@@ -1757,7 +1757,236 @@ export const appRouter = router({
           { id: 'hunter', name: 'Hunter.io', models: [], description: 'Email finder & verification' },
           { id: 'clearbit', name: 'Clearbit', models: [], description: 'Company enrichment' },
           { id: 'apollo', name: 'Apollo.io', models: [], description: 'Lead enrichment' },
+          { id: 'brreg', name: 'Brønnøysundregistrene', models: [], description: 'Norwegian Business Registry' },
         ];
+      }),
+  }),
+
+  // ============================================
+  // BRREG INTEGRATION ROUTER
+  // ============================================
+  brreg: router({
+    // Search companies in Brreg
+    search: protectedProcedure
+      .input(z.object({
+        navn: z.string().optional(),
+        organisasjonsnummer: z.string().optional(),
+        kommunenummer: z.string().optional(),
+        organisasjonsform: z.string().optional(),
+        naeringskode: z.string().optional(),
+        fraAntallAnsatte: z.number().optional(),
+        tilAntallAnsatte: z.number().optional(),
+        konkurs: z.boolean().optional(),
+        size: z.number().optional().default(20),
+        page: z.number().optional().default(0),
+      }))
+      .query(async ({ input }) => {
+        const { searchBrregCompanies } = await import('./services/brregIntegration');
+        return await searchBrregCompanies(input);
+      }),
+
+    // Get company details from Brreg
+    getCompany: protectedProcedure
+      .input(z.object({ orgNr: z.string() }))
+      .query(async ({ input }) => {
+        const { getBrregCompany } = await import('./services/brregIntegration');
+        return await getBrregCompany(input.orgNr);
+      }),
+
+    // Get company roles/management from Brreg
+    getCompanyRoles: protectedProcedure
+      .input(z.object({ orgNr: z.string() }))
+      .query(async ({ input }) => {
+        const { getBrregCompanyRoles, extractCEO, extractBoardMembers } = await import('./services/brregIntegration');
+        const roles = await getBrregCompanyRoles(input.orgNr);
+        return {
+          rollegrupper: roles,
+          ceo: extractCEO(roles),
+          boardMembers: extractBoardMembers(roles),
+        };
+      }),
+
+    // Enrich company data from Brreg (get all info + roles)
+    enrichCompany: protectedProcedure
+      .input(z.object({ orgNr: z.string() }))
+      .query(async ({ input }) => {
+        const { enrichCompanyFromBrreg } = await import('./services/brregIntegration');
+        return await enrichCompanyFromBrreg(input.orgNr);
+      }),
+
+    // Update local company with Brreg data
+    syncCompany: protectedProcedure
+      .input(z.object({ companyId: z.number() }))
+      .mutation(async ({ input }) => {
+        const { enrichCompanyFromBrreg } = await import('./services/brregIntegration');
+        
+        // Get local company
+        const localCompany = await db.getCompanyById(input.companyId);
+        if (!localCompany || !localCompany.organisasjonsnummer) {
+          throw new Error('Company not found or missing org number');
+        }
+
+        // Get Brreg data
+        const brregData = await enrichCompanyFromBrreg(localCompany.organisasjonsnummer);
+        if (!brregData) {
+          throw new Error('Company not found in Brreg');
+        }
+
+        // Update local company
+        await db.updateCompanyFromBrreg(input.companyId, {
+          navn: brregData.company.navn,
+          hjemmeside: brregData.company.hjemmeside,
+          epostadresse: brregData.company.epostadresse,
+          telefon: brregData.company.telefon,
+          forretningsadresse: brregData.company.forretningsadresse,
+          poststed: brregData.company.poststed,
+          postnummer: brregData.company.postnummer,
+          kommune: brregData.company.kommune,
+          antallAnsatte: brregData.company.antallAnsatte,
+          dagligLeder: brregData.ceo?.navn || null,
+        });
+
+        return {
+          success: true,
+          company: brregData.company,
+          ceo: brregData.ceo,
+          boardMembers: brregData.boardMembers,
+        };
+      }),
+
+    // Bulk sync companies with Brreg
+    bulkSync: protectedProcedure
+      .input(z.object({
+        companyIds: z.array(z.number()).optional(),
+        limit: z.number().optional().default(50),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+
+        const { enrichCompanyFromBrreg } = await import('./services/brregIntegration');
+        
+        // Get companies to sync
+        let companies;
+        if (input.companyIds && input.companyIds.length > 0) {
+          companies = await Promise.all(
+            input.companyIds.slice(0, input.limit).map(id => db.getCompanyById(id))
+          );
+          companies = companies.filter(c => c !== null);
+        } else {
+          // Get companies that need updating (no recent brreg sync)
+          companies = await db.getCompaniesNeedingBrregSync(input.limit);
+        }
+
+        const results = {
+          total: companies.length,
+          success: 0,
+          failed: 0,
+          updated: [] as { id: number; navn: string }[],
+          errors: [] as { id: number; error: string }[],
+        };
+
+        for (const company of companies) {
+          if (!company?.organisasjonsnummer) {
+            results.failed++;
+            results.errors.push({ id: company?.id || 0, error: 'Missing org number' });
+            continue;
+          }
+
+          try {
+            const brregData = await enrichCompanyFromBrreg(company.organisasjonsnummer);
+            if (brregData) {
+              await db.updateCompanyFromBrreg(company.id, {
+                navn: brregData.company.navn,
+                hjemmeside: brregData.company.hjemmeside,
+                epostadresse: brregData.company.epostadresse,
+                telefon: brregData.company.telefon,
+                forretningsadresse: brregData.company.forretningsadresse,
+                poststed: brregData.company.poststed,
+                postnummer: brregData.company.postnummer,
+                kommune: brregData.company.kommune,
+                antallAnsatte: brregData.company.antallAnsatte,
+                dagligLeder: brregData.ceo?.navn || null,
+              });
+              results.success++;
+              results.updated.push({ id: company.id, navn: brregData.company.navn });
+            } else {
+              results.failed++;
+              results.errors.push({ id: company.id, error: 'Not found in Brreg' });
+            }
+          } catch (error: any) {
+            results.failed++;
+            results.errors.push({ id: company.id, error: error.message });
+          }
+
+          // Rate limiting - wait 100ms between requests
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        return results;
+      }),
+
+    // Get recent updates from Brreg
+    getUpdates: protectedProcedure
+      .input(z.object({
+        dato: z.string().optional(),
+        size: z.number().optional().default(100),
+      }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+        const { getBrregUpdates } = await import('./services/brregIntegration');
+        return await getBrregUpdates(input);
+      }),
+
+    // Import new companies from Brreg search
+    importFromSearch: protectedProcedure
+      .input(z.object({
+        navn: z.string().optional(),
+        kommunenummer: z.string().optional(),
+        organisasjonsform: z.string().optional(),
+        naeringskode: z.string().optional(),
+        fraAntallAnsatte: z.number().optional(),
+        tilAntallAnsatte: z.number().optional(),
+        size: z.number().optional().default(100),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+
+        const { searchAndImportFromBrreg } = await import('./services/brregIntegration');
+        const result = await searchAndImportFromBrreg(input);
+
+        // Import companies to database
+        let imported = 0;
+        let skipped = 0;
+        
+        for (const company of result.companies) {
+          try {
+            // Check if already exists
+            const existing = await db.getCompanyByOrgNr(company.organisasjonsnummer);
+            if (existing) {
+              skipped++;
+              continue;
+            }
+
+            // Insert new company
+            await db.insertCompanyFromBrreg(company);
+            imported++;
+          } catch (error) {
+            console.error('Error importing company:', error);
+          }
+        }
+
+        return {
+          total: result.total,
+          fetched: result.companies.length,
+          imported,
+          skipped,
+        };
       }),
   }),
 });
