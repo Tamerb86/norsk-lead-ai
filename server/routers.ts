@@ -1621,6 +1621,145 @@ export const appRouter = router({
         return await generateSubjectVariants(input.emailBody, input.count, input.language);
       }),
   }),
+
+  // ============================================
+  // AI INTEGRATIONS & SETTINGS ROUTER (Admin Only)
+  // ============================================
+  aiSettings: router({
+    // Get all AI integrations
+    getIntegrations: protectedProcedure
+      .query(async ({ ctx }) => {
+        // Admin only
+        if (ctx.user?.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        return await db.getAIIntegrations();
+      }),
+
+    // Get enabled integrations (for dropdown selection)
+    getEnabledIntegrations: protectedProcedure
+      .query(async () => {
+        return await db.getEnabledAIIntegrations();
+      }),
+
+    // Create AI integration
+    createIntegration: protectedProcedure
+      .input(z.object({
+        provider: z.string(),
+        name: z.string(),
+        apiKey: z.string().optional(),
+        apiEndpoint: z.string().optional(),
+        model: z.string().optional(),
+        isEnabled: z.boolean().optional(),
+        isDefault: z.boolean().optional(),
+        settings: z.record(z.any()).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        return await db.createAIIntegration(input);
+      }),
+
+    // Update AI integration
+    updateIntegration: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        provider: z.string().optional(),
+        name: z.string().optional(),
+        apiKey: z.string().optional(),
+        apiEndpoint: z.string().optional(),
+        model: z.string().optional(),
+        isEnabled: z.boolean().optional(),
+        isDefault: z.boolean().optional(),
+        settings: z.record(z.any()).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        const { id, ...data } = input;
+        return await db.updateAIIntegration(id, data);
+      }),
+
+    // Delete AI integration
+    deleteIntegration: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        return await db.deleteAIIntegration(input.id);
+      }),
+
+    // Test AI integration
+    testIntegration: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        return await db.testAIIntegration(input.id);
+      }),
+
+    // Get system settings
+    getSettings: protectedProcedure
+      .input(z.object({ category: z.string().optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        const settings = await db.getSystemSettings(input?.category);
+        // Mask secret values
+        return settings.map(s => ({
+          ...s,
+          value: s.isSecret ? '••••••••' : s.value,
+        }));
+      }),
+
+    // Set system setting
+    setSetting: protectedProcedure
+      .input(z.object({
+        key: z.string(),
+        value: z.string(),
+        description: z.string().optional(),
+        category: z.string().optional(),
+        isSecret: z.boolean().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        return await db.setSystemSetting({
+          ...input,
+          updatedBy: ctx.user.id,
+        });
+      }),
+
+    // Delete system setting
+    deleteSetting: protectedProcedure
+      .input(z.object({ key: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error("Unauthorized: Admin access required");
+        }
+        return await db.deleteSystemSetting(input.key);
+      }),
+
+    // Get available AI providers list
+    getProviders: protectedProcedure
+      .query(async () => {
+        return [
+          { id: 'openai', name: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'] },
+          { id: 'anthropic', name: 'Anthropic', models: ['claude-3-opus', 'claude-3-sonnet', 'claude-3-haiku'] },
+          { id: 'google', name: 'Google AI', models: ['gemini-pro', 'gemini-pro-vision'] },
+          { id: 'azure', name: 'Azure OpenAI', models: ['gpt-4', 'gpt-35-turbo'] },
+          { id: 'hunter', name: 'Hunter.io', models: [], description: 'Email finder & verification' },
+          { id: 'clearbit', name: 'Clearbit', models: [], description: 'Company enrichment' },
+          { id: 'apollo', name: 'Apollo.io', models: [], description: 'Lead enrichment' },
+        ];
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

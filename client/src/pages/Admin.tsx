@@ -80,6 +80,7 @@ import {
   LogIn,
   XCircle,
 } from "lucide-react";
+import { AISettingsTab } from "@/components/admin/AISettingsTab";
 
 interface AdminStats {
   totalUsers: number;
@@ -949,6 +950,10 @@ export default function Admin() {
               <Mail className="h-4 w-4 mr-2" />
               Email Finder
             </TabsTrigger>
+            <TabsTrigger value="ai-settings" className="data-[state=active]:bg-white data-[state=active]:text-purple-600">
+              <Zap className="h-4 w-4 mr-2" />
+              AI-innstillinger
+            </TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -1645,6 +1650,11 @@ export default function Admin() {
           {/* Email Finder Tab */}
           <TabsContent value="emailfinder">
             <EmailFinderTab />
+          </TabsContent>
+
+          {/* AI Settings Tab */}
+          <TabsContent value="ai-settings">
+            <AISettingsTab />
           </TabsContent>
         </Tabs>
 

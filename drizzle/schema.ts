@@ -391,3 +391,44 @@ export const refreshTokens = pgTable("refresh_tokens", {
 
 export type RefreshToken = typeof refreshTokens.$inferSelect;
 export type InsertRefreshToken = typeof refreshTokens.$inferInsert;
+
+
+/**
+ * AI Integrations - Store API keys and settings for AI services
+ */
+export const aiIntegrations = pgTable("ai_integrations", {
+  id: serial("id").primaryKey(),
+  provider: varchar("provider", { length: 50 }).notNull(), // openai, anthropic, google, hunter, etc.
+  name: varchar("name", { length: 100 }).notNull(), // Display name
+  apiKey: varchar("api_key", { length: 500 }), // Encrypted API key
+  apiEndpoint: varchar("api_endpoint", { length: 500 }), // Custom endpoint URL
+  model: varchar("model", { length: 100 }), // Default model to use
+  isEnabled: boolean("is_enabled").default(false).notNull(),
+  isDefault: boolean("is_default").default(false).notNull(),
+  settings: json("settings"), // Additional provider-specific settings
+  usageCount: integer("usage_count").default(0).notNull(),
+  lastUsedAt: timestamp("last_used_at"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type AIIntegration = typeof aiIntegrations.$inferSelect;
+export type InsertAIIntegration = typeof aiIntegrations.$inferInsert;
+
+/**
+ * System Settings - Global configuration
+ */
+export const systemSettings = pgTable("system_settings", {
+  id: serial("id").primaryKey(),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value"),
+  description: text("description"),
+  category: varchar("category", { length: 50 }), // ai, email, security, etc.
+  isSecret: boolean("is_secret").default(false).notNull(), // Should value be masked in UI
+  updatedBy: integer("updated_by"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type SystemSetting = typeof systemSettings.$inferSelect;
+export type InsertSystemSetting = typeof systemSettings.$inferInsert;

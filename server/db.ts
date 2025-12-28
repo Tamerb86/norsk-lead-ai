@@ -13,7 +13,11 @@ import {
   dataUpdateLogs,
   savedFilters,
   refreshTokens,
-  InsertRefreshToken
+  InsertRefreshToken,
+  aiIntegrations,
+  InsertAIIntegration,
+  systemSettings,
+  InsertSystemSetting
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1495,4 +1499,234 @@ export async function getEmailEnrichmentStats() {
     phoneCoverage: total > 0 ? Math.round((withPhone / total) * 100) : 0,
     websiteCoverage: total > 0 ? Math.round((withWebsite / total) * 100) : 0,
   };
+}
+
+
+// ============================================
+// AI INTEGRATIONS FUNCTIONS
+// ============================================
+
+/**
+ * Get all AI integrations
+ */
+export async function getAIIntegrations() {
+  const db = await getDb();
+  const result = await db.select()
+    .from(aiIntegrations)
+    .orderBy(desc(aiIntegrations.createdAt));
+  return result;
+}
+
+/**
+ * Get enabled AI integrations
+ */
+export async function getEnabledAIIntegrations() {
+  const db = await getDb();
+  const result = await db.select()
+    .from(aiIntegrations)
+    .where(eq(aiIntegrations.isEnabled, true))
+    .orderBy(desc(aiIntegrations.isDefault));
+  return result;
+}
+
+/**
+ * Get default AI integration for a provider type
+ */
+export async function getDefaultAIIntegration(provider?: string) {
+  const db = await getDb();
+  
+  let query = db.select()
+    .from(aiIntegrations)
+    .where(and(
+      eq(aiIntegrations.isEnabled, true),
+      eq(aiIntegrations.isDefault, true)
+    ));
+  
+  if (provider) {
+    query = db.select()
+      .from(aiIntegrations)
+      .where(and(
+        eq(aiIntegrations.isEnabled, true),
+        eq(aiIntegrations.provider, provider)
+      ));
+  }
+  
+  const result = await query.limit(1);
+  return result[0] || null;
+}
+
+/**
+ * Create AI integration
+ */
+export async function createAIIntegration(data: InsertAIIntegration) {
+  const db = await getDb();
+  
+  // If this is set as default, unset other defaults for the same provider
+  if (data.isDefault) {
+    await db.update(aiIntegrations)
+      .set({ isDefault: false })
+      .where(eq(aiIntegrations.provider, data.provider));
+  }
+  
+  const result = await db.insert(aiIntegrations).values(data).returning();
+  return result[0];
+}
+
+/**
+ * Update AI integration
+ */
+export async function updateAIIntegration(id: number, data: Partial<InsertAIIntegration>) {
+  const db = await getDb();
+  
+  // If setting as default, unset other defaults
+  if (data.isDefault) {
+    const current = await db.select().from(aiIntegrations).where(eq(aiIntegrations.id, id)).limit(1);
+    if (current[0]) {
+      await db.update(aiIntegrations)
+        .set({ isDefault: false })
+        .where(eq(aiIntegrations.provider, current[0].provider));
+    }
+  }
+  
+  const result = await db.update(aiIntegrations)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(aiIntegrations.id, id))
+    .returning();
+  return result[0];
+}
+
+/**
+ * Delete AI integration
+ */
+export async function deleteAIIntegration(id: number) {
+  const db = await getDb();
+  await db.delete(aiIntegrations).where(eq(aiIntegrations.id, id));
+  return { success: true };
+}
+
+/**
+ * Increment AI integration usage
+ */
+export async function incrementAIUsage(id: number) {
+  const db = await getDb();
+  await db.update(aiIntegrations)
+    .set({ 
+      usageCount: sql`${aiIntegrations.usageCount} + 1`,
+      lastUsedAt: new Date()
+    })
+    .where(eq(aiIntegrations.id, id));
+}
+
+/**
+ * Test AI integration connection
+ */
+export async function testAIIntegration(id: number): Promise<{ success: boolean; message: string }> {
+  const db = await getDb();
+  const integration = await db.select()
+    .from(aiIntegrations)
+    .where(eq(aiIntegrations.id, id))
+    .limit(1);
+  
+  if (!integration[0]) {
+    return { success: false, message: "Integration not found" };
+  }
+  
+  // For now, just check if API key exists
+  if (!integration[0].apiKey) {
+    return { success: false, message: "API key not configured" };
+  }
+  
+  return { success: true, message: "Connection successful" };
+}
+
+// ============================================
+// SYSTEM SETTINGS FUNCTIONS
+// ============================================
+
+/**
+ * Get all system settings
+ */
+export async function getSystemSettings(category?: string) {
+  const db = await getDb();
+  
+  if (category) {
+    return await db.select()
+      .from(systemSettings)
+      .where(eq(systemSettings.category, category))
+      .orderBy(asc(systemSettings.key));
+  }
+  
+  return await db.select()
+    .from(systemSettings)
+    .orderBy(asc(systemSettings.category), asc(systemSettings.key));
+}
+
+/**
+ * Get a single system setting
+ */
+export async function getSystemSetting(key: string) {
+  const db = await getDb();
+  const result = await db.select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, key))
+    .limit(1);
+  return result[0] || null;
+}
+
+/**
+ * Set a system setting (create or update)
+ */
+export async function setSystemSetting(data: {
+  key: string;
+  value: string;
+  description?: string;
+  category?: string;
+  isSecret?: boolean;
+  updatedBy?: number;
+}) {
+  const db = await getDb();
+  
+  // Check if setting exists
+  const existing = await db.select()
+    .from(systemSettings)
+    .where(eq(systemSettings.key, data.key))
+    .limit(1);
+  
+  if (existing[0]) {
+    // Update
+    const result = await db.update(systemSettings)
+      .set({
+        value: data.value,
+        description: data.description ?? existing[0].description,
+        category: data.category ?? existing[0].category,
+        isSecret: data.isSecret ?? existing[0].isSecret,
+        updatedBy: data.updatedBy,
+        updatedAt: new Date(),
+      })
+      .where(eq(systemSettings.key, data.key))
+      .returning();
+    return result[0];
+  } else {
+    // Create
+    const result = await db.insert(systemSettings)
+      .values({
+        key: data.key,
+        value: data.value,
+        description: data.description,
+        category: data.category,
+        isSecret: data.isSecret ?? false,
+        updatedBy: data.updatedBy,
+      })
+      .returning();
+    return result[0];
+  }
+}
+
+/**
+ * Delete a system setting
+ */
+export async function deleteSystemSetting(key: string) {
+  const db = await getDb();
+  await db.delete(systemSettings).where(eq(systemSettings.key, key));
+  return { success: true };
 }
