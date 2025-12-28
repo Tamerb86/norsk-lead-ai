@@ -815,36 +815,101 @@ export const appRouter = router({
         })
       )
       .query(async ({ ctx, input }) => {
-        const analyticsDb = await import("./analyticsDb");
-        return await analyticsDb.getCampaignPerformance(
-          ctx.user.id,
-          new Date(input.startDate),
-          new Date(input.endDate)
-        );
+        try {
+          const analyticsDb = await import("./analyticsDb");
+          return await analyticsDb.getCampaignPerformance(
+            ctx.user.id,
+            new Date(input.startDate),
+            new Date(input.endDate)
+          );
+        } catch (error) {
+          console.error("Error in campaignPerformance:", error);
+          // Return empty data instead of throwing
+          return {
+            overview: {
+              totalCampaigns: 0,
+              totalSent: 0,
+              totalOpened: 0,
+              totalClicked: 0,
+              totalReplied: 0,
+              avgOpenRate: 0,
+              avgClickRate: 0,
+              avgReplyRate: 0,
+            },
+            timeline: [],
+            topCampaigns: [],
+          };
+        }
       }),
 
     // Get lead analytics
     leadAnalytics: protectedProcedure.query(async ({ ctx }) => {
-      const analyticsDb = await import("./analyticsDb");
-      return await analyticsDb.getLeadAnalytics(ctx.user.id);
+      try {
+        const analyticsDb = await import("./analyticsDb");
+        return await analyticsDb.getLeadAnalytics(ctx.user.id);
+      } catch (error) {
+        console.error("Error in leadAnalytics:", error);
+        return {
+          statusDistribution: [],
+          topIndustries: [],
+          topLocations: [],
+          engagementMetrics: {
+            totalLeads: 0,
+            contacted: 0,
+            opened: 0,
+            clicked: 0,
+            replied: 0,
+            unsubscribed: 0,
+          },
+        };
+      }
     }),
 
     // Get sequence analytics
     sequenceAnalytics: protectedProcedure.query(async ({ ctx }) => {
-      const analyticsDb = await import("./analyticsDb");
-      return await analyticsDb.getSequenceAnalytics(ctx.user.id);
+      try {
+        const analyticsDb = await import("./analyticsDb");
+        return await analyticsDb.getSequenceAnalytics(ctx.user.id);
+      } catch (error) {
+        console.error("Error in sequenceAnalytics:", error);
+        return {
+          overview: {
+            totalSequences: 0,
+            totalEnrolled: 0,
+            totalCompleted: 0,
+            avgCompletionRate: 0,
+          },
+          sequencePerformance: [],
+        };
+      }
     }),
 
     // Get engagement heatmap
     engagementHeatmap: protectedProcedure.query(async ({ ctx }) => {
-      const analyticsDb = await import("./analyticsDb");
-      return await analyticsDb.getEngagementHeatmap(ctx.user.id);
+      try {
+        const analyticsDb = await import("./analyticsDb");
+        return await analyticsDb.getEngagementHeatmap(ctx.user.id);
+      } catch (error) {
+        console.error("Error in engagementHeatmap:", error);
+        return {
+          hourly: [],
+          daily: [],
+        };
+      }
     }),
 
     // Get top performers
     topPerformers: protectedProcedure.query(async ({ ctx }) => {
-      const analyticsDb = await import("./analyticsDb");
-      return await analyticsDb.getTopPerformers(ctx.user.id);
+      try {
+        const analyticsDb = await import("./analyticsDb");
+        return await analyticsDb.getTopPerformers(ctx.user.id);
+      } catch (error) {
+        console.error("Error in topPerformers:", error);
+        return {
+          topCampaigns: [],
+          topIndustries: [],
+        };
+      }
     }),
   }),
 
