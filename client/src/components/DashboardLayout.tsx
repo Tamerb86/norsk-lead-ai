@@ -178,9 +178,13 @@ function DashboardLayoutContent({
   }, [isResizing, setSidebarWidth]);
 
   const handleRestartTutorial = () => {
+    // Clear all onboarding related localStorage items
     localStorage.removeItem("onboarding_completed");
     localStorage.removeItem("onboarding_dismissed");
     localStorage.removeItem("onboarding_progress");
+    localStorage.removeItem("onboarding_skipped");
+    localStorage.removeItem("onboarding_completed_at");
+    localStorage.removeItem("seen_tips");
     // Navigate to dashboard and reload to show tutorial
     if (location !== "/dashboard") {
       setLocation("/dashboard");

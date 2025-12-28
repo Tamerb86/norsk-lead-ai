@@ -12,6 +12,7 @@ import { Link, useLocation } from "wouter";
 import { useState, useEffect } from "react";
 import { DashboardStatsSkeleton, ChartsSkeleton } from "@/components/SkeletonLoaders";
 import { OnboardingTutorial, QuickStartCard, FeatureCards } from "@/components/OnboardingTutorial";
+import { OnboardingWizard, useOnboarding } from "@/components/OnboardingWizard";
 
 // Chart colors
 const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
@@ -20,6 +21,9 @@ export default function Dashboard() {
   const { user, loading } = useAuth();
   const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery();
   const [dateRange, setDateRange] = useState<'7' | '30' | '90' | 'all'>('30');
+  
+  // Onboarding wizard
+  const { showOnboarding, openOnboarding, closeOnboarding, completeOnboarding } = useOnboarding();
 
   // Sample data for charts (in production, this would come from API based on dateRange)
   const campaignPerformanceData = [
@@ -136,6 +140,13 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
+      {/* Onboarding Wizard */}
+      <OnboardingWizard
+        isOpen={showOnboarding}
+        onClose={closeOnboarding}
+        onComplete={completeOnboarding}
+      />
+      
       <div className="space-y-6">
         {/* Stats Cards with Modern Design */}
         {statsLoading ? (
