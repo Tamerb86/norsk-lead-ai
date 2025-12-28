@@ -25,35 +25,115 @@ import {
   Mail,
   Database,
   RefreshCw,
-  AlertCircle
+  AlertCircle,
+  Brain,
+  Search,
+  Building2,
+  Sparkles
 } from "lucide-react";
 import { toastSuccess, toastError } from "@/lib/toast-utils";
 
-// Provider icons and info
+// Service categories
+const SERVICE_CATEGORIES = {
+  ai: {
+    title: "AI-modeller",
+    description: "Tjenester for tekstgenerering og AI-funksjoner",
+    icon: Brain,
+    color: "from-purple-500 to-indigo-500",
+    providers: ["openai", "anthropic", "google", "azure"]
+  },
+  email: {
+    title: "E-posttjenester",
+    description: "Finn og verifiser e-postadresser",
+    icon: Mail,
+    color: "from-orange-500 to-red-500",
+    providers: ["hunter"]
+  },
+  enrichment: {
+    title: "Databerikelse",
+    description: "Berik bedrifts- og kontaktdata",
+    icon: Sparkles,
+    color: "from-blue-500 to-cyan-500",
+    providers: ["clearbit", "apollo"]
+  }
+};
+
+// Provider details
 const PROVIDERS = {
-  openai: { name: "OpenAI", icon: Bot, color: "bg-green-500" },
-  anthropic: { name: "Anthropic", icon: Bot, color: "bg-purple-500" },
-  google: { name: "Google AI", icon: Bot, color: "bg-blue-500" },
-  azure: { name: "Azure OpenAI", icon: Bot, color: "bg-cyan-500" },
-  hunter: { name: "Hunter.io", icon: Mail, color: "bg-orange-500" },
-  clearbit: { name: "Clearbit", icon: Database, color: "bg-indigo-500" },
-  apollo: { name: "Apollo.io", icon: Globe, color: "bg-pink-500" },
+  openai: { 
+    name: "OpenAI", 
+    icon: Bot, 
+    color: "bg-green-500",
+    category: "ai",
+    description: "GPT-4, GPT-3.5 og andre modeller",
+    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+  },
+  anthropic: { 
+    name: "Anthropic", 
+    icon: Bot, 
+    color: "bg-purple-500",
+    category: "ai",
+    description: "Claude 3 modeller",
+    models: ["claude-3-opus", "claude-3-sonnet", "claude-3-haiku"]
+  },
+  google: { 
+    name: "Google AI", 
+    icon: Bot, 
+    color: "bg-blue-500",
+    category: "ai",
+    description: "Gemini Pro modeller",
+    models: ["gemini-pro", "gemini-pro-vision"]
+  },
+  azure: { 
+    name: "Azure OpenAI", 
+    icon: Bot, 
+    color: "bg-cyan-500",
+    category: "ai",
+    description: "Microsoft Azure-hostet OpenAI",
+    models: ["gpt-4", "gpt-35-turbo"]
+  },
+  hunter: { 
+    name: "Hunter.io", 
+    icon: Mail, 
+    color: "bg-orange-500",
+    category: "email",
+    description: "Finn e-postadresser fra domener",
+    models: []
+  },
+  clearbit: { 
+    name: "Clearbit", 
+    icon: Database, 
+    color: "bg-indigo-500",
+    category: "enrichment",
+    description: "Berik bedriftsdata automatisk",
+    models: []
+  },
+  apollo: { 
+    name: "Apollo.io", 
+    icon: Globe, 
+    color: "bg-pink-500",
+    category: "enrichment",
+    description: "Finn kontakter og leads",
+    models: []
+  },
 };
 
 export function AISettingsTab() {
+  const [activeCategory, setActiveCategory] = useState<string>("ai");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [addCategory, setAddCategory] = useState<string | null>(null);
   const [editingIntegration, setEditingIntegration] = useState<any>(null);
   const [showApiKey, setShowApiKey] = useState<Record<number, boolean>>({});
 
   // Fetch integrations
   const { data: integrations, isLoading, refetch } = trpc.aiSettings.getIntegrations.useQuery();
-  const { data: providers } = trpc.aiSettings.getProviders.useQuery();
 
   // Mutations
   const createMutation = trpc.aiSettings.createIntegration.useMutation({
     onSuccess: () => {
-      toastSuccess("Integrasjon opprettet", { description: "AI-integrasjonen ble lagt til." });
+      toastSuccess("Integrasjon opprettet", { description: "Integrasjonen ble lagt til." });
       setShowAddDialog(false);
+      setAddCategory(null);
       refetch();
     },
     onError: (error) => {
@@ -74,7 +154,7 @@ export function AISettingsTab() {
 
   const deleteMutation = trpc.aiSettings.deleteIntegration.useMutation({
     onSuccess: () => {
-      toastSuccess("Integrasjon slettet", { description: "AI-integrasjonen ble fjernet." });
+      toastSuccess("Integrasjon slettet", { description: "Integrasjonen ble fjernet." });
       refetch();
     },
     onError: (error) => {
@@ -105,6 +185,16 @@ export function AISettingsTab() {
     return key.substring(0, 4) + "••••••••" + key.substring(key.length - 4);
   };
 
+  const getIntegrationsByCategory = (category: string) => {
+    const categoryProviders = SERVICE_CATEGORIES[category as keyof typeof SERVICE_CATEGORIES]?.providers || [];
+    return integrations?.filter((i: any) => categoryProviders.includes(i.provider)) || [];
+  };
+
+  const openAddDialog = (category: string) => {
+    setAddCategory(category);
+    setShowAddDialog(true);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -116,63 +206,236 @@ export function AISettingsTab() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <Zap className="w-6 h-6 text-yellow-500" />
-            AI-integrasjoner
-          </h2>
-          <p className="text-gray-500 mt-1">
-            Administrer API-nøkler og innstillinger for AI-tjenester
-          </p>
-        </div>
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogTrigger asChild>
-            <Button className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600">
-              <Plus className="w-4 h-4" />
-              Legg til integrasjon
-            </Button>
-          </DialogTrigger>
+      <div>
+        <h2 className="text-2xl font-bold flex items-center gap-2">
+          <Zap className="w-6 h-6 text-yellow-500" />
+          Integrasjoner
+        </h2>
+        <p className="text-gray-500 mt-1">
+          Administrer API-nøkler og innstillinger for eksterne tjenester
+        </p>
+      </div>
+
+      {/* Category Tabs */}
+      <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
+        <TabsList className="grid w-full grid-cols-4 mb-6">
+          {Object.entries(SERVICE_CATEGORIES).map(([key, cat]) => {
+            const Icon = cat.icon;
+            const count = getIntegrationsByCategory(key).length;
+            return (
+              <TabsTrigger key={key} value={key} className="flex items-center gap-2">
+                <Icon className="w-4 h-4" />
+                <span className="hidden sm:inline">{cat.title}</span>
+                {count > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                    {count}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            );
+          })}
+          <TabsTrigger value="government" className="flex items-center gap-2">
+            <Building2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Offentlige API</span>
+          </TabsTrigger>
+        </TabsList>
+
+        {/* AI Models Tab */}
+        <TabsContent value="ai" className="space-y-4">
+          <CategorySection
+            category="ai"
+            integrations={getIntegrationsByCategory("ai")}
+            onAdd={() => openAddDialog("ai")}
+            onEdit={setEditingIntegration}
+            onDelete={(id) => deleteMutation.mutate({ id })}
+            onTest={(id) => testMutation.mutate({ id })}
+            showApiKey={showApiKey}
+            toggleApiKeyVisibility={toggleApiKeyVisibility}
+            maskApiKey={maskApiKey}
+            testLoading={testMutation.isPending}
+          />
+        </TabsContent>
+
+        {/* Email Services Tab */}
+        <TabsContent value="email" className="space-y-4">
+          <CategorySection
+            category="email"
+            integrations={getIntegrationsByCategory("email")}
+            onAdd={() => openAddDialog("email")}
+            onEdit={setEditingIntegration}
+            onDelete={(id) => deleteMutation.mutate({ id })}
+            onTest={(id) => testMutation.mutate({ id })}
+            showApiKey={showApiKey}
+            toggleApiKeyVisibility={toggleApiKeyVisibility}
+            maskApiKey={maskApiKey}
+            testLoading={testMutation.isPending}
+          />
+        </TabsContent>
+
+        {/* Data Enrichment Tab */}
+        <TabsContent value="enrichment" className="space-y-4">
+          <CategorySection
+            category="enrichment"
+            integrations={getIntegrationsByCategory("enrichment")}
+            onAdd={() => openAddDialog("enrichment")}
+            onEdit={setEditingIntegration}
+            onDelete={(id) => deleteMutation.mutate({ id })}
+            onTest={(id) => testMutation.mutate({ id })}
+            showApiKey={showApiKey}
+            toggleApiKeyVisibility={toggleApiKeyVisibility}
+            maskApiKey={maskApiKey}
+            testLoading={testMutation.isPending}
+          />
+        </TabsContent>
+
+        {/* Government APIs Tab */}
+        <TabsContent value="government" className="space-y-4">
+          <Card className="bg-gradient-to-r from-gray-50 to-slate-50 border-gray-200">
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-gray-600 to-slate-600 flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <CardTitle>Offentlige API-er</CardTitle>
+                  <CardDescription>Gratis tilgang til norske offentlige registre</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+          </Card>
+          
+          <BrregSettingsCard />
+        </TabsContent>
+      </Tabs>
+
+      {/* Add Integration Dialog */}
+      <Dialog open={showAddDialog} onOpenChange={(open) => {
+        setShowAddDialog(open);
+        if (!open) setAddCategory(null);
+      }}>
+        <DialogContent className="max-w-md">
+          <AddIntegrationForm 
+            category={addCategory}
+            onSubmit={(data) => createMutation.mutate(data)}
+            isLoading={createMutation.isPending}
+            onCancel={() => {
+              setShowAddDialog(false);
+              setAddCategory(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Integration Dialog */}
+      {editingIntegration && (
+        <Dialog open={!!editingIntegration} onOpenChange={() => setEditingIntegration(null)}>
           <DialogContent className="max-w-md">
-            <AddIntegrationForm 
-              providers={providers || []}
-              onSubmit={(data) => createMutation.mutate(data)}
-              isLoading={createMutation.isPending}
-              onCancel={() => setShowAddDialog(false)}
+            <EditIntegrationForm
+              integration={editingIntegration}
+              onSubmit={(data) => updateMutation.mutate({ id: editingIntegration.id, ...data })}
+              isLoading={updateMutation.isPending}
+              onCancel={() => setEditingIntegration(null)}
             />
           </DialogContent>
         </Dialog>
-      </div>
+      )}
+    </div>
+  );
+}
 
-      {/* Info Card */}
+// Category Section Component
+function CategorySection({
+  category,
+  integrations,
+  onAdd,
+  onEdit,
+  onDelete,
+  onTest,
+  showApiKey,
+  toggleApiKeyVisibility,
+  maskApiKey,
+  testLoading
+}: {
+  category: string;
+  integrations: any[];
+  onAdd: () => void;
+  onEdit: (integration: any) => void;
+  onDelete: (id: number) => void;
+  onTest: (id: number) => void;
+  showApiKey: Record<number, boolean>;
+  toggleApiKeyVisibility: (id: number) => void;
+  maskApiKey: (key: string | null) => string;
+  testLoading: boolean;
+}) {
+  const categoryInfo = SERVICE_CATEGORIES[category as keyof typeof SERVICE_CATEGORIES];
+  const Icon = categoryInfo?.icon || Bot;
+  const availableProviders = categoryInfo?.providers || [];
+
+  return (
+    <>
+      {/* Category Header Card */}
+      <Card className={`bg-gradient-to-r ${categoryInfo?.color || 'from-gray-500 to-gray-600'} text-white`}>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-lg bg-white/20 flex items-center justify-center">
+                <Icon className="w-6 h-6" />
+              </div>
+              <div>
+                <CardTitle className="text-white">{categoryInfo?.title}</CardTitle>
+                <CardDescription className="text-white/80">{categoryInfo?.description}</CardDescription>
+              </div>
+            </div>
+            <Button 
+              onClick={onAdd}
+              className="bg-white/20 hover:bg-white/30 text-white border-white/30"
+              variant="outline"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Legg til
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Available Providers Info */}
       <Card className="bg-blue-50 border-blue-200">
         <CardContent className="pt-4">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-blue-600 mt-0.5" />
             <div>
-              <h4 className="font-medium text-blue-900">Slik fungerer det</h4>
-              <p className="text-sm text-blue-700 mt-1">
-                Legg til API-nøkler for å aktivere AI-funksjoner som e-postgenerering, 
-                lead-berikelse og e-postverifisering. Standard-integrasjonen brukes automatisk.
-              </p>
+              <h4 className="font-medium text-blue-900">Tilgjengelige leverandører</h4>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {availableProviders.map((providerId) => {
+                  const provider = PROVIDERS[providerId as keyof typeof PROVIDERS];
+                  const isConfigured = integrations.some((i: any) => i.provider === providerId);
+                  return (
+                    <Badge 
+                      key={providerId} 
+                      variant={isConfigured ? "default" : "outline"}
+                      className={isConfigured ? "bg-green-100 text-green-800" : ""}
+                    >
+                      {provider?.name}
+                      {isConfigured && <CheckCircle className="w-3 h-3 ml-1" />}
+                    </Badge>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Brreg Settings Card */}
-      <BrregSettingsCard />
-
       {/* Integrations List */}
-      <div className="grid gap-4">
-        {integrations && integrations.length > 0 ? (
-          integrations.map((integration: any) => {
+      {integrations.length > 0 ? (
+        <div className="grid gap-4">
+          {integrations.map((integration: any) => {
             const providerInfo = PROVIDERS[integration.provider as keyof typeof PROVIDERS] || {
               name: integration.provider,
               icon: Bot,
               color: "bg-gray-500"
             };
-            const Icon = providerInfo.icon;
+            const ProviderIcon = providerInfo.icon;
 
             return (
               <Card key={integration.id} className={`${!integration.isEnabled ? 'opacity-60' : ''}`}>
@@ -180,7 +443,7 @@ export function AISettingsTab() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4">
                       <div className={`w-12 h-12 rounded-lg ${providerInfo.color} flex items-center justify-center`}>
-                        <Icon className="w-6 h-6 text-white" />
+                        <ProviderIcon className="w-6 h-6 text-white" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
@@ -195,7 +458,7 @@ export function AISettingsTab() {
                           )}
                         </div>
                         <p className="text-sm text-gray-500 mt-1">
-                          {providerInfo.name} • {integration.model || "Ingen modell valgt"}
+                          {providerInfo.name} {integration.model && `• ${integration.model}`}
                         </p>
                         
                         {/* API Key Display */}
@@ -219,50 +482,35 @@ export function AISettingsTab() {
                             )}
                           </Button>
                         </div>
-
-                        {/* Usage Stats */}
-                        <div className="flex items-center gap-4 mt-3 text-sm text-gray-500">
-                          <span>Brukt: {integration.usageCount} ganger</span>
-                          {integration.lastUsedAt && (
-                            <span>
-                              Sist brukt: {new Date(integration.lastUsedAt).toLocaleDateString('nb-NO')}
-                            </span>
-                          )}
-                        </div>
                       </div>
                     </div>
-
-                    {/* Actions */}
+                    
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => testMutation.mutate({ id: integration.id })}
-                        disabled={testMutation.isPending}
+                        onClick={() => onTest(integration.id)}
+                        disabled={testLoading}
                       >
-                        {testMutation.isPending ? (
+                        {testLoading ? (
                           <Loader2 className="w-4 h-4 animate-spin" />
                         ) : (
                           <RefreshCw className="w-4 h-4" />
                         )}
-                        Test
+                        <span className="ml-2 hidden sm:inline">Test</span>
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setEditingIntegration(integration)}
+                        onClick={() => onEdit(integration)}
                       >
                         <Settings className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-red-600 hover:bg-red-50"
-                        onClick={() => {
-                          if (confirm("Er du sikker på at du vil slette denne integrasjonen?")) {
-                            deleteMutation.mutate({ id: integration.id });
-                          }
-                        }}
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => onDelete(integration.id)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -271,53 +519,39 @@ export function AISettingsTab() {
                 </CardContent>
               </Card>
             );
-          })
-        ) : (
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Bot className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="font-medium text-gray-900">Ingen integrasjoner</h3>
-              <p className="text-gray-500 mt-1">
-                Legg til din første AI-integrasjon for å komme i gang
+          })}
+        </div>
+      ) : (
+        <Card className="border-dashed">
+          <CardContent className="py-12">
+            <div className="text-center">
+              <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+                <Icon className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="font-semibold text-gray-900 mb-2">Ingen integrasjoner</h3>
+              <p className="text-gray-500 mb-4">
+                Legg til din første {categoryInfo?.title.toLowerCase()} integrasjon
               </p>
-              <Button 
-                className="mt-4 gap-2"
-                onClick={() => setShowAddDialog(true)}
-              >
-                <Plus className="w-4 h-4" />
+              <Button onClick={onAdd}>
+                <Plus className="w-4 h-4 mr-2" />
                 Legg til integrasjon
               </Button>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Edit Dialog */}
-      {editingIntegration && (
-        <Dialog open={!!editingIntegration} onOpenChange={() => setEditingIntegration(null)}>
-          <DialogContent className="max-w-md">
-            <EditIntegrationForm
-              integration={editingIntegration}
-              providers={providers || []}
-              onSubmit={(data) => updateMutation.mutate({ id: editingIntegration.id, ...data })}
-              isLoading={updateMutation.isPending}
-              onCancel={() => setEditingIntegration(null)}
-            />
-          </DialogContent>
-        </Dialog>
+            </div>
+          </CardContent>
+        </Card>
       )}
-    </div>
+    </>
   );
 }
 
 // Add Integration Form
 function AddIntegrationForm({ 
-  providers, 
+  category,
   onSubmit, 
   isLoading, 
   onCancel 
 }: { 
-  providers: any[];
+  category: string | null;
   onSubmit: (data: any) => void;
   isLoading: boolean;
   onCancel: () => void;
@@ -332,19 +566,30 @@ function AddIntegrationForm({
     isDefault: false,
   });
 
-  const selectedProvider = providers.find(p => p.id === formData.provider);
+  const categoryInfo = category ? SERVICE_CATEGORIES[category as keyof typeof SERVICE_CATEGORIES] : null;
+  const availableProviders = categoryInfo?.providers || Object.keys(PROVIDERS);
+  const selectedProvider = PROVIDERS[formData.provider as keyof typeof PROVIDERS];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(formData);
   };
 
+  const getCategoryTitle = () => {
+    switch (category) {
+      case "ai": return "AI-modell";
+      case "email": return "E-posttjeneste";
+      case "enrichment": return "Databerikelse";
+      default: return "Integrasjon";
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit}>
       <DialogHeader>
-        <DialogTitle>Legg til AI-integrasjon</DialogTitle>
+        <DialogTitle>Legg til {getCategoryTitle()}</DialogTitle>
         <DialogDescription>
-          Konfigurer en ny AI-tjeneste med API-nøkkel
+          {categoryInfo?.description || "Konfigurer en ny tjeneste med API-nøkkel"}
         </DialogDescription>
       </DialogHeader>
 
@@ -353,20 +598,37 @@ function AddIntegrationForm({
           <Label>Leverandør</Label>
           <Select 
             value={formData.provider} 
-            onValueChange={(v) => setFormData({ ...formData, provider: v, name: providers.find(p => p.id === v)?.name || "" })}
+            onValueChange={(v) => {
+              const provider = PROVIDERS[v as keyof typeof PROVIDERS];
+              setFormData({ 
+                ...formData, 
+                provider: v, 
+                name: provider?.name || "",
+                model: provider?.models?.[0] || ""
+              });
+            }}
           >
             <SelectTrigger>
               <SelectValue placeholder="Velg leverandør..." />
             </SelectTrigger>
             <SelectContent>
-              {providers.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                  {p.description && <span className="text-gray-500 ml-2">- {p.description}</span>}
-                </SelectItem>
-              ))}
+              {availableProviders.map((providerId) => {
+                const provider = PROVIDERS[providerId as keyof typeof PROVIDERS];
+                if (!provider) return null;
+                return (
+                  <SelectItem key={providerId} value={providerId}>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-4 h-4 rounded ${provider.color}`} />
+                      <span>{provider.name}</span>
+                    </div>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
+          {selectedProvider?.description && (
+            <p className="text-xs text-gray-500">{selectedProvider.description}</p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -388,7 +650,7 @@ function AddIntegrationForm({
           />
         </div>
 
-        {selectedProvider?.models?.length > 0 && (
+        {selectedProvider?.models && selectedProvider.models.length > 0 && (
           <div className="space-y-2">
             <Label>Modell</Label>
             <Select 
@@ -438,7 +700,7 @@ function AddIntegrationForm({
         <Button type="button" variant="outline" onClick={onCancel}>
           Avbryt
         </Button>
-        <Button type="submit" disabled={isLoading || !formData.provider || !formData.name}>
+        <Button type="submit" disabled={isLoading || !formData.provider || !formData.name || !formData.apiKey}>
           {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
           Legg til
         </Button>
@@ -450,13 +712,11 @@ function AddIntegrationForm({
 // Edit Integration Form
 function EditIntegrationForm({ 
   integration,
-  providers, 
   onSubmit, 
   isLoading, 
   onCancel 
 }: { 
   integration: any;
-  providers: any[];
   onSubmit: (data: any) => void;
   isLoading: boolean;
   onCancel: () => void;
@@ -470,7 +730,7 @@ function EditIntegrationForm({
     isDefault: integration.isDefault,
   });
 
-  const selectedProvider = providers.find(p => p.id === integration.provider);
+  const selectedProvider = PROVIDERS[integration.provider as keyof typeof PROVIDERS];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -487,6 +747,16 @@ function EditIntegrationForm({
       </DialogHeader>
 
       <div className="space-y-4 py-4">
+        <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+          <div className={`w-10 h-10 rounded-lg ${selectedProvider?.color || 'bg-gray-500'} flex items-center justify-center`}>
+            {selectedProvider?.icon && <selectedProvider.icon className="w-5 h-5 text-white" />}
+          </div>
+          <div>
+            <p className="font-medium">{selectedProvider?.name || integration.provider}</p>
+            <p className="text-sm text-gray-500">{selectedProvider?.description}</p>
+          </div>
+        </div>
+
         <div className="space-y-2">
           <Label>Navn</Label>
           <Input
@@ -505,7 +775,7 @@ function EditIntegrationForm({
           />
         </div>
 
-        {selectedProvider?.models?.length > 0 && (
+        {selectedProvider?.models && selectedProvider.models.length > 0 && (
           <div className="space-y-2">
             <Label>Modell</Label>
             <Select 
@@ -525,7 +795,7 @@ function EditIntegrationForm({
         )}
 
         <div className="space-y-2">
-          <Label>Egendefinert API-endepunkt</Label>
+          <Label>Egendefinert API-endepunkt (valgfritt)</Label>
           <Input
             value={formData.apiEndpoint}
             onChange={(e) => setFormData({ ...formData, apiEndpoint: e.target.value })}
@@ -602,7 +872,7 @@ function BrregSettingsCard() {
       });
       toastSuccess(
         enabled ? "Brreg aktivert" : "Brreg deaktivert",
-        { description: enabled ? "Brreg-integrasjonen er n\u00e5 aktiv" : "Brreg-integrasjonen er n\u00e5 deaktivert" }
+        { description: enabled ? "Brreg-integrasjonen er nå aktiv" : "Brreg-integrasjonen er nå deaktivert" }
       );
     } catch (error) {
       toastError("Feil", { description: "Kunne ikke lagre innstillingen" });
