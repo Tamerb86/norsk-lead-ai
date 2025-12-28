@@ -639,7 +639,7 @@ function BrregSettingsCard() {
               <Database className="w-5 h-5 text-white" />
             </div>
             <div>
-              <CardTitle className="text-lg">Br\u00f8nn\u00f8ysundregistrene (Brreg)</CardTitle>
+              <CardTitle className="text-lg">Brønnøysundregistrene (Brreg)</CardTitle>
               <CardDescription>Offisiell norsk bedriftsregister - Gratis API</CardDescription>
             </div>
           </div>
@@ -660,7 +660,7 @@ function BrregSettingsCard() {
       <CardContent>
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label className="text-sm text-gray-600">Daglig grense (foresp\u00f8rsler)</Label>
+            <Label className="text-sm text-gray-600">Daglig grense (forespørsler)</Label>
             <div className="flex gap-2">
               <Input
                 type="number"
@@ -698,11 +698,11 @@ function BrregSettingsCard() {
         </div>
         <div className="mt-4 pt-4 border-t border-red-200">
           <div className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">API-n\u00f8kkel</span>
-            <Badge variant="outline" className="bg-white">Ikke p\u00e5krevd (gratis)</Badge>
+            <span className="text-gray-600">API-nøkkel</span>
+            <Badge variant="outline" className="bg-white">Ikke påkrevd (gratis)</Badge>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            Brreg API er gratis og krever ingen autentisering. Du kan s\u00f8ke, hente og synkronisere bedriftsdata direkte.
+            Brreg API er gratis og krever ingen autentisering. Du kan søke, hente og synkronisere bedriftsdata direkte.
           </p>
         </div>
       </CardContent>
