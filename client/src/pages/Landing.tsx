@@ -137,6 +137,12 @@ export default function Landing() {
           </Link>
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-4">
+            <a href="#features">
+              <Button variant="ghost">Funksjoner</Button>
+            </a>
+            <a href="#pricing">
+              <Button variant="ghost">Priser</Button>
+            </a>
             <Link href="/search">
               <Button variant="ghost">Søk bedrifter</Button>
             </Link>
@@ -739,6 +745,231 @@ export default function Landing() {
                 answer="Ja! Vi tilbyr norsk support via e-post, chat, og telefon. Vårt supportteam er tilgjengelig hverdager 09:00-17:00. Enterprise-kunder får dedikert account manager."
               />
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="pricing" className="py-24 bg-gradient-to-b from-white to-gray-50">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <span className="inline-block px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold mb-4">
+              Priser
+            </span>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              Velg planen som passer for deg
+            </h2>
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Start gratis og oppgrader når du er klar. Ingen skjulte kostnader.
+            </p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {/* Starter Plan */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0 }}
+            >
+              <Card className="h-full hover:shadow-xl transition-shadow relative overflow-hidden">
+                <CardContent className="p-8">
+                  <h3 className="text-2xl font-bold mb-2">Starter</h3>
+                  <p className="text-gray-600 mb-6">For små bedrifter og gründere</p>
+                  <div className="mb-6">
+                    <span className="text-5xl font-black">kr 499</span>
+                    <span className="text-gray-600">/mnd</span>
+                  </div>
+                  <ul className="space-y-4 mb-8">
+                    {[
+                      "500 bedriftssøk/mnd",
+                      "100 e-poster/mnd",
+                      "1 bruker",
+                      "E-post support",
+                      "Grunnleggende analyse",
+                    ].map((feature, i) => (
+                      <li key={i} className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/register">
+                    <Button variant="outline" className="w-full py-6 text-lg">
+                      Start gratis prøveperiode
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Pro Plan - Popular */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+            >
+              <Card className="h-full hover:shadow-xl transition-shadow relative overflow-hidden border-2 border-blue-500 scale-105">
+                <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-center py-2 text-sm font-semibold">
+                  Mest populær
+                </div>
+                <CardContent className="p-8 pt-14">
+                  <h3 className="text-2xl font-bold mb-2">Pro</h3>
+                  <p className="text-gray-600 mb-6">For voksende salgsavdelinger</p>
+                  <div className="mb-6">
+                    <span className="text-5xl font-black">kr 999</span>
+                    <span className="text-gray-600">/mnd</span>
+                  </div>
+                  <ul className="space-y-4 mb-8">
+                    {[
+                      "Ubegrenset bedriftssøk",
+                      "5 000 e-poster/mnd",
+                      "5 brukere",
+                      "Prioritert support",
+                      "Avansert analyse",
+                      "AI e-postgenerering",
+                      "CRM-integrasjoner",
+                    ].map((feature, i) => (
+                      <li key={i} className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Link href="/register">
+                    <Button className="w-full py-6 text-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                      Start gratis prøveperiode
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Enterprise Plan */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card className="h-full hover:shadow-xl transition-shadow relative overflow-hidden">
+                <CardContent className="p-8">
+                  <h3 className="text-2xl font-bold mb-2">Enterprise</h3>
+                  <p className="text-gray-600 mb-6">For store organisasjoner</p>
+                  <div className="mb-6">
+                    <span className="text-5xl font-black">Kontakt</span>
+                  </div>
+                  <ul className="space-y-4 mb-8">
+                    {[
+                      "Alt i Pro +",
+                      "Ubegrenset e-poster",
+                      "Ubegrenset brukere",
+                      "Dedikert account manager",
+                      "Custom integrasjoner",
+                      "SLA-garanti",
+                      "On-premise mulighet",
+                    ].map((feature, i) => (
+                      <li key={i} className="flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button variant="outline" className="w-full py-6 text-lg">
+                    Kontakt salg
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+
+          {/* Money back guarantee */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            className="text-center mt-12"
+          >
+            <p className="text-gray-600 flex items-center justify-center gap-2">
+              <Shield className="w-5 h-5 text-green-500" />
+              14 dagers pengene-tilbake-garanti. Ingen spørsmål.
+            </p>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-24 bg-white">
+        <div className="container mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-16"
+          >
+            <span className="inline-block px-4 py-2 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold mb-4">
+              Slik fungerer det
+            </span>
+            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+              Fra søk til salg på 3 enkle steg
+            </h2>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-12 max-w-5xl mx-auto">
+            {[
+              {
+                step: "1",
+                title: "Finn bedrifter",
+                description: "Søk blant 1.1 millioner norske bedrifter med avanserte filtre. Finn de perfekte kundene for din virksomhet.",
+                icon: Search,
+                color: "blue",
+              },
+              {
+                step: "2",
+                title: "Send kampanjer",
+                description: "Lag personaliserte e-postkampanjer med AI-hjelp. Automatiser oppfølginger og spar tid.",
+                icon: Mail,
+                color: "purple",
+              },
+              {
+                step: "3",
+                title: "Lukk salg",
+                description: "Følg opp leads i Kanban-boardet. Se hvem som åpner e-poster og prioriter de varmeste leadsene.",
+                icon: BarChart3,
+                color: "green",
+              },
+            ].map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 30 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: index * 0.15 }}
+                className="text-center relative"
+              >
+                {/* Connector line */}
+                {index < 2 && (
+                  <div className="hidden md:block absolute top-16 left-[60%] w-[80%] h-0.5 bg-gradient-to-r from-gray-300 to-transparent" />
+                )}
+                
+                {/* Step number */}
+                <div className={`inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-${item.color}-100 to-${item.color}-200 mb-6 relative`}>
+                  <item.icon className={`w-12 h-12 text-${item.color}-600`} />
+                  <span className={`absolute -top-2 -right-2 w-10 h-10 bg-${item.color}-600 text-white rounded-full flex items-center justify-center font-bold text-lg`}>
+                    {item.step}
+                  </span>
+                </div>
+                
+                <h3 className="text-2xl font-bold mb-4">{item.title}</h3>
+                <p className="text-gray-600 text-lg leading-relaxed">{item.description}</p>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
