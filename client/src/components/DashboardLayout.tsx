@@ -43,6 +43,7 @@ import { useLocation, Link } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { SmartTips } from './SmartTips';
 import { Button } from "./ui/button";
+import { ThemeToggle } from "./ThemeToggle";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", description: "Oversikt" },
@@ -202,24 +203,24 @@ function DashboardLayoutContent({
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           collapsible="icon"
-          className="border-r border-gray-200 bg-white fixed left-0 top-0 h-screen z-40"
+          className="border-r border-border bg-sidebar fixed left-0 top-0 h-screen z-40"
           disableTransition={isResizing}
         >
-          <SidebarHeader className="h-16 justify-center border-b border-gray-100">
+          <SidebarHeader className="h-16 justify-center border-b border-border">
             <div className="flex items-center gap-3 px-2 transition-all w-full">
               <button
                 onClick={toggleSidebar}
-                className="h-8 w-8 flex items-center justify-center hover:bg-gray-100 rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0"
+                className="h-8 w-8 flex items-center justify-center hover:bg-accent rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring shrink-0"
                 aria-label="Toggle navigation"
               >
-                <PanelLeft className="h-4 w-4 text-gray-500" />
+                <PanelLeft className="h-4 w-4 text-muted-foreground" />
               </button>
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
                     <Building2 className="w-4 h-4 text-white" />
                   </div>
-                  <span className="font-bold text-gray-900 truncate">
+                  <span className="font-bold text-foreground truncate">
                     NorskLeads
                   </span>
                 </div>
@@ -239,12 +240,12 @@ function DashboardLayoutContent({
                       tooltip={item.label}
                       className={`h-10 transition-all font-normal rounded-lg ${
                         isActive 
-                          ? "bg-blue-50 text-blue-700 hover:bg-blue-100" 
-                          : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                          ? "bg-primary/10 text-primary hover:bg-primary/15" 
+                          : "text-muted-foreground hover:bg-accent hover:text-foreground"
                       }`}
                     >
                       <item.icon
-                        className={`h-4 w-4 ${isActive ? "text-blue-600" : "text-gray-500"}`}
+                        className={`h-4 w-4 ${isActive ? "text-primary" : "text-muted-foreground"}`}
                       />
                       <span className="font-medium">{item.label}</span>
                     </SidebarMenuButton>
@@ -254,20 +255,24 @@ function DashboardLayoutContent({
             </SidebarMenu>
           </SidebarContent>
 
-          <SidebarFooter className="p-3 border-t border-gray-100">
+          <SidebarFooter className="p-3 border-t border-border">
+            <div className="flex items-center justify-between mb-2 group-data-[collapsible=icon]:justify-center">
+              <span className="text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">Tema</span>
+              <ThemeToggle />
+            </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-gray-100 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                  <Avatar className="h-9 w-9 border-2 border-blue-200 shrink-0">
+                <button className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-accent transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                  <Avatar className="h-9 w-9 border-2 border-primary/20 shrink-0">
                     <AvatarFallback className="text-xs font-medium bg-gradient-to-br from-blue-500 to-purple-500 text-white">
                       {user?.name?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
-                    <p className="text-sm font-medium text-gray-900 truncate leading-none">
+                    <p className="text-sm font-medium text-foreground truncate leading-none">
                       {user?.name || "Bruker"}
                     </p>
-                    <p className="text-xs text-gray-500 truncate mt-1">
+                    <p className="text-xs text-muted-foreground truncate mt-1">
                       {user?.email || "-"}
                     </p>
                   </div>
@@ -275,8 +280,8 @@ function DashboardLayoutContent({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-2 py-1.5">
-                  <p className="text-sm font-medium text-gray-900">{user?.name || "Bruker"}</p>
-                  <p className="text-xs text-gray-500">{user?.email}</p>
+                  <p className="text-sm font-medium text-foreground">{user?.name || "Bruker"}</p>
+                  <p className="text-xs text-muted-foreground">{user?.email}</p>
                 </div>
                 <DropdownMenuSeparator />
                 <Link href="/account">
@@ -325,20 +330,21 @@ function DashboardLayoutContent({
 
       <SidebarInset>
         {isMobile && (
-          <div className="flex border-b h-14 items-center justify-between bg-white px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
+          <div className="flex border-b h-14 items-center justify-between bg-background px-2 backdrop-blur supports-[backdrop-filter]:backdrop-blur sticky top-0 z-40">
             <div className="flex items-center gap-2">
-              <SidebarTrigger className="h-9 w-9 rounded-lg bg-white" />
+              <SidebarTrigger className="h-9 w-9 rounded-lg" />
               <div className="flex items-center gap-3">
                 <div className="flex flex-col gap-1">
-                  <span className="font-medium text-gray-900">
+                  <span className="font-medium text-foreground">
                     {activeMenuItem?.label ?? "Menu"}
                   </span>
                 </div>
               </div>
             </div>
+            <ThemeToggle />
           </div>
         )}
-        <main className="flex-1 p-4 bg-gray-50">{children}</main>
+        <main className="flex-1 p-4 bg-muted/30">{children}</main>
         <SmartTips />
       </SidebarInset>
     </>
