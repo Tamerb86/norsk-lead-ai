@@ -2472,5 +2472,253 @@ export const appRouter = router({
       return result.rows;
     }),
   }),
+
+  // ============================================
+  // A/B TESTING ROUTER
+  // ============================================
+  abTests: router({
+    // Get all A/B tests for user
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getAbTests(ctx.user.id);
+    }),
+
+    // Get single A/B test with variants
+    getById: protectedProcedure
+      .input(z.object({ testId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        return await db.getAbTestById(input.testId, ctx.user.id);
+      }),
+
+    // Create new A/B test
+    create: protectedProcedure
+      .input(z.object({
+        campaignId: z.number(),
+        name: z.string(),
+        testType: z.enum(['subject', 'content', 'sender', 'send_time']),
+        sampleSize: z.number().min(5).max(50).default(20),
+        winningCriteria: z.enum(['open_rate', 'click_rate', 'reply_rate']).default('open_rate'),
+        autoSelectWinner: z.boolean().default(true),
+        testDurationHours: z.number().min(1).max(168).default(24),
+        variantA: z.object({
+          subject: z.string().optional(),
+          body: z.string().optional(),
+          senderName: z.string().optional(),
+          senderEmail: z.string().optional(),
+        }),
+        variantB: z.object({
+          subject: z.string().optional(),
+          body: z.string().optional(),
+          senderName: z.string().optional(),
+          senderEmail: z.string().optional(),
+        }),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await db.createAbTest({
+          ...input,
+          userId: ctx.user.id,
+        });
+        
+        await db.createActivityLog({
+          userId: ctx.user.id,
+          action: 'create',
+          entityType: 'ab_test',
+          entityId: result.id,
+          details: { name: input.name, testType: input.testType },
+        });
+        
+        return result;
+      }),
+
+    // Start A/B test
+    start: protectedProcedure
+      .input(z.object({ testId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.startAbTest(input.testId, ctx.user.id);
+      }),
+
+    // Select winner manually
+    selectWinner: protectedProcedure
+      .input(z.object({
+        testId: z.number(),
+        winnerId: z.enum(['A', 'B']),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.selectAbTestWinner(input.testId, ctx.user.id, input.winnerId);
+      }),
+  }),
+
+  // ============================================
+  // ADVANCED LEAD SCORING ROUTER
+  // ============================================
+  leadScoringAdvanced: router({
+    // Get lead scores for user
+    getScores: protectedProcedure
+      .input(z.object({
+        tier: z.enum(['cold', 'warm', 'hot', 'very_hot']).optional(),
+        minScore: z.number().optional(),
+        limit: z.number().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        return await db.getLeadScores(ctx.user.id, input);
+      }),
+
+    // Get scoring rules
+    getRules: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getScoringRules(ctx.user.id);
+    }),
+
+    // Create scoring rule
+    createRule: protectedProcedure
+      .input(z.object({
+        name: z.string(),
+        description: z.string().optional(),
+        ruleType: z.enum(['engagement', 'company_attribute', 'behavior']),
+        condition: z.string(),
+        operator: z.enum(['equals', 'contains', 'greater_than', 'less_than', 'not_equals']),
+        value: z.string(),
+        scoreChange: z.number(),
+        priority: z.number().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.createScoringRule({
+          ...input,
+          userId: ctx.user.id,
+        });
+      }),
+
+    // Update scoring rule
+    updateRule: protectedProcedure
+      .input(z.object({
+        ruleId: z.number(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+        isActive: z.boolean().optional(),
+        condition: z.string().optional(),
+        operator: z.string().optional(),
+        value: z.string().optional(),
+        scoreChange: z.number().optional(),
+        priority: z.number().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { ruleId, ...data } = input;
+        return await db.updateScoringRule(ruleId, ctx.user.id, data);
+      }),
+
+    // Delete scoring rule
+    deleteRule: protectedProcedure
+      .input(z.object({ ruleId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.deleteScoringRule(input.ruleId, ctx.user.id);
+      }),
+
+    // Manually update lead score
+    updateScore: protectedProcedure
+      .input(z.object({
+        leadId: z.number(),
+        scoreChange: z.number(),
+        reason: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.updateLeadScore(input.leadId, input.scoreChange, input.reason);
+      }),
+  }),
+
+  // ============================================
+  // WEBHOOKS ROUTER
+  // ============================================
+  webhooks: router({
+    // Get all webhooks for user
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getWebhooks(ctx.user.id);
+    }),
+
+    // Get single webhook
+    getById: protectedProcedure
+      .input(z.object({ webhookId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        return await db.getWebhookById(input.webhookId, ctx.user.id);
+      }),
+
+    // Create webhook
+    create: protectedProcedure
+      .input(z.object({
+        name: z.string(),
+        url: z.string().url(),
+        secret: z.string().optional(),
+        events: z.array(z.enum([
+          'lead.created', 'lead.updated', 'lead.deleted',
+          'campaign.created', 'campaign.sent', 'campaign.completed',
+          'email.opened', 'email.clicked', 'email.replied', 'email.bounced',
+          'subscription.created', 'subscription.cancelled',
+        ])),
+        customHeaders: z.record(z.string()).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await db.createWebhook({
+          ...input,
+          userId: ctx.user.id,
+        });
+        
+        await db.createActivityLog({
+          userId: ctx.user.id,
+          action: 'create',
+          entityType: 'webhook',
+          entityId: result.id,
+          details: { name: input.name, url: input.url },
+        });
+        
+        return result;
+      }),
+
+    // Update webhook
+    update: protectedProcedure
+      .input(z.object({
+        webhookId: z.number(),
+        name: z.string().optional(),
+        url: z.string().url().optional(),
+        secret: z.string().optional(),
+        isActive: z.boolean().optional(),
+        events: z.array(z.string()).optional(),
+        customHeaders: z.record(z.string()).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { webhookId, ...data } = input;
+        return await db.updateWebhook(webhookId, ctx.user.id, data);
+      }),
+
+    // Delete webhook
+    delete: protectedProcedure
+      .input(z.object({ webhookId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.deleteWebhook(input.webhookId, ctx.user.id);
+      }),
+
+    // Get webhook deliveries
+    getDeliveries: protectedProcedure
+      .input(z.object({
+        webhookId: z.number(),
+        limit: z.number().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        return await db.getWebhookDeliveries(input.webhookId, ctx.user.id, input.limit);
+      }),
+
+    // Test webhook
+    test: protectedProcedure
+      .input(z.object({ webhookId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const webhook = await db.getWebhookById(input.webhookId, ctx.user.id);
+        if (!webhook) throw new Error('Webhook not found');
+        
+        // Send test event
+        await db.dispatchWebhookEvent('test', {
+          message: 'This is a test webhook delivery',
+          timestamp: new Date().toISOString(),
+          userId: ctx.user.id,
+        });
+        
+        return { success: true };
+      }),
+  }),
 });
 export type AppRouter = typeof appRouter;

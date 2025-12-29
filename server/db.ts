@@ -2494,3 +2494,553 @@ export async function claimReferralReward(userId: number, referralId: number) {
   
   return referral;
 }
+
+
+// ============================================
+// A/B TESTING FUNCTIONS
+// ============================================
+
+export async function createAbTest(data: {
+  campaignId: number;
+  userId: number;
+  name: string;
+  testType: string;
+  sampleSize: number;
+  winningCriteria: string;
+  autoSelectWinner: boolean;
+  testDurationHours: number;
+  variantA: { subject?: string; body?: string; senderName?: string; senderEmail?: string };
+  variantB: { subject?: string; body?: string; senderName?: string; senderEmail?: string };
+}) {
+  const db = await getDb();
+  
+  // Create the test
+  const testResult = await db.execute(sql`
+    INSERT INTO ab_tests (campaign_id, user_id, name, test_type, sample_size, winning_criteria, auto_select_winner, test_duration_hours, status)
+    VALUES (${data.campaignId}, ${data.userId}, ${data.name}, ${data.testType}, ${data.sampleSize}, ${data.winningCriteria}, ${data.autoSelectWinner}, ${data.testDurationHours}, 'draft')
+    RETURNING id
+  `);
+  
+  const testId = (testResult.rows[0] as any).id;
+  
+  // Create variant A
+  await db.execute(sql`
+    INSERT INTO ab_test_variants (test_id, variant_id, subject, body, sender_name, sender_email)
+    VALUES (${testId}, 'A', ${data.variantA.subject || null}, ${data.variantA.body || null}, ${data.variantA.senderName || null}, ${data.variantA.senderEmail || null})
+  `);
+  
+  // Create variant B
+  await db.execute(sql`
+    INSERT INTO ab_test_variants (test_id, variant_id, subject, body, sender_name, sender_email)
+    VALUES (${testId}, 'B', ${data.variantB.subject || null}, ${data.variantB.body || null}, ${data.variantB.senderName || null}, ${data.variantB.senderEmail || null})
+  `);
+  
+  return { id: testId };
+}
+
+export async function getAbTests(userId: number) {
+  const db = await getDb();
+  
+  const result = await db.execute(sql`
+    SELECT t.*, c.name as campaign_name
+    FROM ab_tests t
+    LEFT JOIN campaigns c ON t.campaign_id = c.id
+    WHERE t.user_id = ${userId}
+    ORDER BY t.created_at DESC
+  `);
+  
+  return result.rows || [];
+}
+
+export async function getAbTestById(testId: number, userId: number) {
+  const db = await getDb();
+  
+  const testResult = await db.execute(sql`
+    SELECT t.*, c.name as campaign_name
+    FROM ab_tests t
+    LEFT JOIN campaigns c ON t.campaign_id = c.id
+    WHERE t.id = ${testId} AND t.user_id = ${userId}
+  `);
+  
+  if (testResult.rows.length === 0) return null;
+  
+  const variantsResult = await db.execute(sql`
+    SELECT * FROM ab_test_variants WHERE test_id = ${testId}
+  `);
+  
+  return {
+    ...testResult.rows[0],
+    variants: variantsResult.rows || [],
+  };
+}
+
+export async function startAbTest(testId: number, userId: number) {
+  const db = await getDb();
+  
+  await db.execute(sql`
+    UPDATE ab_tests 
+    SET status = 'running', started_at = NOW(), "updatedAt" = NOW()
+    WHERE id = ${testId} AND user_id = ${userId}
+  `);
+  
+  return { success: true };
+}
+
+export async function updateAbTestVariantStats(testId: number, variantId: string, stats: {
+  sentCount?: number;
+  deliveredCount?: number;
+  openedCount?: number;
+  clickedCount?: number;
+  repliedCount?: number;
+  bouncedCount?: number;
+}) {
+  const db = await getDb();
+  
+  const updates: string[] = [];
+  if (stats.sentCount !== undefined) updates.push(`sent_count = sent_count + ${stats.sentCount}`);
+  if (stats.deliveredCount !== undefined) updates.push(`delivered_count = delivered_count + ${stats.deliveredCount}`);
+  if (stats.openedCount !== undefined) updates.push(`opened_count = opened_count + ${stats.openedCount}`);
+  if (stats.clickedCount !== undefined) updates.push(`clicked_count = clicked_count + ${stats.clickedCount}`);
+  if (stats.repliedCount !== undefined) updates.push(`replied_count = replied_count + ${stats.repliedCount}`);
+  if (stats.bouncedCount !== undefined) updates.push(`bounced_count = bounced_count + ${stats.bouncedCount}`);
+  
+  if (updates.length > 0) {
+    await db.execute(sql.raw(`
+      UPDATE ab_test_variants 
+      SET ${updates.join(', ')}, 
+          open_rate = CASE WHEN delivered_count > 0 THEN (opened_count::float / delivered_count) * 100 ELSE 0 END,
+          click_rate = CASE WHEN delivered_count > 0 THEN (clicked_count::float / delivered_count) * 100 ELSE 0 END,
+          reply_rate = CASE WHEN delivered_count > 0 THEN (replied_count::float / delivered_count) * 100 ELSE 0 END,
+          "updatedAt" = NOW()
+      WHERE test_id = ${testId} AND variant_id = '${variantId}'
+    `));
+  }
+  
+  return { success: true };
+}
+
+export async function selectAbTestWinner(testId: number, userId: number, winnerId: string) {
+  const db = await getDb();
+  
+  await db.execute(sql`
+    UPDATE ab_tests 
+    SET winner_id = ${winnerId}, winner_selected_at = NOW(), status = 'completed', completed_at = NOW(), "updatedAt" = NOW()
+    WHERE id = ${testId} AND user_id = ${userId}
+  `);
+  
+  return { success: true };
+}
+
+// ============================================
+// LEAD SCORING FUNCTIONS
+// ============================================
+
+export async function getOrCreateLeadScore(leadId: number, companyId: number, userId: number) {
+  const db = await getDb();
+  
+  // Check if score exists
+  const existing = await db.execute(sql`
+    SELECT * FROM lead_scores WHERE lead_id = ${leadId}
+  `);
+  
+  if (existing.rows.length > 0) {
+    return existing.rows[0];
+  }
+  
+  // Create new score
+  await db.execute(sql`
+    INSERT INTO lead_scores (lead_id, company_id, user_id, total_score, engagement_score, company_score, behavior_score, tier)
+    VALUES (${leadId}, ${companyId}, ${userId}, 0, 0, 0, 0, 'cold')
+  `);
+  
+  const result = await db.execute(sql`
+    SELECT * FROM lead_scores WHERE lead_id = ${leadId}
+  `);
+  
+  return result.rows[0];
+}
+
+export async function updateLeadScore(leadId: number, scoreChange: number, reason: string, ruleId?: number) {
+  const db = await getDb();
+  
+  // Get current score
+  const current = await db.execute(sql`
+    SELECT * FROM lead_scores WHERE lead_id = ${leadId}
+  `);
+  
+  if (current.rows.length === 0) return null;
+  
+  const currentScore = current.rows[0] as any;
+  const newScore = Math.max(0, currentScore.total_score + scoreChange);
+  
+  // Determine tier based on score
+  let tier = 'cold';
+  if (newScore >= 80) tier = 'very_hot';
+  else if (newScore >= 50) tier = 'hot';
+  else if (newScore >= 25) tier = 'warm';
+  
+  // Update score
+  await db.execute(sql`
+    UPDATE lead_scores 
+    SET total_score = ${newScore}, 
+        engagement_score = engagement_score + ${scoreChange > 0 ? scoreChange : 0},
+        tier = ${tier},
+        last_engagement_at = NOW(),
+        last_score_update = NOW(),
+        "updatedAt" = NOW()
+    WHERE lead_id = ${leadId}
+  `);
+  
+  // Record history
+  await db.execute(sql`
+    INSERT INTO score_history (lead_score_id, previous_score, new_score, change_reason, rule_id)
+    VALUES (${currentScore.id}, ${currentScore.total_score}, ${newScore}, ${reason}, ${ruleId || null})
+  `);
+  
+  return { previousScore: currentScore.total_score, newScore, tier };
+}
+
+export async function getLeadScores(userId: number, options?: { tier?: string; minScore?: number; limit?: number }) {
+  const db = await getDb();
+  
+  let query = sql`
+    SELECT ls.*, l.status as lead_status, c.navn as company_name
+    FROM lead_scores ls
+    LEFT JOIN leads l ON ls.lead_id = l.id
+    LEFT JOIN norwegian_companies c ON ls.company_id = c.id
+    WHERE ls.user_id = ${userId}
+  `;
+  
+  if (options?.tier) {
+    query = sql`${query} AND ls.tier = ${options.tier}`;
+  }
+  
+  if (options?.minScore) {
+    query = sql`${query} AND ls.total_score >= ${options.minScore}`;
+  }
+  
+  query = sql`${query} ORDER BY ls.total_score DESC`;
+  
+  if (options?.limit) {
+    query = sql`${query} LIMIT ${options.limit}`;
+  }
+  
+  const result = await db.execute(query);
+  return result.rows || [];
+}
+
+export async function getScoringRules(userId: number) {
+  const db = await getDb();
+  
+  const result = await db.execute(sql`
+    SELECT * FROM scoring_rules WHERE user_id = ${userId} ORDER BY priority DESC, created_at DESC
+  `);
+  
+  return result.rows || [];
+}
+
+export async function createScoringRule(data: {
+  userId: number;
+  name: string;
+  description?: string;
+  ruleType: string;
+  condition: string;
+  operator: string;
+  value: string;
+  scoreChange: number;
+  priority?: number;
+}) {
+  const db = await getDb();
+  
+  const result = await db.execute(sql`
+    INSERT INTO scoring_rules (user_id, name, description, rule_type, condition, operator, value, score_change, priority)
+    VALUES (${data.userId}, ${data.name}, ${data.description || null}, ${data.ruleType}, ${data.condition}, ${data.operator}, ${data.value}, ${data.scoreChange}, ${data.priority || 0})
+    RETURNING id
+  `);
+  
+  return { id: (result.rows[0] as any).id };
+}
+
+export async function updateScoringRule(ruleId: number, userId: number, data: Partial<{
+  name: string;
+  description: string;
+  isActive: boolean;
+  condition: string;
+  operator: string;
+  value: string;
+  scoreChange: number;
+  priority: number;
+}>) {
+  const db = await getDb();
+  
+  const updates: string[] = [];
+  if (data.name !== undefined) updates.push(`name = '${data.name}'`);
+  if (data.description !== undefined) updates.push(`description = '${data.description}'`);
+  if (data.isActive !== undefined) updates.push(`is_active = ${data.isActive}`);
+  if (data.condition !== undefined) updates.push(`condition = '${data.condition}'`);
+  if (data.operator !== undefined) updates.push(`operator = '${data.operator}'`);
+  if (data.value !== undefined) updates.push(`value = '${data.value}'`);
+  if (data.scoreChange !== undefined) updates.push(`score_change = ${data.scoreChange}`);
+  if (data.priority !== undefined) updates.push(`priority = ${data.priority}`);
+  
+  if (updates.length > 0) {
+    await db.execute(sql.raw(`
+      UPDATE scoring_rules 
+      SET ${updates.join(', ')}, "updatedAt" = NOW()
+      WHERE id = ${ruleId} AND user_id = ${userId}
+    `));
+  }
+  
+  return { success: true };
+}
+
+export async function deleteScoringRule(ruleId: number, userId: number) {
+  const db = await getDb();
+  
+  await db.execute(sql`
+    DELETE FROM scoring_rules WHERE id = ${ruleId} AND user_id = ${userId}
+  `);
+  
+  return { success: true };
+}
+
+// ============================================
+// WEBHOOKS FUNCTIONS
+// ============================================
+
+export async function createWebhook(data: {
+  userId: number;
+  name: string;
+  url: string;
+  secret?: string;
+  events: string[];
+  customHeaders?: Record<string, string>;
+}) {
+  const db = await getDb();
+  
+  const result = await db.execute(sql`
+    INSERT INTO webhooks (user_id, name, url, secret, events, custom_headers)
+    VALUES (${data.userId}, ${data.name}, ${data.url}, ${data.secret || null}, ${JSON.stringify(data.events)}, ${data.customHeaders ? JSON.stringify(data.customHeaders) : null})
+    RETURNING id
+  `);
+  
+  return { id: (result.rows[0] as any).id };
+}
+
+export async function getWebhooks(userId: number) {
+  const db = await getDb();
+  
+  const result = await db.execute(sql`
+    SELECT * FROM webhooks WHERE user_id = ${userId} ORDER BY created_at DESC
+  `);
+  
+  return result.rows || [];
+}
+
+export async function getWebhookById(webhookId: number, userId: number) {
+  const db = await getDb();
+  
+  const result = await db.execute(sql`
+    SELECT * FROM webhooks WHERE id = ${webhookId} AND user_id = ${userId}
+  `);
+  
+  return result.rows[0] || null;
+}
+
+export async function updateWebhook(webhookId: number, userId: number, data: Partial<{
+  name: string;
+  url: string;
+  secret: string;
+  isActive: boolean;
+  events: string[];
+  customHeaders: Record<string, string>;
+}>) {
+  const db = await getDb();
+  
+  const updates: string[] = [];
+  if (data.name !== undefined) updates.push(`name = '${data.name}'`);
+  if (data.url !== undefined) updates.push(`url = '${data.url}'`);
+  if (data.secret !== undefined) updates.push(`secret = '${data.secret}'`);
+  if (data.isActive !== undefined) updates.push(`is_active = ${data.isActive}`);
+  if (data.events !== undefined) updates.push(`events = '${JSON.stringify(data.events)}'`);
+  if (data.customHeaders !== undefined) updates.push(`custom_headers = '${JSON.stringify(data.customHeaders)}'`);
+  
+  if (updates.length > 0) {
+    await db.execute(sql.raw(`
+      UPDATE webhooks 
+      SET ${updates.join(', ')}, "updatedAt" = NOW()
+      WHERE id = ${webhookId} AND user_id = ${userId}
+    `));
+  }
+  
+  return { success: true };
+}
+
+export async function deleteWebhook(webhookId: number, userId: number) {
+  const db = await getDb();
+  
+  await db.execute(sql`
+    DELETE FROM webhooks WHERE id = ${webhookId} AND user_id = ${userId}
+  `);
+  
+  return { success: true };
+}
+
+export async function getActiveWebhooksForEvent(eventType: string) {
+  const db = await getDb();
+  
+  const result = await db.execute(sql`
+    SELECT * FROM webhooks 
+    WHERE is_active = true AND events::jsonb ? ${eventType}
+  `);
+  
+  return result.rows || [];
+}
+
+export async function createWebhookDelivery(data: {
+  webhookId: number;
+  eventType: string;
+  payload: any;
+}) {
+  const db = await getDb();
+  
+  const result = await db.execute(sql`
+    INSERT INTO webhook_deliveries (webhook_id, event_type, payload, status)
+    VALUES (${data.webhookId}, ${data.eventType}, ${JSON.stringify(data.payload)}, 'pending')
+    RETURNING id
+  `);
+  
+  return { id: (result.rows[0] as any).id };
+}
+
+export async function updateWebhookDelivery(deliveryId: number, data: {
+  status: string;
+  responseStatus?: number;
+  responseBody?: string;
+  responseTime?: number;
+  errorMessage?: string;
+  attempts?: number;
+  nextRetryAt?: Date;
+}) {
+  const db = await getDb();
+  
+  await db.execute(sql`
+    UPDATE webhook_deliveries 
+    SET status = ${data.status},
+        response_status = ${data.responseStatus || null},
+        response_body = ${data.responseBody || null},
+        response_time = ${data.responseTime || null},
+        error_message = ${data.errorMessage || null},
+        attempts = COALESCE(${data.attempts}, attempts + 1),
+        next_retry_at = ${data.nextRetryAt || null},
+        delivered_at = CASE WHEN ${data.status} = 'success' THEN NOW() ELSE delivered_at END
+    WHERE id = ${deliveryId}
+  `);
+  
+  // Update webhook stats
+  if (data.status === 'success' || data.status === 'failed') {
+    await db.execute(sql`
+      UPDATE webhooks 
+      SET total_deliveries = total_deliveries + 1,
+          successful_deliveries = successful_deliveries + CASE WHEN ${data.status} = 'success' THEN 1 ELSE 0 END,
+          failed_deliveries = failed_deliveries + CASE WHEN ${data.status} = 'failed' THEN 1 ELSE 0 END,
+          last_delivery_at = NOW(),
+          last_delivery_status = ${data.status}
+      WHERE id = (SELECT webhook_id FROM webhook_deliveries WHERE id = ${deliveryId})
+    `);
+  }
+  
+  return { success: true };
+}
+
+export async function getWebhookDeliveries(webhookId: number, userId: number, limit: number = 50) {
+  const db = await getDb();
+  
+  const result = await db.execute(sql`
+    SELECT d.* 
+    FROM webhook_deliveries d
+    JOIN webhooks w ON d.webhook_id = w.id
+    WHERE d.webhook_id = ${webhookId} AND w.user_id = ${userId}
+    ORDER BY d.created_at DESC
+    LIMIT ${limit}
+  `);
+  
+  return result.rows || [];
+}
+
+// Webhook event dispatcher
+export async function dispatchWebhookEvent(eventType: string, payload: any) {
+  const webhooks = await getActiveWebhooksForEvent(eventType);
+  
+  for (const webhook of webhooks) {
+    try {
+      const delivery = await createWebhookDelivery({
+        webhookId: (webhook as any).id,
+        eventType,
+        payload,
+      });
+      
+      // Send webhook asynchronously
+      sendWebhook((webhook as any), delivery.id, eventType, payload).catch(console.error);
+    } catch (error) {
+      console.error(`Failed to create webhook delivery for webhook ${(webhook as any).id}:`, error);
+    }
+  }
+}
+
+async function sendWebhook(webhook: any, deliveryId: number, eventType: string, payload: any) {
+  const startTime = Date.now();
+  
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'X-Webhook-Event': eventType,
+      'X-Webhook-Delivery': String(deliveryId),
+    };
+    
+    // Add custom headers
+    if (webhook.custom_headers) {
+      const customHeaders = typeof webhook.custom_headers === 'string' 
+        ? JSON.parse(webhook.custom_headers) 
+        : webhook.custom_headers;
+      Object.assign(headers, customHeaders);
+    }
+    
+    // Add signature if secret is set
+    if (webhook.secret) {
+      const crypto = await import('crypto');
+      const signature = crypto.createHmac('sha256', webhook.secret)
+        .update(JSON.stringify(payload))
+        .digest('hex');
+      headers['X-Webhook-Signature'] = `sha256=${signature}`;
+    }
+    
+    const response = await fetch(webhook.url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        event: eventType,
+        timestamp: new Date().toISOString(),
+        data: payload,
+      }),
+    });
+    
+    const responseTime = Date.now() - startTime;
+    const responseBody = await response.text();
+    
+    await updateWebhookDelivery(deliveryId, {
+      status: response.ok ? 'success' : 'failed',
+      responseStatus: response.status,
+      responseBody: responseBody.substring(0, 1000), // Limit response body
+      responseTime,
+      errorMessage: response.ok ? undefined : `HTTP ${response.status}`,
+    });
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    await updateWebhookDelivery(deliveryId, {
+      status: 'failed',
+      responseTime,
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+}

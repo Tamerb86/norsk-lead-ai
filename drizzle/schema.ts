@@ -543,3 +543,189 @@ export const referralStats = pgTable("referral_stats", {
 });
 export type ReferralStats = typeof referralStats.$inferSelect;
 export type InsertReferralStats = typeof referralStats.$inferInsert;
+
+
+// ============================================
+// A/B Testing for Email Campaigns
+// ============================================
+
+export const abTests = pgTable("ab_tests", {
+  id: serial("id").primaryKey(),
+  campaignId: integer("campaign_id").notNull(),
+  userId: integer("user_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  status: varchar("status", { length: 20 }).default("draft").notNull(), // draft, running, completed, cancelled
+  // Test configuration
+  testType: varchar("test_type", { length: 20 }).default("subject").notNull(), // subject, content, sender, send_time
+  sampleSize: integer("sample_size").default(20).notNull(), // Percentage of recipients for test
+  winningCriteria: varchar("winning_criteria", { length: 20 }).default("open_rate").notNull(), // open_rate, click_rate, reply_rate
+  autoSelectWinner: boolean("auto_select_winner").default(true).notNull(),
+  testDurationHours: integer("test_duration_hours").default(24).notNull(),
+  // Results
+  winnerId: varchar("winner_id", { length: 1 }), // 'A' or 'B'
+  winnerSelectedAt: timestamp("winner_selected_at"),
+  // Timestamps
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => ({
+  campaignIdIdx: index("ab_tests_campaign_id_idx").on(table.campaignId),
+  userIdIdx: index("ab_tests_user_id_idx").on(table.userId),
+  statusIdx: index("ab_tests_status_idx").on(table.status),
+}));
+export type AbTest = typeof abTests.$inferSelect;
+export type InsertAbTest = typeof abTests.$inferInsert;
+
+export const abTestVariants = pgTable("ab_test_variants", {
+  id: serial("id").primaryKey(),
+  testId: integer("test_id").notNull(),
+  variantId: varchar("variant_id", { length: 1 }).notNull(), // 'A' or 'B'
+  // Variant content
+  subject: text("subject"),
+  body: text("body"),
+  senderName: varchar("sender_name", { length: 255 }),
+  senderEmail: varchar("sender_email", { length: 255 }),
+  // Stats
+  recipientCount: integer("recipient_count").default(0).notNull(),
+  sentCount: integer("sent_count").default(0).notNull(),
+  deliveredCount: integer("delivered_count").default(0).notNull(),
+  openedCount: integer("opened_count").default(0).notNull(),
+  clickedCount: integer("clicked_count").default(0).notNull(),
+  repliedCount: integer("replied_count").default(0).notNull(),
+  bouncedCount: integer("bounced_count").default(0).notNull(),
+  // Calculated rates (stored for quick access)
+  openRate: real("open_rate").default(0),
+  clickRate: real("click_rate").default(0),
+  replyRate: real("reply_rate").default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => ({
+  testIdIdx: index("ab_test_variants_test_id_idx").on(table.testId),
+}));
+export type AbTestVariant = typeof abTestVariants.$inferSelect;
+export type InsertAbTestVariant = typeof abTestVariants.$inferInsert;
+
+// ============================================
+// Lead Scoring System
+// ============================================
+
+export const leadScores = pgTable("lead_scores", {
+  id: serial("id").primaryKey(),
+  leadId: integer("lead_id").notNull().unique(),
+  companyId: integer("company_id").notNull(),
+  userId: integer("user_id").notNull(),
+  // Score breakdown
+  totalScore: integer("total_score").default(0).notNull(),
+  engagementScore: integer("engagement_score").default(0).notNull(), // Based on email interactions
+  companyScore: integer("company_score").default(0).notNull(), // Based on company attributes
+  behaviorScore: integer("behavior_score").default(0).notNull(), // Based on website visits, etc.
+  // Score tier
+  tier: varchar("tier", { length: 20 }).default("cold").notNull(), // cold, warm, hot, very_hot
+  // Last activity
+  lastEngagementAt: timestamp("last_engagement_at"),
+  lastScoreUpdate: timestamp("last_score_update").defaultNow().notNull(),
+  // Timestamps
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => ({
+  leadIdIdx: index("lead_scores_lead_id_idx").on(table.leadId),
+  userIdIdx: index("lead_scores_user_id_idx").on(table.userId),
+  totalScoreIdx: index("lead_scores_total_score_idx").on(table.totalScore),
+  tierIdx: index("lead_scores_tier_idx").on(table.tier),
+}));
+export type LeadScore = typeof leadScores.$inferSelect;
+export type InsertLeadScore = typeof leadScores.$inferInsert;
+
+export const scoringRules = pgTable("scoring_rules", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true).notNull(),
+  // Rule configuration
+  ruleType: varchar("rule_type", { length: 50 }).notNull(), // engagement, company_attribute, behavior
+  condition: varchar("condition", { length: 50 }).notNull(), // email_opened, email_clicked, company_size, industry, etc.
+  operator: varchar("operator", { length: 20 }).notNull(), // equals, contains, greater_than, less_than
+  value: text("value").notNull(), // The value to compare against
+  scoreChange: integer("score_change").notNull(), // Points to add/subtract
+  // Priority
+  priority: integer("priority").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("scoring_rules_user_id_idx").on(table.userId),
+  isActiveIdx: index("scoring_rules_is_active_idx").on(table.isActive),
+}));
+export type ScoringRule = typeof scoringRules.$inferSelect;
+export type InsertScoringRule = typeof scoringRules.$inferInsert;
+
+export const scoreHistory = pgTable("score_history", {
+  id: serial("id").primaryKey(),
+  leadScoreId: integer("lead_score_id").notNull(),
+  previousScore: integer("previous_score").notNull(),
+  newScore: integer("new_score").notNull(),
+  changeReason: varchar("change_reason", { length: 255 }).notNull(),
+  ruleId: integer("rule_id"), // Which rule triggered the change
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  leadScoreIdIdx: index("score_history_lead_score_id_idx").on(table.leadScoreId),
+}));
+export type ScoreHistory = typeof scoreHistory.$inferSelect;
+export type InsertScoreHistory = typeof scoreHistory.$inferInsert;
+
+// ============================================
+// Webhooks Integration
+// ============================================
+
+export const webhooks = pgTable("webhooks", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  url: text("url").notNull(),
+  secret: varchar("secret", { length: 255 }), // For signature verification
+  isActive: boolean("is_active").default(true).notNull(),
+  // Events to trigger
+  events: text("events").notNull(), // JSON array of event types
+  // Headers
+  customHeaders: text("custom_headers"), // JSON object of custom headers
+  // Stats
+  totalDeliveries: integer("total_deliveries").default(0).notNull(),
+  successfulDeliveries: integer("successful_deliveries").default(0).notNull(),
+  failedDeliveries: integer("failed_deliveries").default(0).notNull(),
+  lastDeliveryAt: timestamp("last_delivery_at"),
+  lastDeliveryStatus: varchar("last_delivery_status", { length: 20 }),
+  // Timestamps
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("webhooks_user_id_idx").on(table.userId),
+  isActiveIdx: index("webhooks_is_active_idx").on(table.isActive),
+}));
+export type Webhook = typeof webhooks.$inferSelect;
+export type InsertWebhook = typeof webhooks.$inferInsert;
+
+export const webhookDeliveries = pgTable("webhook_deliveries", {
+  id: serial("id").primaryKey(),
+  webhookId: integer("webhook_id").notNull(),
+  eventType: varchar("event_type", { length: 50 }).notNull(),
+  payload: text("payload").notNull(), // JSON payload sent
+  // Response
+  responseStatus: integer("response_status"),
+  responseBody: text("response_body"),
+  responseTime: integer("response_time"), // in milliseconds
+  // Status
+  status: varchar("status", { length: 20 }).default("pending").notNull(), // pending, success, failed, retrying
+  attempts: integer("attempts").default(0).notNull(),
+  nextRetryAt: timestamp("next_retry_at"),
+  errorMessage: text("error_message"),
+  // Timestamps
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  deliveredAt: timestamp("delivered_at"),
+}, (table) => ({
+  webhookIdIdx: index("webhook_deliveries_webhook_id_idx").on(table.webhookId),
+  statusIdx: index("webhook_deliveries_status_idx").on(table.status),
+  createdAtIdx: index("webhook_deliveries_created_at_idx").on(table.createdAt),
+}));
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
+export type InsertWebhookDelivery = typeof webhookDeliveries.$inferInsert;
