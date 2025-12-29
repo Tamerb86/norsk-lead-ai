@@ -6,6 +6,7 @@ import path from "path";
 import { defineConfig } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 import viteCompression from "vite-plugin-compression";
+import { VitePWA } from "vite-plugin-pwa";
 
 
 const plugins = [
@@ -13,6 +14,94 @@ const plugins = [
   tailwindcss(), 
   jsxLocPlugin(), 
   vitePluginManusRuntime(),
+  // PWA configuration
+  VitePWA({
+    registerType: 'autoUpdate',
+    includeAssets: ['favicon.svg', 'robots.txt'],
+    manifest: {
+      name: 'NorskLeads - AI Lead Generation',
+      short_name: 'NorskLeads',
+      description: 'AI-powered lead generation platform for Norwegian businesses',
+      theme_color: '#4F46E5',
+      background_color: '#ffffff',
+      display: 'standalone',
+      start_url: '/',
+      icons: [
+        {
+          src: '/favicon.svg',
+          sizes: 'any',
+          type: 'image/svg+xml',
+          purpose: 'any maskable'
+        }
+      ]
+    },
+    workbox: {
+      // Cache strategies
+      runtimeCaching: [
+        {
+          // Cache API responses
+          urlPattern: /^https:\/\/api\./i,
+          handler: 'NetworkFirst',
+          options: {
+            cacheName: 'api-cache',
+            expiration: {
+              maxEntries: 100,
+              maxAgeSeconds: 60 * 60 // 1 hour
+            },
+            cacheableResponse: {
+              statuses: [0, 200]
+            }
+          }
+        },
+        {
+          // Cache images
+          urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'image-cache',
+            expiration: {
+              maxEntries: 50,
+              maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+            }
+          }
+        },
+        {
+          // Cache fonts
+          urlPattern: /\.(?:woff|woff2|ttf|otf|eot)$/i,
+          handler: 'CacheFirst',
+          options: {
+            cacheName: 'font-cache',
+            expiration: {
+              maxEntries: 20,
+              maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+            }
+          }
+        },
+        {
+          // Cache CSS and JS
+          urlPattern: /\.(?:js|css)$/i,
+          handler: 'StaleWhileRevalidate',
+          options: {
+            cacheName: 'static-cache',
+            expiration: {
+              maxEntries: 100,
+              maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
+            }
+          }
+        }
+      ],
+      // Precache important assets
+      globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+      // Skip waiting and claim clients immediately
+      skipWaiting: true,
+      clientsClaim: true,
+      // Clean up old caches
+      cleanupOutdatedCaches: true,
+    },
+    devOptions: {
+      enabled: false // Disable in development
+    }
+  }),
   // Gzip compression for static assets
   viteCompression({
     algorithm: 'gzip',

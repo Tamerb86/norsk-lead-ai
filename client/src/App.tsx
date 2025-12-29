@@ -158,6 +158,9 @@ function Router() {
   );
 }
 
+// PWA component (lazy loaded)
+const PWAPrompt = lazy(() => import("./components/PWAPrompt"));
+
 function App() {
   return (
     <ErrorBoundary>
@@ -166,6 +169,9 @@ function App() {
           <KeyboardShortcutsProvider>
             <Toaster />
             <Router />
+            <Suspense fallback={null}>
+              <PWAPrompt />
+            </Suspense>
           </KeyboardShortcutsProvider>
         </TooltipProvider>
       </ThemeProvider>
