@@ -47,6 +47,8 @@ const Referral = lazy(() => import(/* webpackChunkName: "referral" */ "./pages/R
 const ABTesting = lazy(() => import(/* webpackChunkName: "ab-testing" */ "./pages/ABTesting"));
 const LeadScoringPage = lazy(() => import(/* webpackChunkName: "lead-scoring" */ "./pages/LeadScoring"));
 const Webhooks = lazy(() => import(/* webpackChunkName: "webhooks" */ "./pages/Webhooks"));
+const AIAssistant = lazy(() => import(/* webpackChunkName: "ai-assistant" */ "./pages/AIAssistant"));
+const AIInsights = lazy(() => import(/* webpackChunkName: "ai-insights" */ "./pages/AIInsights"));
 const ForgotPassword = lazy(() => import(/* webpackChunkName: "forgot-password" */ "@/pages/ForgotPassword"));
 
 // Static/marketing pages
@@ -126,6 +128,8 @@ function Router() {
         <Route path="/ab-testing" component={ABTesting} />
         <Route path="/lead-scoring" component={LeadScoringPage} />
         <Route path="/webhooks" component={Webhooks} />
+        <Route path="/ai-assistant" component={AIAssistant} />
+        <Route path="/ai-insights" component={AIInsights} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/settings" component={Settings} />
         <Route path="/team" component={TeamSettings} />

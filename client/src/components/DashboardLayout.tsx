@@ -43,7 +43,9 @@ import {
   Gift,
   FlaskConical,
   Target,
-  Webhook
+  Webhook,
+  Sparkles,
+  Brain
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
@@ -66,6 +68,8 @@ const menuItems = [
   { icon: Webhook, label: "Webhooks", path: "/webhooks", description: "Integrasjoner" },
   { icon: Activity, label: "Aktivitet", path: "/activity", description: "Aktivitetslogg" },
   { icon: Gift, label: "Henvisning", path: "/referral", description: "Inviter venner" },
+  { icon: Sparkles, label: "AI Assistent", path: "/ai-assistant", description: "Salgsassistent" },
+  { icon: Brain, label: "AI Innsikt", path: "/ai-insights", description: "Lead-analyse" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

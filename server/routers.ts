@@ -1897,6 +1897,208 @@ export const appRouter = router({
         const { generateSubjectVariants } = await import("./services/aiEmailWriter");
         return await generateSubjectVariants(input.emailBody, input.count, input.language);
       }),
+
+    // ============================================
+    // ADVANCED AI FEATURES
+    // ============================================
+
+    // Generate lead insights
+    generateLeadInsights: protectedProcedure
+      .input(z.object({
+        companyName: z.string(),
+        industry: z.string().optional(),
+        location: z.string().optional(),
+        employees: z.number().optional(),
+        revenue: z.string().optional(),
+        website: z.string().optional(),
+        description: z.string().optional(),
+        contactName: z.string().optional(),
+        contactTitle: z.string().optional(),
+        score: z.number().optional(),
+        tags: z.array(z.string()).optional(),
+        emailHistory: z.array(z.object({
+          subject: z.string(),
+          status: z.enum(["sent", "opened", "clicked", "replied", "bounced"]),
+          date: z.string(),
+        })).optional(),
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { generateLeadInsights } = await import("./services/aiInsights");
+        const { language, ...leadData } = input;
+        return await generateLeadInsights(leadData, language || "norwegian");
+      }),
+
+    // Generate email sequence
+    generateEmailSequence: protectedProcedure
+      .input(z.object({
+        companyName: z.string(),
+        industry: z.string().optional(),
+        contactName: z.string().optional(),
+        goal: z.enum(["nurture", "conversion", "reengagement", "onboarding"]),
+        steps: z.number().min(2).max(10).optional(),
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { generateEmailSequence } = await import("./services/aiInsights");
+        const { goal, steps, language, ...leadData } = input;
+        return await generateEmailSequence(leadData, goal, steps, language || "norwegian");
+      }),
+
+    // Research company
+    researchCompany: protectedProcedure
+      .input(z.object({
+        companyName: z.string(),
+        website: z.string().optional(),
+        additionalInfo: z.string().optional(),
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { researchCompany } = await import("./services/aiInsights");
+        return await researchCompany(input.companyName, input.website, input.additionalInfo, input.language || "norwegian");
+      }),
+
+    // Analyze email performance
+    analyzeEmailPerformance: protectedProcedure
+      .input(z.object({
+        emails: z.array(z.object({
+          subject: z.string(),
+          body: z.string(),
+          openRate: z.number(),
+          clickRate: z.number(),
+          replyRate: z.number(),
+        })),
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { analyzeEmailPerformance } = await import("./services/aiInsights");
+        return await analyzeEmailPerformance(input.emails, input.language || "norwegian");
+      }),
+
+    // Generate personalized outreach
+    generatePersonalizedOutreach: protectedProcedure
+      .input(z.object({
+        companyName: z.string(),
+        industry: z.string().optional(),
+        contactName: z.string().optional(),
+        contactTitle: z.string().optional(),
+        trigger: z.string().optional(),
+        yourProduct: z.string(),
+        valueProposition: z.string(),
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { generatePersonalizedOutreach } = await import("./services/aiInsights");
+        const { yourProduct, valueProposition, trigger, language, ...leadData } = input;
+        return await generatePersonalizedOutreach(
+          leadData,
+          { trigger, yourProduct, valueProposition },
+          language || "norwegian"
+        );
+      }),
+
+    // AI score leads
+    aiScoreLeads: protectedProcedure
+      .input(z.object({
+        leads: z.array(z.object({
+          companyName: z.string(),
+          industry: z.string().optional(),
+          location: z.string().optional(),
+          employees: z.number().optional(),
+        })),
+        idealCustomerProfile: z.string(),
+        priorities: z.array(z.string()),
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { aiScoreLeads } = await import("./services/aiInsights");
+        return await aiScoreLeads(
+          input.leads,
+          { idealCustomerProfile: input.idealCustomerProfile, priorities: input.priorities },
+          input.language || "norwegian"
+        );
+      }),
+
+    // Chat with AI assistant
+    chat: protectedProcedure
+      .input(z.object({
+        messages: z.array(z.object({
+          role: z.enum(["system", "user", "assistant"]),
+          content: z.string(),
+        })),
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { chatWithAssistant } = await import("./services/aiAssistant");
+        return await chatWithAssistant(
+          input.messages,
+          { userId: ctx.user.id, userName: ctx.user.name || undefined },
+          input.language || "norwegian"
+        );
+      }),
+
+    // Get quick suggestions
+    getQuickSuggestions: protectedProcedure
+      .input(z.object({
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        const { getQuickSuggestions } = await import("./services/aiAssistant");
+        return await getQuickSuggestions(
+          { userId: ctx.user.id, userName: ctx.user.name || undefined },
+          input.language || "norwegian"
+        );
+      }),
+
+    // Analyze conversation
+    analyzeConversation: protectedProcedure
+      .input(z.object({
+        conversation: z.string(),
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { analyzeConversation } = await import("./services/aiAssistant");
+        return await analyzeConversation(input.conversation, input.language || "norwegian");
+      }),
+
+    // Handle objection
+    handleObjection: protectedProcedure
+      .input(z.object({
+        objection: z.string(),
+        product: z.string().optional(),
+        industry: z.string().optional(),
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { handleObjection } = await import("./services/aiAssistant");
+        return await handleObjection(
+          input.objection,
+          { product: input.product, industry: input.industry },
+          input.language || "norwegian"
+        );
+      }),
+
+    // Generate sales pitch
+    generatePitch: protectedProcedure
+      .input(z.object({
+        product: z.string(),
+        targetAudience: z.string(),
+        uniqueSellingPoints: z.array(z.string()),
+        duration: z.enum(["30s", "60s", "2min"]),
+        language: z.enum(["norwegian", "english"]).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { generatePitch } = await import("./services/aiAssistant");
+        return await generatePitch(
+          {
+            product: input.product,
+            targetAudience: input.targetAudience,
+            uniqueSellingPoints: input.uniqueSellingPoints,
+            duration: input.duration,
+          },
+          input.language || "norwegian"
+        );
+      }),
   }),
 
   // ============================================
