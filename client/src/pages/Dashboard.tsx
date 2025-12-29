@@ -3,114 +3,98 @@ import { trpc } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Mail, TrendingUp, Users, Search, FileText, ArrowUpRight, Sparkles, BarChart3, Calendar, Download, LogIn, Settings, Shield, User, LogOut, ChevronDown } from "lucide-react";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Badge } from "@/components/ui/badge";
+import { Building2, Mail, TrendingUp, Users, Search, FileText, ArrowUpRight, Sparkles, BarChart3, Calendar, Download, LogIn, Clock, Target, Eye, MessageSquare, ChevronRight, Activity } from "lucide-react";
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import jsPDF from 'jspdf';
-import { Link, useLocation } from "wouter";
-import { useState, useEffect } from "react";
+import { Link } from "wouter";
+import { useState } from "react";
 import { DashboardStatsSkeleton, ChartsSkeleton } from "@/components/SkeletonLoaders";
 import { OnboardingTutorial, QuickStartCard, FeatureCards } from "@/components/OnboardingTutorial";
 import { OnboardingWizard, useOnboarding } from "@/components/OnboardingWizard";
 
 // Chart colors
-const COLORS = ['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
+const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
+
+// Status colors
+const STATUS_COLORS: Record<string, string> = {
+  draft: 'bg-gray-100 text-gray-700',
+  scheduled: 'bg-blue-100 text-blue-700',
+  sending: 'bg-yellow-100 text-yellow-700',
+  completed: 'bg-green-100 text-green-700',
+  paused: 'bg-orange-100 text-orange-700',
+  new: 'bg-indigo-100 text-indigo-700',
+  contacted: 'bg-blue-100 text-blue-700',
+  interested: 'bg-purple-100 text-purple-700',
+  qualified: 'bg-green-100 text-green-700',
+  converted: 'bg-emerald-100 text-emerald-700',
+};
+
+// Status labels in Norwegian
+const STATUS_LABELS: Record<string, string> = {
+  draft: 'Utkast',
+  scheduled: 'Planlagt',
+  sending: 'Sender',
+  completed: 'Fullført',
+  paused: 'Pauset',
+  new: 'Ny',
+  contacted: 'Kontaktet',
+  interested: 'Interessert',
+  qualified: 'Kvalifisert',
+  converted: 'Konvertert',
+};
 
 export default function Dashboard() {
   const { user, loading } = useAuth();
-  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery();
-  const [dateRange, setDateRange] = useState<'7' | '30' | '90' | 'all'>('30');
+  const [dateRange, setDateRange] = useState<'7' | '30' | '90'>('30');
   
   // Onboarding wizard
-  const { showOnboarding, openOnboarding, closeOnboarding, completeOnboarding } = useOnboarding();
+  const { showOnboarding, closeOnboarding, completeOnboarding } = useOnboarding();
 
-  // Sample data for charts (in production, this would come from API based on dateRange)
-  const campaignPerformanceData = [
-    { date: 'Jan 1', sent: 120, opened: 85, replied: 23 },
-    { date: 'Jan 8', sent: 150, opened: 102, replied: 31 },
-    { date: 'Jan 15', sent: 180, opened: 125, replied: 38 },
-    { date: 'Jan 22', sent: 200, opened: 145, replied: 45 },
-    { date: 'Jan 29', sent: 165, opened: 118, replied: 35 },
-    { date: 'Feb 5', sent: 190, opened: 138, replied: 42 },
-    { date: 'Feb 12', sent: 220, opened: 165, replied: 52 },
-  ];
+  // Query options for caching
+  const queryOptions = {
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
+  };
 
-  const leadsByIndustryData = [
-    { industry: 'IT', count: 145 },
-    { industry: 'Consulting', count: 98 },
-    { industry: 'Construction', count: 76 },
-    { industry: 'Retail', count: 65 },
-    { industry: 'Healthcare', count: 54 },
-    { industry: 'Finance', count: 43 },
-  ];
+  // Fetch dashboard data
+  const { data: stats, isLoading: statsLoading } = trpc.dashboard.stats.useQuery(undefined, queryOptions);
+  const { data: recentCampaigns, isLoading: campaignsLoading } = trpc.dashboard.recentCampaigns.useQuery(undefined, queryOptions);
+  const { data: topLeads, isLoading: leadsLoading } = trpc.dashboard.topLeads.useQuery(undefined, queryOptions);
+  const { data: performanceData, isLoading: perfLoading } = trpc.dashboard.performanceChart.useQuery({ days: parseInt(dateRange) }, queryOptions);
+  const { data: industryData, isLoading: industryLoading } = trpc.dashboard.leadsByIndustry.useQuery(undefined, queryOptions);
+  const { data: statusData, isLoading: statusLoading } = trpc.dashboard.leadStatusDistribution.useQuery(undefined, queryOptions);
 
-  const leadStatusData = [
-    { name: 'Contacted', value: 245 },
-    { name: 'Interested', value: 132 },
-    { name: 'Replied', value: 87 },
-    { name: 'Closed', value: 54 },
-  ];
+  const isLoading = statsLoading || campaignsLoading || leadsLoading;
 
   const exportToPDF = () => {
     const doc = new jsPDF();
     
-    // Add title
     doc.setFontSize(20);
     doc.text('NorskLeads Analytics Report', 20, 20);
     
-    // Add date
     doc.setFontSize(12);
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, 20, 30);
-    doc.text(`Date Range: Last ${dateRange} days`, 20, 38);
+    doc.text(`Generated: ${new Date().toLocaleDateString('nb-NO')}`, 20, 30);
+    doc.text(`Date Range: Siste ${dateRange} dager`, 20, 38);
     
-    // Add stats
     doc.setFontSize(14);
-    doc.text('Overview Statistics', 20, 50);
+    doc.text('Oversikt', 20, 50);
     doc.setFontSize(11);
-    doc.text(`Total Companies: ${stats?.companies.total || 0}`, 20, 60);
-    doc.text(`Total Campaigns: ${stats?.campaigns.total || 0}`, 20, 68);
-    doc.text(`Total Leads: ${stats?.leads.total || 0}`, 20, 76);
-    const openRateValue: any = stats?.leads.openRate;
-    const openRate = typeof openRateValue === 'number' ? openRateValue.toFixed(1) : (typeof openRateValue === 'string' ? parseFloat(openRateValue).toFixed(1) : '0.0');
-    const replyRateValue: any = stats?.leads.replyRate;
-    const replyRate = typeof replyRateValue === 'number' ? replyRateValue.toFixed(1) : (typeof replyRateValue === 'string' ? parseFloat(replyRateValue).toFixed(1) : '0.0');
-    doc.text(`Open Rate: ${openRate}%`, 20, 84);
-    doc.text(`Reply Rate: ${replyRate}%`, 20, 92);
+    doc.text(`Totalt bedrifter: ${stats?.companies.total || 0}`, 20, 60);
+    doc.text(`Totalt kampanjer: ${stats?.campaigns.total || 0}`, 20, 68);
+    doc.text(`Totalt leads: ${stats?.leads.total || 0}`, 20, 76);
     
-    // Add campaign performance data
-    doc.setFontSize(14);
-    doc.text('Campaign Performance', 20, 110);
-    doc.setFontSize(10);
-    let y = 120;
-    campaignPerformanceData.forEach(item => {
-      doc.text(`${item.date}: Sent ${item.sent}, Opened ${item.opened}, Replied ${item.replied}`, 20, y);
-      y += 8;
-    });
-    
-    // Add leads by industry
-    doc.setFontSize(14);
-    doc.text('Leads by Industry', 20, y + 10);
-    doc.setFontSize(10);
-    y += 20;
-    leadsByIndustryData.forEach(item => {
-      doc.text(`${item.industry}: ${item.count} leads`, 20, y);
-      y += 8;
-    });
-    
-    // Save PDF
-    doc.save(`norskleads-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`norskleads-rapport-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200"></div>
-            <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-blue-600 absolute top-0"></div>
-          </div>
-          <p className="text-sm text-gray-600 animate-pulse">Loading your dashboard...</p>
+          <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+          <p className="text-sm text-gray-500">Laster dashboard...</p>
         </div>
       </div>
     );
@@ -126,13 +110,10 @@ export default function Dashboard() {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Logg inn for å fortsette</h2>
           <p className="text-gray-600 mb-6">Du må være logget inn for å se dashboardet</p>
           <Link href="/login">
-            <Button size="lg" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
+            <Button size="lg" className="w-full bg-gradient-to-r from-blue-600 to-purple-600">
               Logg inn
             </Button>
           </Link>
-          <p className="mt-4 text-sm text-gray-500">
-            Har du ikke en konto? <Link href="/register" className="text-blue-600 hover:underline">Registrer deg</Link>
-          </p>
         </div>
       </div>
     );
@@ -140,7 +121,6 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout>
-      {/* Onboarding Wizard */}
       <OnboardingWizard
         isOpen={showOnboarding}
         onClose={closeOnboarding}
@@ -148,164 +128,376 @@ export default function Dashboard() {
       />
       
       <div className="space-y-6">
-        {/* Stats Cards with Modern Design */}
+        {/* Welcome Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Velkommen tilbake, {user.name?.split(' ')[0] || 'bruker'}! 👋
+            </h1>
+            <p className="text-gray-500 mt-1">Her er en oversikt over din aktivitet</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Select value={dateRange} onValueChange={(v: any) => setDateRange(v)}>
+              <SelectTrigger className="w-[140px]">
+                <Calendar className="w-4 h-4 mr-2" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Siste 7 dager</SelectItem>
+                <SelectItem value="30">Siste 30 dager</SelectItem>
+                <SelectItem value="90">Siste 90 dager</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={exportToPDF} className="gap-2">
+              <Download className="w-4 h-4" />
+              Eksporter
+            </Button>
+          </div>
+        </div>
+
+        {/* Stats Cards */}
         {statsLoading ? (
           <DashboardStatsSkeleton />
         ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {/* Companies Card */}
-          <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-blue-500 to-blue-600">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-blue-100 flex items-center gap-2">
-                  <Building2 className="w-5 h-5" />
-                  Companies
-                </CardTitle>
-                <ArrowUpRight className="w-5 h-5 text-blue-200 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-white mb-3">
-                {stats?.companies.total.toLocaleString() || 0}
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-blue-100">With email</span>
-                  <span className="font-semibold text-white">{stats?.companies.withEmail.toLocaleString() || 0}</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Companies */}
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Building2 className="w-6 h-6" />
+                  </div>
+                  <ArrowUpRight className="w-5 h-5 opacity-60" />
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-blue-100">With phone</span>
-                  <span className="font-semibold text-white">{stats?.companies.withPhone.toLocaleString() || 0}</span>
+                <div className="text-3xl font-bold mb-1">
+                  {stats?.companies.total.toLocaleString() || 0}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <p className="text-blue-100 text-sm">Bedrifter i databasen</p>
+                <div className="mt-3 pt-3 border-t border-white/20 flex justify-between text-xs">
+                  <span className="text-blue-100">Med e-post: {stats?.companies.withEmail || 0}</span>
+                  <span className="text-blue-100">Med tlf: {stats?.companies.withPhone || 0}</span>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Campaigns Card */}
-          <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-indigo-500 to-indigo-600">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-indigo-100 flex items-center gap-2">
-                  <Mail className="w-5 h-5" />
-                  Campaigns
-                </CardTitle>
-                <ArrowUpRight className="w-5 h-5 text-indigo-200 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-white mb-3">
-                {stats?.campaigns.total || 0}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-sm text-indigo-100">{stats?.campaigns.active || 0} active campaigns</span>
-              </div>
-            </CardContent>
-          </Card>
+            {/* Campaigns */}
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-indigo-500 to-indigo-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Mail className="w-6 h-6" />
+                  </div>
+                  {(stats?.campaigns.active || 0) > 0 && (
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                      <span className="text-xs">{stats?.campaigns.active} aktive</span>
+                    </div>
+                  )}
+                </div>
+                <div className="text-3xl font-bold mb-1">
+                  {stats?.campaigns.total || 0}
+                </div>
+                <p className="text-indigo-100 text-sm">Totalt kampanjer</p>
+                <div className="mt-3 pt-3 border-t border-white/20 text-xs text-indigo-100">
+                  {stats?.campaigns.completed || 0} fullført
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Leads Card */}
-          <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-purple-500 to-purple-600">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-purple-100 flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Leads
-                </CardTitle>
-                <ArrowUpRight className="w-5 h-5 text-purple-200 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-white mb-3">
-                {stats?.leads.total || 0}
-              </div>
-              <div className="text-sm text-purple-100">
-                Total leads generated
-              </div>
-            </CardContent>
-          </Card>
+            {/* Leads */}
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                    <Users className="w-6 h-6" />
+                  </div>
+                  <Target className="w-5 h-5 opacity-60" />
+                </div>
+                <div className="text-3xl font-bold mb-1">
+                  {stats?.leads.total || 0}
+                </div>
+                <p className="text-purple-100 text-sm">Totalt leads</p>
+                <div className="mt-3 pt-3 border-t border-white/20 flex justify-between text-xs">
+                  <span className="text-purple-100">Sendt: {stats?.leads.sent || 0}</span>
+                  <span className="text-purple-100">Åpnet: {stats?.leads.opened || 0}</span>
+                </div>
+              </CardContent>
+            </Card>
 
-          {/* Performance Card */}
-          <Card className="relative overflow-hidden group hover:shadow-xl transition-all duration-300 border-0 bg-gradient-to-br from-pink-500 to-rose-600">
-            <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-medium text-pink-100 flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Performance
-                </CardTitle>
-                <ArrowUpRight className="w-5 h-5 text-pink-200 opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-white mb-3">
-                {(() => {
-                  const rate: any = stats?.leads.openRate;
-                  return typeof rate === 'number' ? rate.toFixed(1) : (typeof rate === 'string' ? parseFloat(rate).toFixed(1) : '0.0');
-                })()}%
-              </div>
-              <div className="text-sm text-pink-100">
-                Average open rate
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+            {/* Performance */}
+            <Card className="border-0 shadow-lg bg-gradient-to-br from-pink-500 to-rose-600 text-white">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+                    <TrendingUp className="w-6 h-6" />
+                  </div>
+                  <Activity className="w-5 h-5 opacity-60" />
+                </div>
+                <div className="text-3xl font-bold mb-1">
+                  {(() => {
+                    const rate: any = stats?.leads.openRate;
+                    return typeof rate === 'number' ? rate.toFixed(1) : (typeof rate === 'string' ? parseFloat(rate).toFixed(1) : '0.0');
+                  })()}%
+                </div>
+                <p className="text-pink-100 text-sm">Åpningsrate</p>
+                <div className="mt-3 pt-3 border-t border-white/20 text-xs text-pink-100">
+                  Svarrate: {(() => {
+                    const rate: any = stats?.leads.replyRate;
+                    return typeof rate === 'number' ? rate.toFixed(1) : (typeof rate === 'string' ? parseFloat(rate).toFixed(1) : '0.0');
+                  })()}%
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
-        {/* Quick Actions with Modern Design */}
-        <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-          <CardHeader>
+        {/* Quick Actions */}
+        <Card className="border-0 shadow-lg">
+          <CardHeader className="pb-4">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-blue-600" />
-              <CardTitle className="text-xl">Quick Actions</CardTitle>
+              <Sparkles className="w-5 h-5 text-indigo-600" />
+              <CardTitle>Hurtighandlinger</CardTitle>
             </div>
-            <CardDescription>Start working with Norwegian companies</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Link href="/search">
-                <Button 
-                  className="w-full h-32 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 border-2 border-blue-200 text-blue-700 hover:text-blue-800 transition-all duration-300 hover:scale-105 hover:shadow-lg group" 
-                  variant="outline"
-                >
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Search className="w-6 h-6 text-white" />
+                <Button variant="outline" className="w-full h-24 flex flex-col gap-2 hover:bg-blue-50 hover:border-blue-300 transition-all group">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                    <Search className="w-5 h-5 text-blue-600" />
                   </div>
-                  <span className="font-semibold">Search Companies</span>
+                  <span className="font-medium">Søk bedrifter</span>
                 </Button>
               </Link>
-              
               <Link href="/campaigns">
-                <Button 
-                  className="w-full h-32 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-purple-50 to-pink-50 hover:from-purple-100 hover:to-pink-100 border-2 border-purple-200 text-purple-700 hover:text-purple-800 transition-all duration-300 hover:scale-105 hover:shadow-lg group" 
-                  variant="outline"
-                >
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Mail className="w-6 h-6 text-white" />
+                <Button variant="outline" className="w-full h-24 flex flex-col gap-2 hover:bg-purple-50 hover:border-purple-300 transition-all group">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                    <Mail className="w-5 h-5 text-purple-600" />
                   </div>
-                  <span className="font-semibold">Create Campaign</span>
+                  <span className="font-medium">Ny kampanje</span>
                 </Button>
               </Link>
-              
               <Link href="/templates">
-                <Button 
-                  className="w-full h-32 flex flex-col items-center justify-center gap-3 bg-gradient-to-br from-indigo-50 to-blue-50 hover:from-indigo-100 hover:to-blue-100 border-2 border-indigo-200 text-indigo-700 hover:text-indigo-800 transition-all duration-300 hover:scale-105 hover:shadow-lg group" 
-                  variant="outline"
-                >
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <FileText className="w-6 h-6 text-white" />
+                <Button variant="outline" className="w-full h-24 flex flex-col gap-2 hover:bg-indigo-50 hover:border-indigo-300 transition-all group">
+                  <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center group-hover:bg-indigo-200 transition-colors">
+                    <FileText className="w-5 h-5 text-indigo-600" />
                   </div>
-                  <span className="font-semibold">Email Templates</span>
+                  <span className="font-medium">E-postmaler</span>
                 </Button>
               </Link>
             </div>
           </CardContent>
         </Card>
 
-        {/* Onboarding & Feature Cards */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Performance Chart */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5 text-indigo-600" />
+                  <CardTitle className="text-lg">Kampanjeytelse</CardTitle>
+                </div>
+              </div>
+              <CardDescription>E-poster sendt, åpnet og besvart</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {perfLoading ? (
+                <div className="h-[250px] flex items-center justify-center">
+                  <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+                </div>
+              ) : performanceData && performanceData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <AreaChart data={performanceData}>
+                    <defs>
+                      <linearGradient id="colorSent" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorOpened" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="date" stroke="#9ca3af" fontSize={12} />
+                    <YAxis stroke="#9ca3af" fontSize={12} />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
+                    <Area type="monotone" dataKey="sent" stroke="#6366f1" fillOpacity={1} fill="url(#colorSent)" name="Sendt" />
+                    <Area type="monotone" dataKey="opened" stroke="#10b981" fillOpacity={1} fill="url(#colorOpened)" name="Åpnet" />
+                    <Line type="monotone" dataKey="replied" stroke="#f59e0b" strokeWidth={2} name="Besvart" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[250px] flex flex-col items-center justify-center text-gray-500">
+                  <BarChart3 className="w-12 h-12 mb-3 text-gray-300" />
+                  <p className="text-sm">Ingen data ennå</p>
+                  <p className="text-xs mt-1">Start en kampanje for å se statistikk</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Industry Distribution */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-purple-600" />
+                <CardTitle className="text-lg">Leads per bransje</CardTitle>
+              </div>
+              <CardDescription>Fordeling av leads etter næring</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {industryLoading ? (
+                <div className="h-[250px] flex items-center justify-center">
+                  <div className="w-8 h-8 border-4 border-purple-200 border-t-purple-600 rounded-full animate-spin" />
+                </div>
+              ) : industryData && industryData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={250}>
+                  <BarChart data={industryData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis type="number" stroke="#9ca3af" fontSize={12} />
+                    <YAxis dataKey="industry" type="category" stroke="#9ca3af" fontSize={12} width={100} />
+                    <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
+                    <Bar dataKey="count" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Antall" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[250px] flex flex-col items-center justify-center text-gray-500">
+                  <Target className="w-12 h-12 mb-3 text-gray-300" />
+                  <p className="text-sm">Ingen leads ennå</p>
+                  <p className="text-xs mt-1">Søk etter bedrifter og legg til leads</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recent Activity Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Recent Campaigns */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-blue-600" />
+                  <CardTitle className="text-lg">Nylige kampanjer</CardTitle>
+                </div>
+                <Link href="/campaigns">
+                  <Button variant="ghost" size="sm" className="gap-1 text-blue-600">
+                    Se alle <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {campaignsLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+                  ))}
+                </div>
+              ) : recentCampaigns && recentCampaigns.length > 0 ? (
+                <div className="space-y-3">
+                  {recentCampaigns.map((campaign: any) => (
+                    <div key={campaign.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                          <Mail className="w-5 h-5 text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{campaign.name}</p>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <span>{campaign.sent} sendt</span>
+                            <span>•</span>
+                            <span>{campaign.openRate}% åpnet</span>
+                          </div>
+                        </div>
+                      </div>
+                      <Badge className={STATUS_COLORS[campaign.status] || 'bg-gray-100 text-gray-700'}>
+                        {STATUS_LABELS[campaign.status] || campaign.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Mail className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm">Ingen kampanjer ennå</p>
+                  <Link href="/campaigns">
+                    <Button variant="link" className="mt-2 text-blue-600">
+                      Opprett din første kampanje
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Top Leads */}
+          <Card className="border-0 shadow-lg">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-purple-600" />
+                  <CardTitle className="text-lg">Topp leads</CardTitle>
+                </div>
+                <Link href="/leads">
+                  <Button variant="ghost" size="sm" className="gap-1 text-purple-600">
+                    Se alle <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </Link>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {leadsLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-16 bg-gray-100 rounded-lg animate-pulse" />
+                  ))}
+                </div>
+              ) : topLeads && topLeads.length > 0 ? (
+                <div className="space-y-3">
+                  {topLeads.map((lead: any) => (
+                    <div key={lead.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                          <Building2 className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">{lead.companyName}</p>
+                          <p className="text-xs text-gray-500">{lead.email}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-right">
+                          <div className="text-sm font-semibold text-indigo-600">Score: {lead.score}</div>
+                        </div>
+                        <Badge className={STATUS_COLORS[lead.status] || 'bg-gray-100 text-gray-700'}>
+                          {STATUS_LABELS[lead.status] || lead.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm">Ingen leads ennå</p>
+                  <Link href="/search">
+                    <Button variant="link" className="mt-2 text-purple-600">
+                      Søk etter bedrifter
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Onboarding Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-1">
             <QuickStartCard />
           </div>
@@ -314,143 +506,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Onboarding Tutorial Dialog */}
         <OnboardingTutorial />
-
-        {/* Charts Section */}
-        <div className="mt-8 mb-6">
-          {statsLoading ? (
-            <ChartsSkeleton />
-          ) : (
-          <Card className="border-0 shadow-xl bg-white/90 backdrop-blur-sm">
-            <CardHeader>
-              <div className="flex items-center justify-between flex-wrap gap-4">
-                <div className="flex items-center gap-2">
-                  <BarChart3 className="w-5 h-5 text-blue-600" />
-                  <CardTitle className="text-xl">Analytics & Reports</CardTitle>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-gray-600" />
-                    <Select value={dateRange} onValueChange={(value: any) => setDateRange(value)}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="7">Last 7 days</SelectItem>
-                        <SelectItem value="30">Last 30 days</SelectItem>
-                        <SelectItem value="90">Last 90 days</SelectItem>
-                        <SelectItem value="all">All time</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => exportToPDF()}
-                    className="gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export PDF
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-8">
-              {/* Line Chart - Campaign Performance Over Time */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">Campaign Performance Over Time</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={campaignPerformanceData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="date" stroke="#6b7280" />
-                    <YAxis stroke="#6b7280" />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                    />
-                    <Legend />
-                    <Line type="monotone" dataKey="sent" stroke="#3b82f6" strokeWidth={2} name="Emails Sent" />
-                    <Line type="monotone" dataKey="opened" stroke="#10b981" strokeWidth={2} name="Opened" />
-                    <Line type="monotone" dataKey="replied" stroke="#8b5cf6" strokeWidth={2} name="Replied" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Bar Chart - Leads by Industry */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">Leads by Industry (Næringskode)</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={leadsByIndustryData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="industry" stroke="#6b7280" />
-                    <YAxis stroke="#6b7280" />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                    />
-                    <Legend />
-                    <Bar dataKey="count" fill="#3b82f6" name="Number of Leads" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Pie Chart - Lead Status Distribution */}
-              <div>
-                <h3 className="text-lg font-semibold mb-4 text-gray-900">Lead Status Distribution</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={leadStatusData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {leadStatusData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-          )}
-        </div>
-
-        {/* Recent Activity Section (Placeholder for future) */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-lg">Recent Campaigns</CardTitle>
-              <CardDescription>Your latest email campaigns</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                <Mail className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                <p className="text-sm">No recent campaigns</p>
-                <p className="text-xs mt-1">Create your first campaign to get started</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-lg">Top Performing Leads</CardTitle>
-              <CardDescription>Leads with highest engagement</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-gray-500">
-                <Users className="w-12 h-12 mx-auto mb-3 text-gray-400" />
-                <p className="text-sm">No leads yet</p>
-                <p className="text-xs mt-1">Start a campaign to generate leads</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
       </div>
     </DashboardLayout>
   );

@@ -1847,3 +1847,78 @@ export async function insertCompanyFromBrreg(data: {
   
   return result[0];
 }
+
+
+/**
+ * Get top performing leads for a user
+ */
+export async function getTopLeads(userId: number, limit: number = 5) {
+  const db = await getDb();
+  
+  const result = await db.select({
+    id: leads.id,
+    companyId: leads.companyId,
+    score: leads.score,
+    status: leads.status,
+    updatedAt: leads.updatedAt,
+    companyName: norwegianCompanies.navn,
+    email: norwegianCompanies.epostadresse,
+  })
+    .from(leads)
+    .leftJoin(norwegianCompanies, eq(leads.companyId, norwegianCompanies.id))
+    .where(eq(leads.userId, userId))
+    .orderBy(desc(leads.score))
+    .limit(limit);
+  
+  return result.map(lead => ({
+    id: lead.id,
+    companyName: lead.companyName || "Ukjent",
+    email: lead.email || "-",
+    score: lead.score || 0,
+    status: lead.status || "new",
+    lastActivity: lead.updatedAt,
+  }));
+}
+
+/**
+ * Get leads grouped by industry for a user
+ */
+export async function getLeadsByIndustry(userId: number) {
+  const db = await getDb();
+  
+  const result = await db.select({
+    industry: norwegianCompanies.naeringskode1,
+    count: sql<number>`count(*)::int`,
+  })
+    .from(leads)
+    .leftJoin(norwegianCompanies, eq(leads.companyId, norwegianCompanies.id))
+    .where(eq(leads.userId, userId))
+    .groupBy(norwegianCompanies.naeringskode1)
+    .orderBy(desc(sql`count(*)`))
+    .limit(6);
+  
+  return result.map(item => ({
+    industry: item.industry || "Ukjent",
+    count: item.count,
+  }));
+}
+
+/**
+ * Get lead status distribution for a user
+ */
+export async function getLeadStatusDistribution(userId: number) {
+  const db = await getDb();
+  
+  const result = await db.select({
+    status: leads.status,
+    count: sql<number>`count(*)::int`,
+  })
+    .from(leads)
+    .where(eq(leads.userId, userId))
+    .groupBy(leads.status);
+  
+  return result.map(item => ({
+    name: item.status || "new",
+    value: item.count,
+  }));
+}

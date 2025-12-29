@@ -451,6 +451,97 @@ export const appRouter = router({
         recentActivities,
       };
     }),
+
+    // Get recent campaigns with stats
+    recentCampaigns: protectedProcedure.query(async ({ ctx }) => {
+      try {
+        const campaigns = await db.getCampaigns(ctx.user.id);
+        const { getCampaignStats } = await import("./campaignStats");
+        
+        // Get last 5 campaigns with their stats
+        const recentCampaigns = await Promise.all(
+          campaigns.slice(0, 5).map(async (campaign) => {
+            const stats = await getCampaignStats(campaign.id);
+            return {
+              id: campaign.id,
+              name: campaign.name,
+              status: campaign.status,
+              createdAt: campaign.createdAt,
+              sent: stats?.sent || 0,
+              opened: stats?.opened || 0,
+              replied: stats?.replied || 0,
+              openRate: stats?.sent > 0 ? ((stats?.opened || 0) / stats.sent * 100).toFixed(1) : "0.0",
+            };
+          })
+        );
+        return recentCampaigns;
+      } catch (error) {
+        console.error("Error fetching recent campaigns:", error);
+        return [];
+      }
+    }),
+
+    // Get top performing leads
+    topLeads: protectedProcedure.query(async ({ ctx }) => {
+      try {
+        const topLeads = await db.getTopLeads(ctx.user.id, 5);
+        return topLeads;
+      } catch (error) {
+        console.error("Error fetching top leads:", error);
+        return [];
+      }
+    }),
+
+    // Get performance chart data
+    performanceChart: protectedProcedure
+      .input(z.object({
+        days: z.number().min(7).max(90).default(30),
+      }))
+      .query(async ({ ctx, input }) => {
+        try {
+          const { getDailyStats } = await import("./campaignStats");
+          const dailyStats = await getDailyStats(ctx.user.id, input.days);
+          return dailyStats;
+        } catch (error) {
+          console.error("Error fetching performance chart:", error);
+          // Return sample data if no real data
+          const days = input.days;
+          const data = [];
+          for (let i = days - 1; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            data.push({
+              date: date.toISOString().split('T')[0],
+              sent: 0,
+              opened: 0,
+              replied: 0,
+            });
+          }
+          return data;
+        }
+      }),
+
+    // Get leads by industry
+    leadsByIndustry: protectedProcedure.query(async ({ ctx }) => {
+      try {
+        const industries = await db.getLeadsByIndustry(ctx.user.id);
+        return industries;
+      } catch (error) {
+        console.error("Error fetching leads by industry:", error);
+        return [];
+      }
+    }),
+
+    // Get lead status distribution
+    leadStatusDistribution: protectedProcedure.query(async ({ ctx }) => {
+      try {
+        const statuses = await db.getLeadStatusDistribution(ctx.user.id);
+        return statuses;
+      } catch (error) {
+        console.error("Error fetching lead status distribution:", error);
+        return [];
+      }
+    }),
   }),
 
   // ============================================
