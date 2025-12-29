@@ -3,8 +3,8 @@
  * تصنيف الردود باستخدام Regular Expressions
  */
 
-import { db } from "../db";
-import { emails, leads, emailEvents } from "../../drizzle/schema";
+import { db, createEmailEventNotification } from "../db";
+import { emails, leads, emailEvents, campaigns } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { sendWebhook } from "./webhooks";
 import { createScheduledJob, JOB_TYPES } from "./scheduledJobs";
@@ -332,6 +332,26 @@ export async function processEmailReply(
   // تنفيذ الإجراء المقترح
   if (classification.suggestedAction && email.leadId) {
     await executeAction(classification.suggestedAction, email.leadId, email.campaignId, classification);
+  }
+
+  // إنشاء إشعار للمستخدم
+  try {
+    if (email.campaignId) {
+      const campaign = await db.query.campaigns.findFirst({
+        where: eq(campaigns.id, email.campaignId),
+      });
+      if (campaign && campaign.userId) {
+        await createEmailEventNotification({
+          userId: campaign.userId,
+          eventType: 'reply',
+          companyName: email.recipientName || 'Ukjent',
+          email: email.recipientEmail,
+          campaignId: email.campaignId,
+        });
+      }
+    }
+  } catch (notifError) {
+    console.error('[Classifier] Error creating reply notification:', notifError);
   }
 
   // إرسال Webhook

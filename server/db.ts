@@ -998,6 +998,54 @@ export async function createNotification(data: {
   return { success: true };
 }
 
+/**
+ * Create notification for email event
+ */
+export async function createEmailEventNotification(data: {
+  userId: number;
+  eventType: 'open' | 'click' | 'reply' | 'bounce';
+  companyName: string;
+  email: string;
+  campaignId?: number;
+  leadId?: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const typeMap: Record<string, { type: string; title: string; message: string }> = {
+    open: {
+      type: 'email_opened',
+      title: `${data.companyName} åpnet e-posten din`,
+      message: `${data.email} har åpnet e-posten du sendte.`,
+    },
+    click: {
+      type: 'email_clicked',
+      title: `${data.companyName} klikket på en lenke`,
+      message: `${data.email} har klikket på en lenke i e-posten din.`,
+    },
+    reply: {
+      type: 'email_replied',
+      title: `${data.companyName} svarte på e-posten din`,
+      message: `Du har mottatt et svar fra ${data.email}.`,
+    },
+    bounce: {
+      type: 'email_bounced',
+      title: `E-post til ${data.companyName} ble avvist`,
+      message: `E-posten til ${data.email} kunne ikke leveres.`,
+    },
+  };
+
+  const notificationData = typeMap[data.eventType];
+  if (!notificationData) return { success: false };
+
+  await db.execute(
+    sql`INSERT INTO notifications (user_id, type, title, message, related_id, related_type, is_read, created_at)
+        VALUES (${data.userId}, ${notificationData.type}, ${notificationData.title}, ${notificationData.message}, 
+                ${data.campaignId || data.leadId || null}, ${data.campaignId ? 'campaign' : 'lead'}, false, NOW())`
+  );
+
+  return { success: true };
+}
 
 // ============================================
 // SUBSCRIPTION FUNCTIONS

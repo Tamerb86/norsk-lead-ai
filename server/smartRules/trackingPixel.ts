@@ -4,8 +4,8 @@
  */
 
 import { Router, Request, Response } from "express";
-import { db } from "../db";
-import { emailEvents, emails } from "../../drizzle/schema";
+import { db, createEmailEventNotification } from "../db";
+import { emailEvents, emails, campaigns } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -111,6 +111,26 @@ async function recordEmailOpen(trackingId: string, req: Request): Promise<void> 
       .where(eq(emails.id, email.id));
 
     console.log(`[Tracking] Email opened: ${email.id} (${email.recipientEmail})`);
+
+    // إنشاء إشعار للمستخدم
+    try {
+      if (email.campaignId) {
+        const campaign = await db.query.campaigns.findFirst({
+          where: eq(campaigns.id, email.campaignId),
+        });
+        if (campaign && campaign.userId) {
+          await createEmailEventNotification({
+            userId: campaign.userId,
+            eventType: 'open',
+            companyName: email.recipientName || 'Ukjent',
+            email: email.recipientEmail,
+            campaignId: email.campaignId,
+          });
+        }
+      }
+    } catch (notifError) {
+      console.error('[Tracking] Error creating notification:', notifError);
+    }
 
     // إرسال Webhook إذا مُعد
     await triggerWebhook("email.opened", {
@@ -241,6 +261,26 @@ router.get("/click/:trackingId/:linkId", async (req: Request, res: Response) => 
           clickCount: (email.clickCount || 0) + 1,
         })
         .where(eq(emails.id, email.id));
+
+      // إنشاء إشعار للمستخدم
+      try {
+        if (email.campaignId) {
+          const campaign = await db.query.campaigns.findFirst({
+            where: eq(campaigns.id, email.campaignId),
+          });
+          if (campaign && campaign.userId) {
+            await createEmailEventNotification({
+              userId: campaign.userId,
+              eventType: 'click',
+              companyName: email.recipientName || 'Ukjent',
+              email: email.recipientEmail,
+              campaignId: email.campaignId,
+            });
+          }
+        }
+      } catch (notifError) {
+        console.error('[Tracking] Error creating click notification:', notifError);
+      }
 
       // إرسال Webhook
       await triggerWebhook("email.clicked", {
