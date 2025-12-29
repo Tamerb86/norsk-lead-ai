@@ -44,6 +44,9 @@ const Account = lazy(() => import(/* webpackChunkName: "account" */ "./pages/Acc
 const Admin = lazy(() => import(/* webpackChunkName: "admin" */ "./pages/Admin"));
 const ActivityLog = lazy(() => import(/* webpackChunkName: "activity-log" */ "./pages/ActivityLog"));
 const Referral = lazy(() => import(/* webpackChunkName: "referral" */ "./pages/Referral"));
+const ABTesting = lazy(() => import(/* webpackChunkName: "ab-testing" */ "./pages/ABTesting"));
+const LeadScoringPage = lazy(() => import(/* webpackChunkName: "lead-scoring" */ "./pages/LeadScoring"));
+const Webhooks = lazy(() => import(/* webpackChunkName: "webhooks" */ "./pages/Webhooks"));
 const ForgotPassword = lazy(() => import(/* webpackChunkName: "forgot-password" */ "@/pages/ForgotPassword"));
 
 // Static/marketing pages
@@ -120,6 +123,9 @@ function Router() {
         <Route path="/admin" component={Admin} />
         <Route path="/activity" component={ActivityLog} />
         <Route path="/referral" component={Referral} />
+        <Route path="/ab-testing" component={ABTesting} />
+        <Route path="/lead-scoring" component={LeadScoringPage} />
+        <Route path="/webhooks" component={Webhooks} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/settings" component={Settings} />
         <Route path="/team" component={TeamSettings} />

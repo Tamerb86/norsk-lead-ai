@@ -40,7 +40,10 @@ import {
   Keyboard,
   Command,
   Activity,
-  Gift
+  Gift,
+  FlaskConical,
+  Target,
+  Webhook
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
@@ -53,11 +56,14 @@ const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/dashboard", description: "Oversikt" },
   { icon: Search, label: "Søk bedrifter", path: "/search", description: "Finn leads" },
   { icon: Users, label: "Leads", path: "/leads", description: "Administrer leads" },
+  { icon: Target, label: "Lead Scoring", path: "/lead-scoring", description: "Rangering" },
   { icon: Mail, label: "Kampanjer", path: "/campaigns", description: "E-postkampanjer" },
+  { icon: FlaskConical, label: "A/B-testing", path: "/ab-testing", description: "Test e-poster" },
   { icon: FileText, label: "Maler", path: "/templates", description: "E-postmaler" },
   { icon: Zap, label: "Sekvenser", path: "/sequences", description: "Automatisering" },
   { icon: Calendar, label: "Kalender", path: "/calendar", description: "Planlegging" },
   { icon: BarChart3, label: "Analyse", path: "/analytics", description: "Statistikk" },
+  { icon: Webhook, label: "Webhooks", path: "/webhooks", description: "Integrasjoner" },
   { icon: Activity, label: "Aktivitet", path: "/activity", description: "Aktivitetslogg" },
   { icon: Gift, label: "Henvisning", path: "/referral", description: "Inviter venner" },
 ];
