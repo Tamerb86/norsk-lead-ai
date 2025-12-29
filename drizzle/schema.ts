@@ -432,3 +432,41 @@ export const systemSettings = pgTable("system_settings", {
 
 export type SystemSetting = typeof systemSettings.$inferSelect;
 export type InsertSystemSetting = typeof systemSettings.$inferInsert;
+
+
+/**
+ * Calendar Events - Schedule follow-ups and appointments
+ */
+export const calendarEventTypeEnum = pgEnum("calendar_event_type", ["follow_up", "meeting", "call", "task", "reminder"]);
+
+export const calendarEvents = pgTable("calendar_events", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description"),
+  eventType: varchar("event_type", { length: 50 }).notNull().default("follow_up"), // follow_up, meeting, call, task, reminder
+  startTime: timestamp("start_time").notNull(),
+  endTime: timestamp("end_time"),
+  allDay: boolean("all_day").default(false).notNull(),
+  location: varchar("location", { length: 255 }),
+  // Related entities
+  companyId: integer("company_id"),
+  leadId: integer("lead_id"),
+  campaignId: integer("campaign_id"),
+  // Status and reminders
+  status: varchar("status", { length: 50 }).default("scheduled").notNull(), // scheduled, completed, cancelled
+  reminderMinutes: integer("reminder_minutes").default(30), // Minutes before event to send reminder
+  reminderSent: boolean("reminder_sent").default(false).notNull(),
+  // Recurrence
+  isRecurring: boolean("is_recurring").default(false).notNull(),
+  recurrenceRule: varchar("recurrence_rule", { length: 255 }), // RRULE format
+  parentEventId: integer("parent_event_id"), // For recurring event instances
+  // Metadata
+  color: varchar("color", { length: 20 }).default("#6366f1"),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+
+export type CalendarEvent = typeof calendarEvents.$inferSelect;
+export type InsertCalendarEvent = typeof calendarEvents.$inferInsert;

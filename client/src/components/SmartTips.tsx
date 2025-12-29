@@ -207,6 +207,30 @@ const PAGE_TIPS: PageTips = {
       delay: 60,
     },
   ],
+  "/calendar": [
+    {
+      id: "calendar-create",
+      icon: <Clock className="w-5 h-5 text-indigo-500" />,
+      title: "Planlegg oppfølginger",
+      description: "Klikk på en dato for å opprette en ny hendelse. Hold oversikt over alle møter og samtaler.",
+      actionLabel: "Opprett hendelse",
+      delay: 30,
+    },
+    {
+      id: "calendar-types",
+      icon: <Target className="w-5 h-5 text-purple-500" />,
+      title: "Ulike hendelsestyper",
+      description: "Bruk forskjellige typer: Oppfølging, Møte, Samtale, Oppgave eller Påminnelse.",
+      delay: 60,
+    },
+    {
+      id: "calendar-reminders",
+      icon: <Bell className="w-5 h-5 text-yellow-500" />,
+      title: "Sett påminnelser",
+      description: "Få varsler før viktige hendelser slik at du aldri glemmer en oppfølging.",
+      delay: 90,
+    },
+  ],
   "/admin": [
     {
       id: "admin-ai",

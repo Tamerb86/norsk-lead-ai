@@ -1970,3 +1970,235 @@ export async function getLeadStatusDistribution(userId: number) {
     value: item.count,
   }));
 }
+
+
+// ============================================
+// CALENDAR FUNCTIONS
+// ============================================
+
+/**
+ * Get calendar events for a user
+ */
+export async function getCalendarEvents(userId: number, params?: {
+  startDate?: Date;
+  endDate?: Date;
+  eventType?: string;
+  status?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  let query = sql`
+    SELECT ce.*, 
+           nc.navn as company_name,
+           l.email as lead_email,
+           c.name as campaign_name
+    FROM calendar_events ce
+    LEFT JOIN norwegian_companies nc ON ce.company_id = nc.id
+    LEFT JOIN leads l ON ce.lead_id = l.id
+    LEFT JOIN campaigns c ON ce.campaign_id = c.id
+    WHERE ce.user_id = ${userId}
+  `;
+
+  if (params?.startDate) {
+    query = sql`${query} AND ce.start_time >= ${params.startDate}`;
+  }
+  if (params?.endDate) {
+    query = sql`${query} AND ce.start_time <= ${params.endDate}`;
+  }
+  if (params?.eventType) {
+    query = sql`${query} AND ce.event_type = ${params.eventType}`;
+  }
+  if (params?.status) {
+    query = sql`${query} AND ce.status = ${params.status}`;
+  }
+
+  query = sql`${query} ORDER BY ce.start_time ASC`;
+
+  const result = await db.execute(query);
+  return result.rows || [];
+}
+
+/**
+ * Get single calendar event
+ */
+export async function getCalendarEvent(eventId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.execute(
+    sql`SELECT ce.*, 
+               nc.navn as company_name,
+               l.email as lead_email,
+               c.name as campaign_name
+        FROM calendar_events ce
+        LEFT JOIN norwegian_companies nc ON ce.company_id = nc.id
+        LEFT JOIN leads l ON ce.lead_id = l.id
+        LEFT JOIN campaigns c ON ce.campaign_id = c.id
+        WHERE ce.id = ${eventId} AND ce.user_id = ${userId}`
+  );
+
+  return result.rows?.[0] || null;
+}
+
+/**
+ * Create calendar event
+ */
+export async function createCalendarEvent(data: {
+  userId: number;
+  title: string;
+  description?: string;
+  eventType: string;
+  startTime: Date;
+  endTime?: Date;
+  allDay?: boolean;
+  location?: string;
+  companyId?: number;
+  leadId?: number;
+  campaignId?: number;
+  reminderMinutes?: number;
+  isRecurring?: boolean;
+  recurrenceRule?: string;
+  color?: string;
+  notes?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.execute(
+    sql`INSERT INTO calendar_events (
+          user_id, title, description, event_type, start_time, end_time,
+          all_day, location, company_id, lead_id, campaign_id,
+          reminder_minutes, is_recurring, recurrence_rule, color, notes,
+          status, "createdAt", "updatedAt"
+        ) VALUES (
+          ${data.userId}, ${data.title}, ${data.description || null}, ${data.eventType},
+          ${data.startTime}, ${data.endTime || null}, ${data.allDay || false},
+          ${data.location || null}, ${data.companyId || null}, ${data.leadId || null},
+          ${data.campaignId || null}, ${data.reminderMinutes || 30},
+          ${data.isRecurring || false}, ${data.recurrenceRule || null},
+          ${data.color || '#6366f1'}, ${data.notes || null},
+          'scheduled', NOW(), NOW()
+        ) RETURNING *`
+  );
+
+  return result.rows?.[0];
+}
+
+/**
+ * Update calendar event
+ */
+export async function updateCalendarEvent(eventId: number, userId: number, data: {
+  title?: string;
+  description?: string;
+  eventType?: string;
+  startTime?: Date;
+  endTime?: Date;
+  allDay?: boolean;
+  location?: string;
+  companyId?: number;
+  leadId?: number;
+  campaignId?: number;
+  status?: string;
+  reminderMinutes?: number;
+  color?: string;
+  notes?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const updates: string[] = [];
+  const values: any[] = [];
+
+  if (data.title !== undefined) updates.push(`title = $${values.push(data.title)}`);
+  if (data.description !== undefined) updates.push(`description = $${values.push(data.description)}`);
+  if (data.eventType !== undefined) updates.push(`event_type = $${values.push(data.eventType)}`);
+  if (data.startTime !== undefined) updates.push(`start_time = $${values.push(data.startTime)}`);
+  if (data.endTime !== undefined) updates.push(`end_time = $${values.push(data.endTime)}`);
+  if (data.allDay !== undefined) updates.push(`all_day = $${values.push(data.allDay)}`);
+  if (data.location !== undefined) updates.push(`location = $${values.push(data.location)}`);
+  if (data.companyId !== undefined) updates.push(`company_id = $${values.push(data.companyId)}`);
+  if (data.leadId !== undefined) updates.push(`lead_id = $${values.push(data.leadId)}`);
+  if (data.campaignId !== undefined) updates.push(`campaign_id = $${values.push(data.campaignId)}`);
+  if (data.status !== undefined) updates.push(`status = $${values.push(data.status)}`);
+  if (data.reminderMinutes !== undefined) updates.push(`reminder_minutes = $${values.push(data.reminderMinutes)}`);
+  if (data.color !== undefined) updates.push(`color = $${values.push(data.color)}`);
+  if (data.notes !== undefined) updates.push(`notes = $${values.push(data.notes)}`);
+
+  if (updates.length === 0) return { success: true };
+
+  await db.execute(
+    sql`UPDATE calendar_events 
+        SET ${sql.raw(updates.join(', '))}, "updatedAt" = NOW()
+        WHERE id = ${eventId} AND user_id = ${userId}`
+  );
+
+  return { success: true };
+}
+
+/**
+ * Delete calendar event
+ */
+export async function deleteCalendarEvent(eventId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.execute(
+    sql`DELETE FROM calendar_events WHERE id = ${eventId} AND user_id = ${userId}`
+  );
+
+  return { success: true };
+}
+
+/**
+ * Get upcoming events for reminders
+ */
+export async function getUpcomingEventsForReminders() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.execute(
+    sql`SELECT ce.*, u.email as user_email, u.name as user_name
+        FROM calendar_events ce
+        JOIN users u ON ce.user_id = u.id
+        WHERE ce.status = 'scheduled'
+        AND ce.reminder_sent = false
+        AND ce.start_time <= NOW() + (ce.reminder_minutes || 30) * INTERVAL '1 minute'
+        AND ce.start_time > NOW()`
+  );
+
+  return result.rows || [];
+}
+
+/**
+ * Mark reminder as sent
+ */
+export async function markReminderSent(eventId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.execute(
+    sql`UPDATE calendar_events SET reminder_sent = true WHERE id = ${eventId}`
+  );
+
+  return { success: true };
+}
+
+/**
+ * Get events count by type for dashboard
+ */
+export async function getEventsCountByType(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.execute(
+    sql`SELECT event_type, COUNT(*) as count
+        FROM calendar_events
+        WHERE user_id = ${userId}
+        AND start_time >= NOW()
+        AND status = 'scheduled'
+        GROUP BY event_type`
+  );
+
+  return result.rows || [];
+}

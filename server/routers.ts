@@ -1360,6 +1360,115 @@ export const appRouter = router({
   }),
 
   // ============================================
+  // CALENDAR ROUTER
+  // ============================================
+  calendar: router({
+    // Get all events
+    getEvents: protectedProcedure
+      .input(z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        eventType: z.string().optional(),
+        status: z.string().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        return await db.getCalendarEvents(ctx.user.id, {
+          startDate: input.startDate ? new Date(input.startDate) : undefined,
+          endDate: input.endDate ? new Date(input.endDate) : undefined,
+          eventType: input.eventType,
+          status: input.status,
+        });
+      }),
+
+    // Get single event
+    getEvent: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ ctx, input }) => {
+        return await db.getCalendarEvent(input.id, ctx.user.id);
+      }),
+
+    // Create event
+    create: protectedProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        description: z.string().optional(),
+        eventType: z.enum(['follow_up', 'meeting', 'call', 'task', 'reminder']),
+        startTime: z.string(),
+        endTime: z.string().optional(),
+        allDay: z.boolean().optional(),
+        location: z.string().optional(),
+        companyId: z.number().optional(),
+        leadId: z.number().optional(),
+        campaignId: z.number().optional(),
+        reminderMinutes: z.number().optional(),
+        isRecurring: z.boolean().optional(),
+        recurrenceRule: z.string().optional(),
+        color: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.createCalendarEvent({
+          userId: ctx.user.id,
+          title: input.title,
+          description: input.description,
+          eventType: input.eventType,
+          startTime: new Date(input.startTime),
+          endTime: input.endTime ? new Date(input.endTime) : undefined,
+          allDay: input.allDay,
+          location: input.location,
+          companyId: input.companyId,
+          leadId: input.leadId,
+          campaignId: input.campaignId,
+          reminderMinutes: input.reminderMinutes,
+          isRecurring: input.isRecurring,
+          recurrenceRule: input.recurrenceRule,
+          color: input.color,
+          notes: input.notes,
+        });
+      }),
+
+    // Update event
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        description: z.string().optional(),
+        eventType: z.string().optional(),
+        startTime: z.string().optional(),
+        endTime: z.string().optional(),
+        allDay: z.boolean().optional(),
+        location: z.string().optional(),
+        companyId: z.number().optional(),
+        leadId: z.number().optional(),
+        campaignId: z.number().optional(),
+        status: z.string().optional(),
+        reminderMinutes: z.number().optional(),
+        color: z.string().optional(),
+        notes: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...data } = input;
+        return await db.updateCalendarEvent(id, ctx.user.id, {
+          ...data,
+          startTime: data.startTime ? new Date(data.startTime) : undefined,
+          endTime: data.endTime ? new Date(data.endTime) : undefined,
+        });
+      }),
+
+    // Delete event
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        return await db.deleteCalendarEvent(input.id, ctx.user.id);
+      }),
+
+    // Get events count by type
+    getCountByType: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getEventsCountByType(ctx.user.id);
+    }),
+  }),
+
+  // ============================================
   // ADMIN ROUTER
   // ============================================
   admin: router({

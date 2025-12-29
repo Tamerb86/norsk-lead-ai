@@ -32,6 +32,7 @@ const Leads = lazy(() => import("./pages/Leads"));
 const Templates = lazy(() => import("./pages/Templates"));
 const Sequences = lazy(() => import("./pages/Sequences"));
 const Analytics = lazy(() => import("./pages/Analytics"));
+const Calendar = lazy(() => import("./pages/Calendar"));
 
 // Lazy loaded pages (settings & admin)
 const Settings = lazy(() => import("./pages/Settings"));
@@ -78,6 +79,7 @@ function Router() {
         <Route path="/templates" component={Templates} />
         <Route path="/sequences" component={Sequences} />
         <Route path="/analytics" component={Analytics} />
+        <Route path="/calendar" component={Calendar} />
         
         {/* Settings & admin - lazy loaded */}
         <Route path="/profile" component={Profile} />

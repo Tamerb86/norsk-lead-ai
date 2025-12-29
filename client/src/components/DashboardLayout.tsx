@@ -35,7 +35,8 @@ import {
   Settings,
   Shield,
   HelpCircle,
-  Building2
+  Building2,
+  Calendar
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
@@ -50,6 +51,7 @@ const menuItems = [
   { icon: Mail, label: "Kampanjer", path: "/campaigns", description: "E-postkampanjer" },
   { icon: FileText, label: "Maler", path: "/templates", description: "E-postmaler" },
   { icon: Zap, label: "Sekvenser", path: "/sequences", description: "Automatisering" },
+  { icon: Calendar, label: "Kalender", path: "/calendar", description: "Planlegging" },
   { icon: BarChart3, label: "Analyse", path: "/analytics", description: "Statistikk" },
 ];
 
