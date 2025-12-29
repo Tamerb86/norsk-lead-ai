@@ -36,7 +36,9 @@ import {
   Shield,
   HelpCircle,
   Building2,
-  Calendar
+  Calendar,
+  Keyboard,
+  Command
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
@@ -305,6 +307,18 @@ function DashboardLayoutContent({
                 >
                   <HelpCircle className="mr-2 h-4 w-4" />
                   <span>Start veiledning på nytt</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => {
+                    // Trigger keyboard shortcut help
+                    const event = new KeyboardEvent('keydown', { key: '?', shiftKey: true });
+                    window.dispatchEvent(event);
+                  }}
+                  className="cursor-pointer"
+                >
+                  <Keyboard className="mr-2 h-4 w-4" />
+                  <span>Hurtigtaster</span>
+                  <kbd className="ml-auto text-xs bg-muted px-1.5 py-0.5 rounded">?</kbd>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

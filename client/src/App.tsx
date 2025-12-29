@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { KeyboardShortcutsProvider } from "./components/KeyboardShortcuts";
 
 // Loading component for lazy loaded pages
 function PageLoader() {
@@ -122,8 +123,10 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light" switchable={true}>
         <TooltipProvider>
-          <Toaster />
-          <Router />
+          <KeyboardShortcutsProvider>
+            <Toaster />
+            <Router />
+          </KeyboardShortcutsProvider>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
