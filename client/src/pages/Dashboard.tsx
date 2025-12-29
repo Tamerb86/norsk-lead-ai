@@ -7,12 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Building2, Mail, TrendingUp, Users, Search, FileText, ArrowUpRight, Sparkles, BarChart3, Calendar, Download, LogIn, Clock, Target, Eye, MessageSquare, ChevronRight, Activity } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import jsPDF from 'jspdf';
+
 import { Link } from "wouter";
 import { useState } from "react";
 import { DashboardStatsSkeleton, ChartsSkeleton } from "@/components/SkeletonLoaders";
 import { OnboardingTutorial, QuickStartCard, FeatureCards } from "@/components/OnboardingTutorial";
 import { OnboardingWizard, useOnboarding } from "@/components/OnboardingWizard";
+import { ReportExportButton } from "@/components/ReportExportButton";
+import { generateDashboardReport, type DashboardReportData } from "@/lib/pdfReportGenerator";
 
 // Chart colors
 const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
@@ -69,25 +71,7 @@ export default function Dashboard() {
 
   const isLoading = statsLoading || campaignsLoading || leadsLoading;
 
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    
-    doc.setFontSize(20);
-    doc.text('NorskLeads Analytics Report', 20, 20);
-    
-    doc.setFontSize(12);
-    doc.text(`Generated: ${new Date().toLocaleDateString('nb-NO')}`, 20, 30);
-    doc.text(`Date Range: Siste ${dateRange} dager`, 20, 38);
-    
-    doc.setFontSize(14);
-    doc.text('Oversikt', 20, 50);
-    doc.setFontSize(11);
-    doc.text(`Totalt bedrifter: ${stats?.companies.total || 0}`, 20, 60);
-    doc.text(`Totalt kampanjer: ${stats?.campaigns.total || 0}`, 20, 68);
-    doc.text(`Totalt leads: ${stats?.leads.total || 0}`, 20, 76);
-    
-    doc.save(`norskleads-rapport-${new Date().toISOString().split('T')[0]}.pdf`);
-  };
+
 
   if (loading) {
     return (
@@ -148,10 +132,37 @@ export default function Dashboard() {
                 <SelectItem value="90">Siste 90 dager</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={exportToPDF} className="gap-2">
-              <Download className="w-4 h-4" />
-              Eksporter
-            </Button>
+<ReportExportButton
+              type="dashboard"
+              data={{
+                user: { name: user.name || '', email: user.email || '' },
+                dateRange: `Siste ${dateRange} dager`,
+                stats: {
+                  companies: stats?.companies || { total: 0, withEmail: 0, withPhone: 0 },
+                  campaigns: stats?.campaigns || { total: 0, active: 0, completed: 0 },
+                  leads: stats?.leads || { total: 0, sent: 0, opened: 0, replied: 0 },
+                  performance: {
+                    openRate: String(stats?.leads?.openRate || '0'),
+                    replyRate: String(stats?.leads?.replyRate || '0'),
+                    clickRate: String(stats?.leads?.clickRate || '0'),
+                  },
+                },
+                recentCampaigns: (recentCampaigns || []).map((c: any) => ({
+                  name: c.name,
+                  status: c.status,
+                  sent: c.sent,
+                  opened: c.opened,
+                  openRate: c.openRate,
+                })),
+                topLeads: (topLeads || []).map((l: any) => ({
+                  companyName: l.companyName,
+                  email: l.email,
+                  score: l.score,
+                  status: l.status,
+                })),
+                industryData: industryData || [],
+              }}
+            />
           </div>
         </div>
 
