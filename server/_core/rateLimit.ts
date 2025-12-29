@@ -269,3 +269,105 @@ export function createUserRateLimiter() {
     },
   });
 }
+
+/**
+ * Rate limiter for webhook endpoints
+ * - 100 webhooks per minute per IP (for high-volume integrations)
+ */
+export const webhookRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // 100 requests per minute
+  message: {
+    error: "Too many webhook requests.",
+    retryAfter: "1 minute",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => !ENV.isProduction,
+  
+  handler: (req: Request, res: Response) => {
+    logSecurityEvent({
+      type: SecurityEventType.RATE_LIMIT_EXCEEDED,
+      ...getClientInfo(req),
+      details: { endpoint: "webhook" },
+    });
+    
+    res.status(429).json({
+      error: "Too many webhook requests",
+      message: "Please reduce the frequency of webhook calls.",
+      retryAfter: "1 minute",
+    });
+  },
+});
+
+/**
+ * Rate limiter for search/export endpoints (resource intensive)
+ * - 30 requests per minute per IP
+ */
+export const searchRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // 30 requests per minute
+  message: {
+    error: "Too many search requests.",
+    retryAfter: "1 minute",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => !ENV.isProduction,
+  
+  handler: (req: Request, res: Response) => {
+    res.status(429).json({
+      error: "Too many search requests",
+      message: "Please wait before performing another search.",
+      retryAfter: "1 minute",
+    });
+  },
+});
+
+/**
+ * Rate limiter for AI/LLM endpoints (expensive operations)
+ * - 20 requests per minute per IP
+ */
+export const aiRateLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20, // 20 requests per minute
+  message: {
+    error: "Too many AI requests.",
+    retryAfter: "1 minute",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => !ENV.isProduction,
+  
+  handler: (req: Request, res: Response) => {
+    res.status(429).json({
+      error: "Too many AI requests",
+      message: "Please wait before making another AI request.",
+      retryAfter: "1 minute",
+    });
+  },
+});
+
+/**
+ * Rate limiter for export/download endpoints
+ * - 10 requests per 5 minutes per IP
+ */
+export const exportRateLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 10, // 10 exports per 5 minutes
+  message: {
+    error: "Too many export requests.",
+    retryAfter: "5 minutes",
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => !ENV.isProduction,
+  
+  handler: (req: Request, res: Response) => {
+    res.status(429).json({
+      error: "Too many export requests",
+      message: "Please wait before exporting again.",
+      retryAfter: "5 minutes",
+    });
+  },
+});

@@ -43,6 +43,12 @@ export async function getDb() {
       _pool = new pg.Pool({
         connectionString: ENV.databaseUrl,
         ssl: ENV.isProduction ? { rejectUnauthorized: false } : false,
+        // Connection pool optimization
+        max: 20, // Maximum number of connections in the pool
+        min: 2, // Minimum number of connections to keep open
+        idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
+        connectionTimeoutMillis: 10000, // Timeout for acquiring a connection
+        maxUses: 7500, // Close connection after 7500 queries (prevents memory leaks)
       });
       _db = drizzle(_pool);
       console.log("✅ [Database] Connected successfully (PostgreSQL)");

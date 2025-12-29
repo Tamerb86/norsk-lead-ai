@@ -1,0 +1,29 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["./server/routers.ts"],
+  "out": "docs/api",
+  "plugin": ["typedoc-plugin-markdown"],
+  "readme": "none",
+  "theme": "default",
+  "sort": ["source-order"],
+  "gitRevision": "main",
+  "githubPages": false,
+  "name": "NorskLeads API Documentation",
+  "includeVersion": true,
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Authentication",
+    "Leads & Companies",
+    "Campaigns & Emails",
+    "Templates & Sequences",
+    "Analytics & Reporting",
+    "A/B Testing",
+    "Lead Scoring",
+    "Webhooks",
+    "Referrals",
+    "User & Account",
+    "Admin",
+    "Other"
+  ],
+  "tsconfig": "./tsconfig.json"
+}

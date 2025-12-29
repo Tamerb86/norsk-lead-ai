@@ -5,9 +5,29 @@ import fs from "node:fs";
 import path from "path";
 import { defineConfig } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
+import viteCompression from "vite-plugin-compression";
 
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime()];
+const plugins = [
+  react(), 
+  tailwindcss(), 
+  jsxLocPlugin(), 
+  vitePluginManusRuntime(),
+  // Gzip compression for static assets
+  viteCompression({
+    algorithm: 'gzip',
+    ext: '.gz',
+    threshold: 1024, // Only compress files > 1KB
+    deleteOriginFile: false,
+  }),
+  // Brotli compression (better compression ratio)
+  viteCompression({
+    algorithm: 'brotliCompress',
+    ext: '.br',
+    threshold: 1024,
+    deleteOriginFile: false,
+  }),
+];
 
 export default defineConfig({
   plugins,
@@ -34,8 +54,16 @@ export default defineConfig({
         pure_funcs: ['console.log', 'console.info', 'console.debug'],
       },
     },
+    // Asset optimization
+    assetsInlineLimit: 4096, // Inline assets < 4KB as base64
+    cssCodeSplit: true,
+    sourcemap: false, // Disable sourcemaps in production
     rollupOptions: {
       output: {
+        // Optimize chunk file names
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash].[ext]',
         manualChunks: (id) => {
           // Core React libraries
           if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
@@ -100,5 +128,10 @@ export default defineConfig({
       strict: true,
       deny: ["**/.*"],
     },
+  },
+  // Preview server configuration
+  preview: {
+    host: true,
+    port: 4173,
   },
 });
