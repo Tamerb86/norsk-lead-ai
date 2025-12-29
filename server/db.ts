@@ -2352,3 +2352,145 @@ export async function getActivityLogStats(userId?: number, days: number = 30) {
   
   return result.rows;
 }
+
+
+// ============= Referral Functions =============
+
+export async function generateReferralCode(): Promise<string> {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
+export async function getOrCreateReferralStats(userId: number) {
+  const db = await getDb();
+  
+  // Check if stats exist
+  const existing = await db.execute(sql`
+    SELECT * FROM referral_stats WHERE user_id = ${userId}
+  `);
+  
+  if (existing.rows.length > 0) {
+    return existing.rows[0];
+  }
+  
+  // Create new stats with unique code
+  const code = await generateReferralCode();
+  const result = await db.execute(sql`
+    INSERT INTO referral_stats (user_id, referral_code, total_invites, total_signups, total_conversions, total_rewards_earned, pending_rewards)
+    VALUES (${userId}, ${code}, 0, 0, 0, 0, 0)
+    RETURNING *
+  `);
+  
+  return result.rows[0];
+}
+
+export async function getReferralStats(userId: number) {
+  const db = await getDb();
+  const result = await db.execute(sql`
+    SELECT * FROM referral_stats WHERE user_id = ${userId}
+  `);
+  return result.rows[0] || null;
+}
+
+export async function getReferralsByUser(userId: number) {
+  const db = await getDb();
+  const result = await db.execute(sql`
+    SELECT r.*, u.name as referred_name, u.email as referred_user_email
+    FROM referrals r
+    LEFT JOIN users u ON r.referred_id = u.id
+    WHERE r.referrer_id = ${userId}
+    ORDER BY r."createdAt" DESC
+  `);
+  return result.rows;
+}
+
+export async function createReferralInvite(referrerId: number, email: string) {
+  const db = await getDb();
+  const code = await generateReferralCode();
+  
+  const result = await db.execute(sql`
+    INSERT INTO referrals (referrer_id, referral_code, referred_email, status)
+    VALUES (${referrerId}, ${code}, ${email}, 'pending')
+    RETURNING *
+  `);
+  
+  // Update stats
+  await db.execute(sql`
+    UPDATE referral_stats 
+    SET total_invites = total_invites + 1, "updatedAt" = NOW()
+    WHERE user_id = ${referrerId}
+  `);
+  
+  return result.rows[0];
+}
+
+export async function findReferralByCode(code: string) {
+  const db = await getDb();
+  const result = await db.execute(sql`
+    SELECT * FROM referral_stats WHERE referral_code = ${code}
+  `);
+  return result.rows[0] || null;
+}
+
+export async function processReferralSignup(referralCode: string, newUserId: number, newUserEmail: string) {
+  const db = await getDb();
+  
+  // Find the referral stats by code
+  const statsResult = await db.execute(sql`
+    SELECT * FROM referral_stats WHERE referral_code = ${referralCode}
+  `);
+  
+  if (statsResult.rows.length === 0) return null;
+  
+  const stats = statsResult.rows[0] as any;
+  
+  // Create referral record
+  await db.execute(sql`
+    INSERT INTO referrals (referrer_id, referred_id, referral_code, referred_email, status, signed_up_at, reward_type, reward_amount)
+    VALUES (${stats.user_id}, ${newUserId}, ${referralCode}, ${newUserEmail}, 'signed_up', NOW(), 'credits', 100)
+  `);
+  
+  // Update stats
+  await db.execute(sql`
+    UPDATE referral_stats 
+    SET total_signups = total_signups + 1, pending_rewards = pending_rewards + 100, "updatedAt" = NOW()
+    WHERE user_id = ${stats.user_id}
+  `);
+  
+  return stats;
+}
+
+export async function claimReferralReward(userId: number, referralId: number) {
+  const db = await getDb();
+  
+  // Get the referral
+  const refResult = await db.execute(sql`
+    SELECT * FROM referrals WHERE id = ${referralId} AND referrer_id = ${userId} AND reward_claimed = false
+  `);
+  
+  if (refResult.rows.length === 0) return null;
+  
+  const referral = refResult.rows[0] as any;
+  
+  // Mark as claimed
+  await db.execute(sql`
+    UPDATE referrals 
+    SET reward_claimed = true, rewarded_at = NOW()
+    WHERE id = ${referralId}
+  `);
+  
+  // Update stats
+  await db.execute(sql`
+    UPDATE referral_stats 
+    SET total_rewards_earned = total_rewards_earned + ${referral.reward_amount || 0},
+        pending_rewards = pending_rewards - ${referral.reward_amount || 0},
+        "updatedAt" = NOW()
+    WHERE user_id = ${userId}
+  `);
+  
+  return referral;
+}

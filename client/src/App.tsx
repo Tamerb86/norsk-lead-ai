@@ -42,6 +42,7 @@ const Profile = lazy(() => import("./pages/Profile"));
 const Account = lazy(() => import("./pages/Account"));
 const Admin = lazy(() => import("./pages/Admin"));
 const ActivityLog = lazy(() => import("./pages/ActivityLog"));
+const Referral = lazy(() => import("./pages/Referral"));
 const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
 
 // Lazy loaded pages (static/marketing)
@@ -88,6 +89,7 @@ function Router() {
         <Route path="/account" component={Account} />
         <Route path="/admin" component={Admin} />
         <Route path="/activity" component={ActivityLog} />
+        <Route path="/referral" component={Referral} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/settings" component={Settings} />
         <Route path="/team" component={TeamSettings} />

@@ -2382,5 +2382,95 @@ export const appRouter = router({
         return await db.getActivityLogStats(userId, input.days);
       }),
   }),
+
+  // ============================================
+  // REFERRAL ROUTER
+  // ============================================
+  referral: router({
+    // Get or create referral stats for current user
+    getMyStats: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getOrCreateReferralStats(ctx.user.id);
+    }),
+
+    // Get all referrals made by current user
+    getMyReferrals: protectedProcedure.query(async ({ ctx }) => {
+      return await db.getReferralsByUser(ctx.user.id);
+    }),
+
+    // Send referral invite
+    sendInvite: protectedProcedure
+      .input(z.object({
+        email: z.string().email(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Create referral invite
+        const referral = await db.createReferralInvite(ctx.user.id, input.email);
+        
+        // Log activity
+        await db.createActivityLog({
+          userId: ctx.user.id,
+          action: 'referral_sent',
+          entityType: 'referral',
+          entityId: (referral as any).id,
+          details: { email: input.email },
+        });
+
+        return referral;
+      }),
+
+    // Claim reward for a referral
+    claimReward: protectedProcedure
+      .input(z.object({
+        referralId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const result = await db.claimReferralReward(ctx.user.id, input.referralId);
+        if (!result) {
+          throw new Error('Referral not found or already claimed');
+        }
+        
+        // Log activity
+        await db.createActivityLog({
+          userId: ctx.user.id,
+          action: 'reward_claimed',
+          entityType: 'referral',
+          entityId: input.referralId,
+          details: { rewardAmount: result.reward_amount },
+        });
+
+        return result;
+      }),
+
+    // Validate referral code (public - for signup page)
+    validateCode: publicProcedure
+      .input(z.object({
+        code: z.string(),
+      }))
+      .query(async ({ input }) => {
+        const referral = await db.findReferralByCode(input.code);
+        return {
+          valid: !!referral,
+          code: input.code,
+        };
+      }),
+
+    // Admin: Get all referral stats
+    getAllStats: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user?.role !== 'admin') {
+        throw new Error('Unauthorized: Admin access required');
+      }
+      const dbInstance = await db.getDb();
+      const result = await dbInstance.execute(`
+        SELECT 
+          rs.*,
+          u.name as user_name,
+          u.email as user_email
+        FROM referral_stats rs
+        JOIN users u ON rs.user_id = u.id
+        ORDER BY rs.total_signups DESC
+      `);
+      return result.rows;
+    }),
+  }),
 });
 export type AppRouter = typeof appRouter;

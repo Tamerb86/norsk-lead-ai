@@ -39,7 +39,8 @@ import {
   Calendar,
   Keyboard,
   Command,
-  Activity
+  Activity,
+  Gift
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
@@ -58,6 +59,7 @@ const menuItems = [
   { icon: Calendar, label: "Kalender", path: "/calendar", description: "Planlegging" },
   { icon: BarChart3, label: "Analyse", path: "/analytics", description: "Statistikk" },
   { icon: Activity, label: "Aktivitet", path: "/activity", description: "Aktivitetslogg" },
+  { icon: Gift, label: "Henvisning", path: "/referral", description: "Inviter venner" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useSearch } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Mail, Lock, User, ArrowRight, Check } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Mail, Lock, User, ArrowRight, Check, Gift, Sparkles } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 
 export default function Register() {
   const [, setLocation] = useLocation();
+  const searchString = useSearch();
   const { register, loading } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -18,6 +21,29 @@ export default function Register() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [referralCode, setReferralCode] = useState("");
+  const [referralValid, setReferralValid] = useState<boolean | null>(null);
+
+  // Extract referral code from URL
+  useEffect(() => {
+    const params = new URLSearchParams(searchString);
+    const ref = params.get("ref");
+    if (ref) {
+      setReferralCode(ref);
+    }
+  }, [searchString]);
+
+  // Validate referral code
+  const { data: referralValidation, isLoading: validatingReferral } = trpc.referral.validateCode.useQuery(
+    { code: referralCode },
+    { enabled: referralCode.length > 0 }
+  );
+
+  useEffect(() => {
+    if (referralValidation) {
+      setReferralValid(referralValidation.valid);
+    }
+  }, [referralValidation]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +69,13 @@ export default function Register() {
       return;
     }
 
-    const result = await register({ name, email, password });
+    // Include referral code if valid
+    const result = await register({ 
+      name, 
+      email, 
+      password,
+      referralCode: referralValid ? referralCode : undefined
+    });
     
     if (result.success) {
       setLocation("/dashboard");
@@ -86,6 +118,23 @@ export default function Register() {
                 <Alert variant="destructive" className="bg-red-900/50 border-red-800">
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
+              )}
+
+              {/* Referral Badge */}
+              {referralCode && referralValid && (
+                <div className="bg-gradient-to-r from-pink-500/20 to-purple-600/20 border border-pink-500/30 rounded-lg p-4">
+                  <div className="flex items-center gap-2">
+                    <Gift className="h-5 w-5 text-pink-400" />
+                    <span className="text-white font-medium">Henvisningsbonus!</span>
+                    <Badge className="bg-pink-500/20 text-pink-300 border-pink-500/30">
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      +50 kreditter
+                    </Badge>
+                  </div>
+                  <p className="text-sm text-gray-400 mt-1">
+                    Du får ekstra kreditter ved å registrere deg via en henvisningslenke
+                  </p>
+                </div>
               )}
 
               {/* Features list */}
@@ -161,6 +210,36 @@ export default function Register() {
                   />
                 </div>
               </div>
+
+              {/* Referral Code Input (if not from URL) */}
+              {!referralCode && (
+                <div className="space-y-2">
+                  <Label htmlFor="referralCode" className="text-gray-300">
+                    Henvisningskode (valgfritt)
+                  </Label>
+                  <div className="relative">
+                    <Gift className="absolute left-3 top-3 h-4 w-4 text-gray-500" />
+                    <Input
+                      id="referralCode"
+                      type="text"
+                      placeholder="F.eks. ABC12345"
+                      value={referralCode}
+                      onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                      className="pl-10 bg-gray-700/50 border-gray-600 text-white placeholder:text-gray-500 focus:border-pink-500 font-mono"
+                      disabled={loading}
+                    />
+                    {validatingReferral && (
+                      <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-400" />
+                    )}
+                    {referralCode && !validatingReferral && referralValid === true && (
+                      <Check className="absolute right-3 top-3 h-4 w-4 text-green-400" />
+                    )}
+                    {referralCode && !validatingReferral && referralValid === false && (
+                      <span className="absolute right-3 top-3 text-xs text-red-400">Ugyldig</span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-start space-x-2">
                 <Checkbox

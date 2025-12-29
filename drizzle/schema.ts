@@ -497,3 +497,39 @@ export const activityLogs = pgTable("activity_logs", {
 });
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = typeof activityLogs.$inferInsert;
+
+
+// Referrals - Track user referrals and rewards
+export const referrals = pgTable("referrals", {
+  id: serial("id").primaryKey(),
+  referrerId: integer("referrer_id").notNull(), // User who sent the referral
+  referredId: integer("referred_id"), // User who signed up (null until signup)
+  referralCode: varchar("referral_code", { length: 20 }).notNull().unique(),
+  referredEmail: varchar("referred_email", { length: 255 }), // Email invited
+  status: varchar("status", { length: 20 }).default("pending").notNull(), // pending, signed_up, converted, rewarded
+  rewardType: varchar("reward_type", { length: 50 }), // e.g., "free_month", "credits", "discount"
+  rewardAmount: integer("reward_amount"), // Amount of reward
+  rewardClaimed: boolean("reward_claimed").default(false),
+  signedUpAt: timestamp("signed_up_at"),
+  convertedAt: timestamp("converted_at"), // When referred user became paying customer
+  rewardedAt: timestamp("rewarded_at"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type Referral = typeof referrals.$inferSelect;
+export type InsertReferral = typeof referrals.$inferInsert;
+
+// Referral Stats - Aggregate stats per user
+export const referralStats = pgTable("referral_stats", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().unique(),
+  referralCode: varchar("referral_code", { length: 20 }).notNull().unique(),
+  totalInvites: integer("total_invites").default(0),
+  totalSignups: integer("total_signups").default(0),
+  totalConversions: integer("total_conversions").default(0),
+  totalRewardsEarned: integer("total_rewards_earned").default(0),
+  pendingRewards: integer("pending_rewards").default(0),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+});
+export type ReferralStats = typeof referralStats.$inferSelect;
+export type InsertReferralStats = typeof referralStats.$inferInsert;
