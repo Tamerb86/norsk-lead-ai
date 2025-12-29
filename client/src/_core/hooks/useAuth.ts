@@ -109,7 +109,7 @@ export function useAuth(options?: UseAuthOptions) {
 
       const result = await response.json();
 
-      if (response.ok) {
+      if (response.ok && result.success) {
         localStorage.setItem("manus-runtime-user-info", JSON.stringify(result.user));
         setState({
           user: result.user,
@@ -118,6 +118,10 @@ export function useAuth(options?: UseAuthOptions) {
           error: null,
         });
         return { success: true };
+      } else if (result.requiresTwoFactor) {
+        // 2FA is required
+        setState(prev => ({ ...prev, loading: false }));
+        return { success: false, requires2FA: true };
       } else {
         setState(prev => ({
           ...prev,

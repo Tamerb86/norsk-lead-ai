@@ -2202,3 +2202,47 @@ export async function getEventsCountByType(userId: number) {
 
   return result.rows || [];
 }
+
+
+/**
+ * Update user's two-factor authentication settings
+ */
+export async function updateUserTwoFactor(
+  openId: string,
+  data: {
+    twoFactorEnabled?: boolean;
+    twoFactorSecret?: string | null;
+    twoFactorBackupCodes?: string | null;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const setClauses: string[] = [];
+  
+  if (data.twoFactorEnabled !== undefined) {
+    setClauses.push(`two_factor_enabled = ${data.twoFactorEnabled}`);
+  }
+  if (data.twoFactorSecret !== undefined) {
+    if (data.twoFactorSecret === null) {
+      setClauses.push(`two_factor_secret = NULL`);
+    } else {
+      setClauses.push(`two_factor_secret = '${data.twoFactorSecret.replace(/'/g, "''")}'`);
+    }
+  }
+  if (data.twoFactorBackupCodes !== undefined) {
+    if (data.twoFactorBackupCodes === null) {
+      setClauses.push(`two_factor_backup_codes = NULL`);
+    } else {
+      setClauses.push(`two_factor_backup_codes = '${data.twoFactorBackupCodes.replace(/'/g, "''")}'`);
+    }
+  }
+  
+  if (setClauses.length === 0) return;
+  
+  setClauses.push(`"updatedAt" = NOW()`);
+  
+  await db.execute(
+    sql`UPDATE users SET ${sql.raw(setClauses.join(", "))} WHERE "openId" = ${openId}`
+  );
+}

@@ -37,6 +37,10 @@ export const users = pgTable("users", {
   subscriptionStatus: varchar("subscription_status", { length: 50 }),
   subscriptionPeriodEnd: timestamp("subscription_period_end"),
   isActive: boolean("is_active").default(true).notNull(),
+  // Two-Factor Authentication fields
+  twoFactorEnabled: boolean("two_factor_enabled").default(false).notNull(),
+  twoFactorSecret: varchar("two_factor_secret", { length: 255 }),
+  twoFactorBackupCodes: text("two_factor_backup_codes"), // JSON array of hashed backup codes
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

@@ -47,6 +47,7 @@ import {
   BarChart3,
 } from "lucide-react";
 import { SUBSCRIPTION_PLANS, formatPrice, getPlanById } from "@shared/products";
+import { TwoFactorSettings } from "@/components/TwoFactorSettings";
 
 interface UserSubscription {
   plan: string;
@@ -101,14 +102,32 @@ export default function Account() {
   const [cancelDialog, setCancelDialog] = useState(false);
   const [deleteAccountDialog, setDeleteAccountDialog] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  
+  // 2FA state
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [backupCodesRemaining, setBackupCodesRemaining] = useState(0);
 
   // Fetch subscription data
   useEffect(() => {
     if (user) {
       fetchSubscriptionData();
+      fetch2FAStatus();
       setName(user.name || "");
     }
   }, [user]);
+  
+  const fetch2FAStatus = async () => {
+    try {
+      const res = await fetch("/api/auth/2fa/status", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setTwoFactorEnabled(data.enabled);
+        setBackupCodesRemaining(data.backupCodesRemaining);
+      }
+    } catch (error) {
+      console.error("Failed to fetch 2FA status:", error);
+    }
+  };
 
   const fetchSubscriptionData = async () => {
     setSubscriptionLoading(true);
@@ -676,6 +695,13 @@ export default function Account() {
                 </form>
               </CardContent>
             </Card>
+
+            {/* Two-Factor Authentication */}
+            <TwoFactorSettings
+              enabled={twoFactorEnabled}
+              backupCodesRemaining={backupCodesRemaining}
+              onRefresh={fetch2FAStatus}
+            />
 
             {/* Delete Account */}
             <Card className="border-red-200">
