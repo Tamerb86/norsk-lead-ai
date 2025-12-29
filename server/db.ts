@@ -2246,3 +2246,109 @@ export async function updateUserTwoFactor(
     sql`UPDATE users SET ${sql.raw(setClauses.join(", "))} WHERE "openId" = ${openId}`
   );
 }
+
+
+// ============ Activity Log Functions ============
+
+export interface CreateActivityLogData {
+  userId: number;
+  action: string;
+  entityType: string;
+  entityId?: number;
+  entityName?: string;
+  details?: Record<string, any>;
+  oldValues?: Record<string, any>;
+  newValues?: Record<string, any>;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+export async function createActivityLog(data: CreateActivityLogData) {
+  const db = await getDb();
+  const result = await db.execute(sql`
+    INSERT INTO activity_logs (
+      user_id, action, entity_type, entity_id, entity_name,
+      details, old_values, new_values, ip_address, user_agent
+    ) VALUES (
+      ${data.userId},
+      ${data.action},
+      ${data.entityType},
+      ${data.entityId || null},
+      ${data.entityName || null},
+      ${data.details ? JSON.stringify(data.details) : null},
+      ${data.oldValues ? JSON.stringify(data.oldValues) : null},
+      ${data.newValues ? JSON.stringify(data.newValues) : null},
+      ${data.ipAddress || null},
+      ${data.userAgent || null}
+    )
+    RETURNING *
+  `);
+  return result.rows[0];
+}
+
+export async function getActivityLogs(options: {
+  userId?: number;
+  entityType?: string;
+  entityId?: number;
+  action?: string;
+  limit?: number;
+  offset?: number;
+  startDate?: Date;
+  endDate?: Date;
+}) {
+  const db = await getDb();
+  const conditions: string[] = [];
+  
+  if (options.userId) {
+    conditions.push(`al.user_id = ${options.userId}`);
+  }
+  if (options.entityType) {
+    conditions.push(`al.entity_type = '${options.entityType}'`);
+  }
+  if (options.entityId) {
+    conditions.push(`al.entity_id = ${options.entityId}`);
+  }
+  if (options.action) {
+    conditions.push(`al.action = '${options.action}'`);
+  }
+  if (options.startDate) {
+    conditions.push(`al."createdAt" >= '${options.startDate.toISOString()}'`);
+  }
+  if (options.endDate) {
+    conditions.push(`al."createdAt" <= '${options.endDate.toISOString()}'`);
+  }
+  
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const limit = options.limit || 50;
+  const offset = options.offset || 0;
+  
+  const result = await db.execute(sql`
+    SELECT al.*, u.name as user_name, u.email as user_email
+    FROM activity_logs al
+    LEFT JOIN users u ON al.user_id = u.id
+    ${sql.raw(whereClause)}
+    ORDER BY al."createdAt" DESC
+    LIMIT ${limit} OFFSET ${offset}
+  `);
+  
+  return result.rows;
+}
+
+export async function getActivityLogStats(userId?: number, days: number = 30) {
+  const db = await getDb();
+  const userCondition = userId ? `WHERE user_id = ${userId}` : "";
+  
+  const result = await db.execute(sql`
+    SELECT 
+      action,
+      entity_type,
+      COUNT(*) as count
+    FROM activity_logs
+    ${sql.raw(userCondition)}
+    ${sql.raw(userCondition ? "AND" : "WHERE")} "createdAt" >= NOW() - INTERVAL '${sql.raw(String(days))} days'
+    GROUP BY action, entity_type
+    ORDER BY count DESC
+  `);
+  
+  return result.rows;
+}

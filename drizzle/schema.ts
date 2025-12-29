@@ -474,3 +474,26 @@ export const calendarEvents = pgTable("calendar_events", {
 
 export type CalendarEvent = typeof calendarEvents.$inferSelect;
 export type InsertCalendarEvent = typeof calendarEvents.$inferInsert;
+
+
+// Activity Logs - Track user actions
+export const activityLogs = pgTable("activity_logs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  // Action details
+  action: varchar("action", { length: 100 }).notNull(), // e.g., "create", "update", "delete", "view", "export", "login"
+  entityType: varchar("entity_type", { length: 50 }).notNull(), // e.g., "company", "lead", "campaign", "template", "user"
+  entityId: integer("entity_id"), // ID of the affected entity
+  entityName: varchar("entity_name", { length: 255 }), // Name/title for display
+  // Additional context
+  details: text("details"), // JSON string with additional details
+  oldValues: text("old_values"), // JSON string of previous values (for updates)
+  newValues: text("new_values"), // JSON string of new values (for updates)
+  // Request info
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  // Timestamps
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ActivityLog = typeof activityLogs.$inferSelect;
+export type InsertActivityLog = typeof activityLogs.$inferInsert;

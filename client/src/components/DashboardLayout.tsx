@@ -38,7 +38,8 @@ import {
   Building2,
   Calendar,
   Keyboard,
-  Command
+  Command,
+  Activity
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
@@ -56,6 +57,7 @@ const menuItems = [
   { icon: Zap, label: "Sekvenser", path: "/sequences", description: "Automatisering" },
   { icon: Calendar, label: "Kalender", path: "/calendar", description: "Planlegging" },
   { icon: BarChart3, label: "Analyse", path: "/analytics", description: "Statistikk" },
+  { icon: Activity, label: "Aktivitet", path: "/activity", description: "Aktivitetslogg" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

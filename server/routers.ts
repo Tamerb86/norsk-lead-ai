@@ -98,6 +98,10 @@ export const appRouter = router({
           description: `Created campaign: ${input.name}`,
         });
 
+        // Log activity
+        const { logCreate } = await import('./services/activityLogger');
+        await logCreate(ctx.user.id, 'campaign', result.id, input.name);
+
         return result;
       }),
 
@@ -139,6 +143,10 @@ export const appRouter = router({
           type: "campaign_deleted",
           description: `Deleted campaign`,
         });
+
+        // Log activity
+        const { logDelete } = await import('./services/activityLogger');
+        await logDelete(ctx.user.id, 'campaign', input.id, 'Kampanje slettet');
 
         return result;
       }),
@@ -322,6 +330,10 @@ export const appRouter = router({
           type: "template_created",
           description: `Created template: ${input.name}`,
         });
+
+        // Log activity
+        const { logCreate } = await import('./services/activityLogger');
+        await logCreate(ctx.user.id, 'template', result.id, input.name);
 
         return result;
       }),
@@ -2299,8 +2311,76 @@ export const appRouter = router({
           imported,
           skipped,
         };
+       }),
+  }),
+
+  // ============================================
+  // ACTIVITY LOG ROUTER
+  // ============================================
+  activityLog: router({
+    // Get activity logs
+    getLogs: protectedProcedure
+      .input(z.object({
+        entityType: z.string().optional(),
+        entityId: z.number().optional(),
+        action: z.string().optional(),
+        limit: z.number().optional().default(50),
+        offset: z.number().optional().default(0),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        // Regular users can only see their own logs
+        const userId = ctx.user?.role === 'admin' ? undefined : ctx.user?.id;
+        
+        return await db.getActivityLogs({
+          userId,
+          entityType: input.entityType,
+          entityId: input.entityId,
+          action: input.action,
+          limit: input.limit,
+          offset: input.offset,
+          startDate: input.startDate ? new Date(input.startDate) : undefined,
+          endDate: input.endDate ? new Date(input.endDate) : undefined,
+        });
+      }),
+
+    // Get all logs (admin only)
+    getAllLogs: protectedProcedure
+      .input(z.object({
+        userId: z.number().optional(),
+        entityType: z.string().optional(),
+        action: z.string().optional(),
+        limit: z.number().optional().default(50),
+        offset: z.number().optional().default(0),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user?.role !== 'admin') {
+          throw new Error('Unauthorized: Admin access required');
+        }
+        
+        return await db.getActivityLogs({
+          userId: input.userId,
+          entityType: input.entityType,
+          action: input.action,
+          limit: input.limit,
+          offset: input.offset,
+          startDate: input.startDate ? new Date(input.startDate) : undefined,
+          endDate: input.endDate ? new Date(input.endDate) : undefined,
+        });
+      }),
+
+    // Get activity stats
+    getStats: protectedProcedure
+      .input(z.object({
+        days: z.number().optional().default(30),
+      }))
+      .query(async ({ ctx, input }) => {
+        const userId = ctx.user?.role === 'admin' ? undefined : ctx.user?.id;
+        return await db.getActivityLogStats(userId, input.days);
       }),
   }),
 });
-
 export type AppRouter = typeof appRouter;

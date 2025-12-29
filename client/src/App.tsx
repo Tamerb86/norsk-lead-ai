@@ -41,6 +41,7 @@ const TeamSettings = lazy(() => import("./pages/TeamSettings"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Account = lazy(() => import("./pages/Account"));
 const Admin = lazy(() => import("./pages/Admin"));
+const ActivityLog = lazy(() => import("./pages/ActivityLog"));
 const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
 
 // Lazy loaded pages (static/marketing)
@@ -86,6 +87,7 @@ function Router() {
         <Route path="/profile" component={Profile} />
         <Route path="/account" component={Account} />
         <Route path="/admin" component={Admin} />
+        <Route path="/activity" component={ActivityLog} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/settings" component={Settings} />
         <Route path="/team" component={TeamSettings} />
