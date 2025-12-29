@@ -145,7 +145,11 @@ export const campaigns = pgTable("campaigns", {
   completedAt: timestamp("completedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("campaigns_user_id_idx").on(table.userId),
+  statusIdx: index("campaigns_status_idx").on(table.status),
+  createdAtIdx: index("campaigns_created_at_idx").on(table.createdAt),
+}));
 
 /**
  * Campaign leads (recipients)
@@ -174,7 +178,13 @@ export const leads = pgTable("leads", {
   replyContent: text("replyContent"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull(),
-});
+}, (table) => ({
+  userIdIdx: index("leads_user_id_idx").on(table.userId),
+  campaignIdIdx: index("leads_campaign_id_idx").on(table.campaignId),
+  companyIdIdx: index("leads_company_id_idx").on(table.companyId),
+  trackingIdIdx: index("leads_tracking_id_idx").on(table.trackingId),
+  statusIdx: index("leads_status_idx").on(table.status),
+}));
 
 /**
  * Email templates

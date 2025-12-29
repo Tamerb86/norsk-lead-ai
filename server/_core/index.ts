@@ -45,23 +45,42 @@ async function startServer() {
   // This is required for express-rate-limit to work correctly
   app.set('trust proxy', 1);
   
-  // Security: Helmet for security headers
+  // Security: Helmet for security headers with enhanced CSP
   app.use(
     helmet({
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://manus-analytics.com"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://manus-analytics.com", "https://cdn.jsdelivr.net"],
           styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-          fontSrc: ["'self'", "https://fonts.gstatic.com"],
-          imgSrc: ["'self'", "data:", "https:"],
-          connectSrc: ["'self'", "https://api.stripe.com", "https://manus-analytics.com"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+          imgSrc: ["'self'", "data:", "https:", "blob:"],
+          connectSrc: ["'self'", "https://api.stripe.com", "https://manus-analytics.com", "https://api.openai.com", "https://api.anthropic.com", "https://data.brreg.no", "wss:"],
           frameSrc: ["'self'", "https://js.stripe.com"],
+          objectSrc: ["'none'"],
+          baseUri: ["'self'"],
+          formAction: ["'self'"],
+          frameAncestors: ["'self'"],
+          upgradeInsecureRequests: [],
         },
       },
       crossOriginEmbedderPolicy: false, // Allow embedding for Stripe
+      hsts: {
+        maxAge: 31536000, // 1 year
+        includeSubDomains: true,
+        preload: true,
+      },
+      referrerPolicy: {
+        policy: 'strict-origin-when-cross-origin',
+      },
+      permittedCrossDomainPolicies: {
+        permittedPolicies: 'none',
+      },
     })
   );
+  
+  // Remove X-Powered-By header
+  app.disable('x-powered-by');
   
   // Security: CORS configuration - Strict origin control
   const allowedOrigins = [
