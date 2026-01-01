@@ -1,4 +1,4 @@
-import { eq, and, or, like, desc, asc, sql, inArray } from "drizzle-orm";
+import { eq, and, or, like, ilike, desc, asc, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import { 
