@@ -8,16 +8,42 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Building2, Search as SearchIcon, Mail, Phone, Globe, Filter, X, ArrowUpDown, Info, Download, ChevronLeft, ChevronRight, Save, Bookmark, Trash2, LogIn, Settings, Shield, User, LogOut, ChevronDown, Sparkles, TrendingUp, ShieldCheck } from "lucide-react";
+import {
+  Building2,
+  Search as SearchIcon,
+  Mail,
+  Phone,
+  Globe,
+  Filter,
+  Download,
+  ChevronDown,
+  Sparkles,
+  TrendingUp,
+  ShieldCheck,
+  Info,
+} from "lucide-react";
 import { LeadScoreBadge } from "@/components/LeadScoreBadge";
 import { EmailVerificationBadge } from "@/components/EmailVerificationBadge";
 import { AIEmailWriter } from "@/components/AIEmailWriter";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { SearchTableSkeleton } from "@/components/SkeletonLoaders";
-import { Link, useLocation } from "wouter";
-import { toast } from "sonner";
-import { toastSuccess, toastError, toastInfo } from "@/lib/toast-utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { toastError, toastSuccess } from "@/lib/toast-utils";
+import { exportCompaniesToCSV } from "@/lib/export-utils";
+import { useLocation } from "wouter";
 import { COMMON_NAERINGSKODER } from "../../../shared/naeringskoder";
 
 export default function Search() {
@@ -37,12 +63,11 @@ export default function Search() {
   const [foundedBefore, setFoundedBefore] = useState("");
   const [minEmployees, setMinEmployees] = useState("");
   const [maxEmployees, setMaxEmployees] = useState("");
-  
-  // Sorting
-  const [sortBy, setSortBy] = useState<'name' | 'employees' | 'founded' | 'recent'>('employees');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
-  
-  const [showFilters, setShowFilters] = useState(false);
+  const [sortBy, setSortBy] = useState<"employees" | "revenue" | "age">("employees");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // UI State
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [naeringskodeSearch, setNaeringskodeSearch] = useState("");
   
   // Pagination & Selection
@@ -58,7 +83,7 @@ export default function Search() {
   const createFilterMutation = trpc.savedFilters.create.useMutation({
     onSuccess: () => {
       toastSuccess("Filter lagret!", {
-        description: "Filteret er tilgjengelig i listen"
+        description: "Du kan nå bruke dette filteret senere"
       });
       setShowSaveDialog(false);
       setFilterName("");
@@ -88,14 +113,20 @@ export default function Search() {
   // Calculate offset for server-side pagination
   const offset = (currentPage - 1) * itemsPerPage;
 
+  const normalizedNaeringskode =
+    !naeringskode || naeringskode === "all" ? undefined : naeringskode;
+
+  const normalizedOrganisasjonsform =
+    !organisasjonsform || organisasjonsform === "all" ? undefined : organisasjonsform;
+
   const { data, isLoading, refetch, isFetching, error, isError } = trpc.companies.search.useQuery({
     query,
     hasEmail,
     hasPhone,
     hasWebsite,
     poststed: poststed || undefined,
-    naeringskode: naeringskode || undefined,
-    organisasjonsform: organisasjonsform || undefined,
+    naeringskode: normalizedNaeringskode,
+    organisasjonsform: normalizedOrganisasjonsform,
     foundedAfter: foundedAfter || undefined,
     foundedBefore: foundedBefore || undefined,
     minEmployees: minEmployees ? parseInt(minEmployees) : undefined,
@@ -111,7 +142,6 @@ export default function Search() {
     staleTime: 0,
     retry: 3,
   });
-
 
   const handleSearch = () => {
     setCurrentPage(1); // Reset to first page on new search
@@ -129,94 +159,35 @@ export default function Search() {
     exportCompaniesToCSV(data.companies);
   };
 
-  const exportSelectedToCSV = () => {
-    if (!data || !data.companies || selectedCompanies.length === 0) {
-      toastError("Ingen valgte bedrifter å eksportere", {
-        description: "Velg bedrifter først"
+  const toggleCompanySelection = (companyId: number) => {
+    setSelectedCompanies((prev) =>
+      prev.includes(companyId)
+        ? prev.filter((id) => id !== companyId)
+        : [...prev, companyId]
+    );
+  };
+
+  const selectAllOnPage = () => {
+    if (!data?.companies) return;
+    const idsOnPage = data.companies.map((c) => c.id);
+    setSelectedCompanies(idsOnPage);
+  };
+
+  const clearSelection = () => {
+    setSelectedCompanies([]);
+  };
+
+  const handleBulkCreateLeads = () => {
+    if (selectedCompanies.length === 0) {
+      toastError("Ingen bedrifter valgt", {
+        description: "Velg minst én bedrift for å opprette leads"
       });
       return;
     }
 
-    const selectedData = data.companies.filter(c => selectedCompanies.includes(c.id));
-    exportCompaniesToCSV(selectedData);
-    toastSuccess(`${selectedData.length} bedrifter eksportert`, {
-      description: "CSV-filen er lastet ned"
+    toastSuccess("Leads opprettet", {
+      description: `Opprettet leads for ${selectedCompanies.length} bedrifter (demo)`
     });
-  };
-
-  const exportCompaniesToCSV = (companies: any[]) => {
-
-const headers = [
-      "Bedriftsnavn",
-      "Org.nr",
-      "Adresse",
-      "Postnummer",
-      "Poststed",
-      "E-post",
-      "Telefon",
-      "Nettside",
-      "Næringskode",
-      "Organisasjonsform",
-      "Antall ansatte",
-      "Stiftelsesdato"
-    ];
-
-    const rows = companies.map(company => [
-      company.navn || "",
-      company.organisasjonsnummer || "",
-      company.forretningsadresse || "",
-      company.postnummer || "",
-      company.poststed || "",
-      company.epostadresse || "",
-      company.telefon || "",
-      company.hjemmeside || "",
-      company.naeringskode1 || "",
-      company.organisasjonsform || "",
-      company.antallAnsatte?.toString() || "",
-      company.stiftelsesdato ? (typeof company.stiftelsesdato === 'string' ? company.stiftelsesdato : company.stiftelsesdato.toISOString().split('T')[0]) : ""
-    ]);
-
-    // Combine headers and rows
-    const csvContent = [
-      headers.join(","),
-      ...rows.map((row: string[]) => row.map((cell: string) => `"${cell}"`).join(","))
-    ].join("\n");
-
-    // Create blob and download
-    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
-    link.setAttribute("href", url);
-    link.setAttribute("download", `norskleads-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = "hidden";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-
-    if (companies.length === data?.companies.length) {
-      toastSuccess(`${companies.length} bedrifter eksportert`, {
-        description: "CSV-filen er lastet ned"
-      });
-    }
-  };
-
-  const resetFilters = () => {
-    setQuery("");
-    setHasEmail(false);
-    setHasPhone(false);
-    setHasWebsite(false);
-    setPoststed("");
-    setNaeringskode("");
-    setOrganisasjonsform("");
-    setFoundedAfter("");
-    setFoundedBefore("");
-    setMinEmployees("");
-    setMaxEmployees("");
-    setSortBy('employees');
-    setSortOrder('desc');
-    setNaeringskodeSearch("");
-    setCurrentPage(1);
-    setSelectedCompanies([]);
   };
 
   const saveCurrentFilter = () => {
@@ -255,8 +226,16 @@ const headers = [
     setHasPhone(filters.hasPhone || false);
     setHasWebsite(filters.hasWebsite || false);
     setPoststed(filters.poststed || "");
-    setNaeringskode(filters.naeringskode || "");
-    setOrganisasjonsform(filters.organisasjonsform || "");
+    setNaeringskode(
+      filters.naeringskode && filters.naeringskode !== "all"
+        ? filters.naeringskode
+        : ""
+    );
+    setOrganisasjonsform(
+      filters.organisasjonsform && filters.organisasjonsform !== "all"
+        ? filters.organisasjonsform
+        : ""
+    );
     setFoundedAfter(filters.foundedAfter || "");
     setFoundedBefore(filters.foundedBefore || "");
     setMinEmployees(filters.minEmployees || "");
@@ -273,237 +252,223 @@ const headers = [
   const companies = data?.companies || [];
   const totalResults = data?.total || 0;
   const totalPages = Math.ceil(totalResults / itemsPerPage);
-  // With server-side pagination, companies are already paginated
-  const paginatedCompanies = companies;
 
-  // Selection helpers
-  const toggleCompany = (id: number) => {
-    setSelectedCompanies(prev =>
-      prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]
-    );
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setCurrentPage(newPage);
+    refetch();
   };
 
-  const toggleSelectAll = () => {
-    if (selectedCompanies.length === paginatedCompanies.length) {
-      setSelectedCompanies([]);
+  const handleSortChange = (newSortBy: "employees" | "revenue" | "age") => {
+    if (newSortBy === sortBy) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
-      setSelectedCompanies(paginatedCompanies.map(c => c.id));
+      setSortBy(newSortBy);
+      setSortOrder("desc");
     }
+    setCurrentPage(1);
+    refetch();
   };
 
-  const isAllSelected = paginatedCompanies.length > 0 && selectedCompanies.length === paginatedCompanies.length;
   const selectedNaeringskode = COMMON_NAERINGSKODER.find(n => n.code === naeringskode);
 
   if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
-        <div className="text-center p-8 bg-white rounded-2xl shadow-xl max-w-md">
-          <div className="w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center mx-auto mb-6">
-            <LogIn className="w-8 h-8 text-white" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Logg inn for å søke</h2>
-          <p className="text-gray-600 mb-6">Du må være logget inn for å søke i bedriftsdatabasen</p>
-          <Link href="/login">
-            <Button size="lg" className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-              Logg inn
-            </Button>
-          </Link>
-          <p className="mt-4 text-sm text-gray-500">
-            Har du ikke en konto? <Link href="/register" className="text-blue-600 hover:underline">Registrer deg</Link>
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <Card className="shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <SearchIcon className="w-5 h-5 text-blue-600" />
-                Søk etter bedrifter
-              </CardTitle>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="gap-2"
-                  data-onboarding="filter-button"
-                >
-                  <Filter className="w-4 h-4" />
-                  {showFilters ? "Skjul filtre" : "Vis filtre"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={resetFilters}
-                  className="gap-2"
-                >
-                  <X className="w-4 h-4" />
-                  Nullstill
-                </Button>
-                {savedFiltersData && savedFiltersData.length > 0 && (
-                  <Select onValueChange={(value) => {
-                    const filter = savedFiltersData.find(f => f.id === parseInt(value));
-                    if (filter) applySavedFilter(filter.filters);
-                  }}>
-                    <SelectTrigger className="w-[180px] h-9">
-                      <div className="flex items-center gap-2">
-                        <Bookmark className="w-4 h-4" />
-                        <span className="text-sm">Lagrede filtre</span>
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {savedFiltersData.map((filter) => (
-                        <SelectItem key={filter.id} value={filter.id.toString()}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{filter.name}</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-6 w-6 p-0 ml-2"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                deleteFilterMutation.mutate({ id: filter.id });
-                              }}
-                            >
-                              <Trash2 className="w-3 h-3 text-red-600" />
-                            </Button>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2"
-                    >
-                      <Save className="w-4 h-4" />
-                      Lagre filter
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Lagre søkefilter</DialogTitle>
-                      <DialogDescription>
-                        Gi filteret et navn slik at du enkelt kan bruke det igjen senere.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <Label htmlFor="filterName">Filternavn</Label>
-                      <Input
-                        id="filterName"
-                        placeholder="F.eks. IT-bedrifter i Oslo"
-                        value={filterName}
-                        onChange={(e) => setFilterName(e.target.value)}
-                        className="mt-2"
-                      />
-                    </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
-                        Avbryt
-                      </Button>
-                      <Button onClick={saveCurrentFilter}>
-                        Lagre
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                {data && data.companies && data.companies.length > 0 && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={exportToCSV}
-                    className="gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                  >
-                    <Download className="w-4 h-4" />
-                    Last ned CSV
-                  </Button>
-                )}
-              </div>
-            </div>
-          </CardHeader>
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+              <Building2 className="w-6 h-6 text-blue-600" />
+              Søk bedrifter i Norge
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Finn relevante bedrifter basert på bransje, størrelse, lokasjon og mer. Perfekt for B2B-salg og leadgenerering.
+            </p>
+          </div>
 
-          <CardContent className="pt-4">
-            {/* Basic Search */}
-            <div className="space-y-3 mb-4">
-              <div>
-                <Label htmlFor="search" className="text-base font-medium">Søk etter bedriftsnavn eller organisasjonsnummer</Label>
+          <div className="flex flex-col md:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={exportToCSV}
+              disabled={!data || !data.companies || data.companies.length === 0}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Eksporter til CSV
+            </Button>
+            <Button
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700"
+              onClick={() => setShowSaveDialog(true)}
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Lagre filter
+            </Button>
+          </div>
+        </div>
+
+        {/* Main Search Card */}
+        <Card className="border-0 shadow-md">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <SearchIcon className="w-5 h-5 text-blue-600" />
+              Søkekriterier
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Main Search Row */}
+            <div className="flex flex-col md:flex-row gap-3">
+              <div className="flex-1">
+                <Label htmlFor="query">Søk etter bedrift</Label>
                 <Input
-                  id="search"
-                  placeholder="Skriv inn bedriftsnavn eller org.nr..."
+                  id="query"
+                  placeholder="Navn, organisasjonsnummer, domenenavn..."
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                  className="mt-2"
-                  data-onboarding="search-input"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleSearch();
+                    }
+                  }}
                 />
               </div>
 
-              {/* Quick Filters */}
-              <div className="flex flex-wrap gap-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="hasEmail"
-                    checked={hasEmail}
-                    onCheckedChange={(checked) => setHasEmail(checked as boolean)}
-                  />
-                  <label
-                    htmlFor="hasEmail"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2 cursor-pointer"
-                  >
-                    <Mail className="w-4 h-4 text-blue-600" />
-                    Har e-post
-                  </label>
-                </div>
+              <div className="flex items-end gap-2">
+                <Button
+                  onClick={handleSearch}
+                  disabled={isLoading || isFetching}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <SearchIcon className="w-4 h-4 mr-2" />
+                  {isLoading || isFetching ? "Søker..." : "Søk"}
+                </Button>
 
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="hasPhone"
-                    checked={hasPhone}
-                    onCheckedChange={(checked) => setHasPhone(checked as boolean)}
-                  />
-                  <label
-                    htmlFor="hasPhone"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2 cursor-pointer"
-                  >
-                    <Phone className="w-4 h-4 text-green-600" />
-                    Har telefon
-                  </label>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="hasWebsite"
-                    checked={hasWebsite}
-                    onCheckedChange={(checked) => setHasWebsite(checked as boolean)}
-                  />
-                  <label
-                    htmlFor="hasWebsite"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 flex items-center gap-2 cursor-pointer"
-                  >
-                    <Globe className="w-4 h-4 text-purple-600" />
-                    Har nettside
-                  </label>
-                </div>
+                <Button
+                  variant="outline"
+                  type="button"
+                  onClick={() => {
+                    setQuery("");
+                    setHasEmail(false);
+                    setHasPhone(false);
+                    setHasWebsite(false);
+                    setPoststed("");
+                    setNaeringskode("");
+                    setOrganisasjonsform("");
+                    setFoundedAfter("");
+                    setFoundedBefore("");
+                    setMinEmployees("");
+                    setMaxEmployees("");
+                    setSortBy("employees");
+                    setSortOrder("desc");
+                    setCurrentPage(1);
+                    refetch();
+                  }}
+                >
+                  Nullstill
+                </Button>
               </div>
             </div>
 
+            {/* Basic Filters */}
+            <div className="flex flex-wrap gap-4 items-center">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="hasEmail"
+                  checked={hasEmail}
+                  onCheckedChange={(checked) => setHasEmail(!!checked)}
+                />
+                <Label htmlFor="hasEmail" className="text-sm">
+                  Har e-post
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="hasPhone"
+                  checked={hasPhone}
+                  onCheckedChange={(checked) => setHasPhone(!!checked)}
+                />
+                <Label htmlFor="hasPhone" className="text-sm">
+                  Har telefon
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="hasWebsite"
+                  checked={hasWebsite}
+                  onCheckedChange={(checked) => setHasWebsite(!!checked)}
+                />
+                <Label htmlFor="hasWebsite" className="text-sm">
+                  Har nettside
+                </Label>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex items-center gap-2 text-sm ml-auto"
+                onClick={() => setShowAdvanced((prev) => !prev)}
+              >
+                <Filter className="w-4 h-4" />
+                {showAdvanced ? "Skjul avanserte filtre" : "Vis avanserte filtre"}
+              </Button>
+            </div>
+
             {/* Advanced Filters */}
-            {showFilters && (
-              <div className="border-t pt-4 space-y-4 animate-slide-up">
-                <h3 className="font-semibold text-base flex items-center gap-2">
-                  <Filter className="w-4 h-4 text-blue-600" />
-                  Avanserte filtre
-                </h3>
+            {showAdvanced && (
+              <div className="mt-4 space-y-4 border-t pt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <ShieldCheck className="w-4 h-4 text-green-500" />
+                      Anbefalt strategi
+                    </Label>
+                    <p className="text-xs text-gray-600">
+                      Kombiner bransje, størrelse og lokasjon for å finne de mest relevante bedriftene for dine tjenester.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                      <TrendingUp className="w-4 h-4 text-blue-500" />
+                      Sortering
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={sortBy === "employees" ? "default" : "outline"}
+                        onClick={() => handleSortChange("employees")}
+                      >
+                        Antall ansatte
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={sortBy === "revenue" ? "default" : "outline"}
+                        onClick={() => handleSortChange("revenue")}
+                      >
+                        Omsetning
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={sortBy === "age" ? "default" : "outline"}
+                        onClick={() => handleSortChange("age")}
+                      >
+                        Selskapsalder
+                      </Button>
+                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                        <ChevronDown className="w-3 h-3" />
+                        {sortOrder === "desc" ? "Synkende" : "Stigende"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* City (Poststed) */}
@@ -523,7 +488,10 @@ const headers = [
                       Bransje (Næringskode)
                       <Info className="w-4 h-4 text-gray-400" />
                     </Label>
-                    <Select value={naeringskode} onValueChange={setNaeringskode}>
+                    <Select
+                      value={naeringskode || "all"}
+                      onValueChange={(value) => setNaeringskode(value === "all" ? "" : value)}
+                    >
                       <SelectTrigger id="naeringskode">
                         <SelectValue placeholder="Velg bransje..." />
                       </SelectTrigger>
@@ -567,7 +535,10 @@ const headers = [
                   {/* Organisasjonsform */}
                   <div className="space-y-2">
                     <Label htmlFor="organisasjonsform">Organisasjonsform</Label>
-                    <Select value={organisasjonsform} onValueChange={setOrganisasjonsform}>
+                    <Select
+                      value={organisasjonsform || "all"}
+                      onValueChange={(value) => setOrganisasjonsform(value === "all" ? "" : value)}
+                    >
                       <SelectTrigger id="organisasjonsform">
                         <SelectValue placeholder="Velg organisasjonsform..." />
                       </SelectTrigger>
@@ -600,19 +571,19 @@ const headers = [
                         <SelectItem value="DA">
                           <div className="flex flex-col">
                             <span className="font-medium">DA - Ansvarlig selskap</span>
-                            <span className="text-xs text-gray-500">Deltakere med delt ansvar</span>
+                            <span className="text-xs text-gray-500">Delt ansvar</span>
                           </div>
                         </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* Stiftelsesdato */}
+                  {/* Founded Date Range */}
                   <div className="space-y-2">
                     <Label>Stiftelsesdato</Label>
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <Label htmlFor="foundedAfter" className="text-xs text-gray-600">Fra dato</Label>
+                        <Label htmlFor="foundedAfter" className="text-xs text-gray-500">Fra</Label>
                         <Input
                           id="foundedAfter"
                           type="date"
@@ -622,7 +593,7 @@ const headers = [
                         />
                       </div>
                       <div>
-                        <Label htmlFor="foundedBefore" className="text-xs text-gray-600">Til dato</Label>
+                        <Label htmlFor="foundedBefore" className="text-xs text-gray-500">Til</Label>
                         <Input
                           id="foundedBefore"
                           type="date"
@@ -638,233 +609,278 @@ const headers = [
                   <div className="space-y-2">
                     <Label>Antall ansatte</Label>
                     <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <Label htmlFor="minEmployees" className="text-xs text-gray-600">Minimum</Label>
-                        <Input
-                          id="minEmployees"
-                          type="number"
-                          placeholder="Min"
-                          value={minEmployees}
-                          onChange={(e) => setMinEmployees(e.target.value)}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="maxEmployees" className="text-xs text-gray-600">Maksimum</Label>
-                        <Input
-                          id="maxEmployees"
-                          type="number"
-                          placeholder="Maks"
-                          value={maxEmployees}
-                          onChange={(e) => setMaxEmployees(e.target.value)}
-                          className="mt-1"
-                        />
-                      </div>
+                      <Input
+                        placeholder="Min"
+                        value={minEmployees}
+                        onChange={(e) => setMinEmployees(e.target.value)}
+                      />
+                      <Input
+                        placeholder="Maks"
+                        value={maxEmployees}
+                        onChange={(e) => setMaxEmployees(e.target.value)}
+                      />
                     </div>
-                  </div>
-                </div>
-
-                {/* Sorting */}
-                <div className="border-t pt-3">
-                  <Label className="flex items-center gap-2 mb-2">
-                    <ArrowUpDown className="w-4 h-4" />
-                    Sortering
-                  </Label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="name">Navn</SelectItem>
-                        <SelectItem value="employees">Antall ansatte</SelectItem>
-                        <SelectItem value="founded">Stiftelsesdato</SelectItem>
-                        <SelectItem value="recent">Nylig registrert</SelectItem>
-                      </SelectContent>
-                    </Select>
-
-                    <Select value={sortOrder} onValueChange={(value: any) => setSortOrder(value)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="asc">Stigende</SelectItem>
-                        <SelectItem value="desc">Synkende</SelectItem>
-                      </SelectContent>
-                    </Select>
                   </div>
                 </div>
               </div>
             )}
-
-            <Button onClick={handleSearch} className="w-full mt-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700" size="lg">
-              <SearchIcon className="w-5 h-5 mr-2" />
-              Søk
-            </Button>
           </CardContent>
         </Card>
 
-        {/* Results */}
-        <div className="mt-8">
-          {(isLoading || isFetching) ? (
-            <SearchTableSkeleton />
-          ) : data && data.companies && data.companies.length > 0 ? (
-            <>
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <p className="text-sm text-gray-600">
-                    Fant <span className="font-semibold text-gray-900">{totalResults.toLocaleString()}</span> bedrifter
-                    {totalPages > 1 && (
-                      <span className="ml-2 text-gray-400">
-                        (side {currentPage} av {totalPages.toLocaleString()})
-                      </span>
-                    )}
-                  </p>
-                  {selectedCompanies.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                        {selectedCompanies.length} valgt
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          size="sm" 
-                          className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
-                          onClick={() => setLocation(`/campaigns?newCampaign=true&companyIds=${selectedCompanies.join(',')}`)}
-                        >
-                          <Mail className="w-4 h-4 mr-1" />
-                          Opprett kampanje
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => exportSelectedToCSV()}
-                          className="border-green-600 text-green-600 hover:bg-green-50"
-                        >
-                          <Download className="w-4 h-4 mr-1" />
-                          Eksporter valgte
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => setSelectedCompanies([])}
-                          className="border-gray-400 text-gray-600 hover:bg-gray-50"
-                        >
-                          <X className="w-4 h-4 mr-1" />
-                          Fjern valg
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                {paginatedCompanies.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="select-all"
-                      checked={isAllSelected}
-                      onCheckedChange={toggleSelectAll}
-                    />
-                    <Label htmlFor="select-all" className="text-sm cursor-pointer">
-                      Velg alle på siden
-                    </Label>
-                  </div>
-                )}
+        {/* Saved Filters */}
+        {savedFiltersData && savedFiltersData.filters.length > 0 && (
+          <Card className="border-dashed border-gray-300">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                Lagrede filtre
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                {savedFiltersData.filters.map((filter) => (
+                  <DropdownMenu key={filter.id}>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        <Filter className="w-3 h-3" />
+                        {filter.name}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem onClick={() => applySavedFilter(filter.filters)}>
+                        Bruk filter
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-red-600"
+                        onClick={() => deleteFilterMutation.mutate({ id: filter.id })}
+                      >
+                        Slett
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ))}
               </div>
+            </CardContent>
+          </Card>
+        )}
 
-              <div className="grid gap-4">
-                {paginatedCompanies.map((company: any) => (
-                  <Card key={company.id} className="hover:shadow-lg transition-shadow">
-                    <CardContent className="p-6">
-                      <div className="flex items-start gap-3">
-                        <div className="pt-1">
-                          <Checkbox
-                            id={`company-${company.id}`}
-                            checked={selectedCompanies.includes(company.id)}
-                            onCheckedChange={() => toggleCompany(company.id)}
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-4">
-                              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">
-                                <Building2 className="w-6 h-6 text-white" />
-                              </div>
+        {/* Results & Actions */}
+        <div className="flex flex-col lg:flex-row gap-4">
+          {/* Results Summary & Bulk Actions */}
+          <div className="lg:w-72">
+            <Card className="border-0 shadow-md sticky top-24">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-yellow-500" />
+                  Resultater & handlinger
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-baseline justify-between">
+                  <div>
+                    <p className="text-2xl font-bold">{totalResults}</p>
+                    <p className="text-xs text-gray-500">bedrifter funnet</p>
+                  </div>
+                  <div className="text-xs text-gray-500 text-right">
+                    <p>Side {currentPage} av {totalPages || 1}</p>
+                    <p>{itemsPerPage} per side</p>
+                  </div>
+                </div>
+
+                <div className="border-t pt-3 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-gray-600">Valgte bedrifter</p>
+                    <span className="text-sm font-semibold">{selectedCompanies.length}</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={selectAllOnPage}
+                      disabled={!companies.length}
+                    >
+                      Velg alle på side
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={clearSelection}
+                      disabled={!selectedCompanies.length}
+                    >
+                      Nullstill valg
+                    </Button>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700"
+                    onClick={handleBulkCreateLeads}
+                    disabled={!selectedCompanies.length}
+                  >
+                    Opprett leads ({selectedCompanies.length})
+                  </Button>
+
+                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mt-2">
+                    <p className="text-xs text-blue-800 flex items-start gap-2">
+                      <ShieldCheck className="w-4 h-4 mt-0.5 text-blue-500" />
+                      Bruk AI for å generere tilpassede e-poster til valgte bedrifter etter at leads er opprettet.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Company List */}
+          <div className="flex-1 space-y-4">
+            {isError && (
+              <Card className="border-red-200 bg-red-50">
+                <CardContent className="py-4">
+                  <p className="text-sm text-red-800">
+                    Det oppstod en feil under søket: {error?.message}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {isLoading || isFetching ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <SearchIcon className="w-10 h-10 text-blue-500 mx-auto mb-3 animate-pulse" />
+                  <p className="text-gray-700 font-medium">Søker etter bedrifter...</p>
+                  <p className="text-gray-500 text-sm mt-1">
+                    Vi henter data basert på kriteriene dine. Dette kan ta noen sekunder.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : companies.length > 0 ? (
+              <>
+                {/* Companies List */}
+                <div className="space-y-3">
+                  {companies.map((company) => (
+                    <Card key={company.id} className="border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                      <CardContent className="p-4">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                          {/* Left side: main info */}
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-start gap-3">
+                              <Checkbox
+                                checked={selectedCompanies.includes(company.id)}
+                                onCheckedChange={() => toggleCompanySelection(company.id)}
+                                className="mt-1"
+                              />
                               <div className="flex-1">
-                                <h3 className="font-semibold text-lg text-gray-900">{company.navn}</h3>
-                                <p className="text-sm text-gray-600 mt-1">Org.nr: {company.organisasjonsnummer}</p>
-                                {(company.forretningsadresse || company.poststed) && (
-                                  <p className="text-sm text-gray-500 mt-1">
-                                    📍 {[company.forretningsadresse, company.postnummer, company.poststed].filter(Boolean).join(', ')}
-                                  </p>
-                                )}
-                                
-                                <div className="flex flex-wrap gap-4 mt-3">
-                                  {company.epostadresse && (
-                                    <div className="flex items-center gap-2 text-sm">
-                                      <Mail className="w-4 h-4 text-blue-600" />
-                                      <a href={`mailto:${company.epostadresse}`} className="text-blue-600 hover:underline">
-                                        {company.epostadresse}
-                                      </a>
-                                    </div>
-                                  )}
-                                  {company.telefon && (
-                                    <div className="flex items-center gap-2 text-sm">
-                                      <Phone className="w-4 h-4 text-green-600" />
-                                      <a href={`tel:${company.telefon}`} className="text-green-600 hover:underline">
-                                        {company.telefon}
-                                      </a>
-                                    </div>
-                                  )}
-                                  {company.hjemmeside && (
-                                    <div className="flex items-center gap-2 text-sm">
-                                      <Globe className="w-4 h-4 text-purple-600" />
-                                      <a href={company.hjemmeside} target="_blank" rel="noopener noreferrer" className="text-purple-600 hover:underline">
-                                        Nettside
-                                      </a>
-                                    </div>
-                                  )}
+                                <div className="flex items-center gap-2">
+                                  <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                                    <Building2 className="w-4 h-4 text-blue-500" />
+                                    {company.navn}
+                                  </h3>
+                                  <LeadScoreBadge score={company.leadScore || 0} />
                                 </div>
-
-                                {/* Company details badges */}
-                                <div className="flex flex-wrap gap-2 mt-3">
-                                  {company.naeringskode1 && (
-                                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                                      {company.naeringskode1}
-                                    </span>
-                                  )}
-                                  {company.antallAnsatte !== null && company.antallAnsatte !== undefined && (
-                                    <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                                      👥 {company.antallAnsatte} ansatte
-                                    </span>
-                                  )}
-                                  {company.stiftelsesdato && (
-                                    <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
-                                      📅 Stiftet: {typeof company.stiftelsesdato === 'string' ? company.stiftelsesdato : new Date(company.stiftelsesdato).toLocaleDateString('nb-NO')}
-                                    </span>
-                                  )}
-                                  {company.organisasjonsform && (
-                                    <span className="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">
-                                      {company.organisasjonsform}
-                                    </span>
-                                  )}
-                                </div>
+                                <p className="text-xs text-gray-500">
+                                  Org.nr: {company.organisasjonsnummer} • {company.poststed}
+                                </p>
                               </div>
                             </div>
-                            <div className="flex flex-col gap-2 ml-4">
-                              {/* Lead Score Badge */}
-                              <LeadScoreBadge companyId={company.id} />
-                              
-                              {/* AI Email Writer */}
-                              <AIEmailWriter 
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-700 mt-2">
+                              <div className="space-y-1">
+                                <p className="font-medium text-gray-900">Kontakt</p>
+                                {company.epost && (
+                                  <p className="flex items-center gap-1">
+                                    <Mail className="w-3 h-3 text-blue-500" />
+                                    <span className="truncate">{company.epost}</span>
+                                    <EmailVerificationBadge status={company.emailVerificationStatus || "unknown"} />
+                                  </p>
+                                )}
+                                {company.telefon && (
+                                  <p className="flex items-center gap-1">
+                                    <Phone className="w-3 h-3 text-green-500" />
+                                    <span>{company.telefon}</span>
+                                  </p>
+                                )}
+                                {company.hjemmeside && (
+                                  <p className="flex items-center gap-1">
+                                    <Globe className="w-3 h-3 text-purple-500" />
+                                    <a
+                                      href={company.hjemmeside.startsWith("http") ? company.hjemmeside : `https://${company.hjemmeside}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-blue-600 hover:underline"
+                                    >
+                                      {company.hjemmeside.replace(/^https?:\/\//, "")}
+                                    </a>
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="space-y-1">
+                                <p className="font-medium text-gray-900">Nøkkeltall</p>
+                                <p>
+                                  Ansatte:{" "}
+                                  <span className="font-semibold">
+                                    {company.antallAnsatte ?? "Ukjent"}
+                                  </span>
+                                </p>
+                                <p>
+                                  Omsetning:{" "}
+                                  <span className="font-semibold">
+                                    {company.omsetning ? `${company.omsetning.toLocaleString("nb-NO")} kr` : "Ukjent"}
+                                  </span>
+                                </p>
+                                <p>
+                                  Stiftet:{" "}
+                                  <span className="font-semibold">
+                                    {company.stiftelsesdato || "Ukjent"}
+                                  </span>
+                                </p>
+                              </div>
+
+                              <div className="space-y-1">
+                                <p className="font-medium text-gray-900">Bransje & form</p>
+                                {company.naeringskode1 && (
+                                  <p className="text-xs text-gray-700">
+                                    <span className="font-semibold">Bransje: </span>
+                                    {company.naeringskode1}
+                                  </p>
+                                )}
+                                {company.organisasjonsform && (
+                                  <p className="text-xs text-gray-700">
+                                    <span className="font-semibold">Form: </span>
+                                    {company.organisasjonsform}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Right side: actions */}
+                          <div className="w-full md:w-64 space-y-3 border-t md:border-t-0 md:border-l pt-3 md:pt-0 md:pl-4">
+                            <div className="flex flex-col gap-2">
+                              <AIEmailWriter
                                 companyName={company.navn}
-                                companyIndustry={company.naeringsbeskrivelse1}
-                                companyEmail={company.epostadresse}
+                                companyEmail={company.epost || ""}
+                                companyWebsite={company.hjemmeside || ""}
+                                leadScore={company.leadScore || 0}
                               />
-                              
-                              {/* Email Verification */}
-                              {company.epostadresse && (
-                                <EmailVerificationBadge email={company.epostadresse} />
-                              )}
-                              
+
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => {
+                                  navigator.clipboard.writeText(company.epost || "");
+                                  toastSuccess("E-post kopiert", { description: company.epost || "" });
+                                }}
+                                disabled={!company.epost}
+                              >
+                                Kopier e-post
+                              </Button>
+
                               <Button 
                                 size="sm" 
                                 className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
@@ -875,72 +891,87 @@ const headers = [
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-              
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 mt-8">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Forrige
-                  </Button>
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                      let pageNum;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else if (currentPage <= 3) {
-                        pageNum = i + 1;
-                      } else if (currentPage >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i;
-                      } else {
-                        pageNum = currentPage - 2 + i;
-                      }
-                      return (
-                        <Button
-                          key={pageNum}
-                          variant={pageNum === currentPage ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(pageNum)}
-                          className={pageNum === currentPage ? "bg-gradient-to-r from-blue-600 to-indigo-600" : ""}
-                        >
-                          {pageNum}
-                        </Button>
-                      );
-                    })}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                  >
-                    Neste
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </Button>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              )}
-            </>
-          ) : data && data.companies && data.companies.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <SearchIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Ingen resultater</h3>
-                <p className="text-gray-600">Prøv å justere søkekriteriene dine</p>
-              </CardContent>
-            </Card>
-          ) : null}
+
+                {/* Pagination */}
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-xs text-gray-500">
+                    Viser {companies.length} av {totalResults} bedrifter
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      Forrige
+                    </Button>
+                    <span className="text-xs text-gray-600">
+                      Side {currentPage} av {totalPages || 1}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages || totalPages === 0}
+                    >
+                      Neste
+                    </Button>
+                  </div>
+                </div>
+              </>
+            ) : data && data.companies && data.companies.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <SearchIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Ingen resultater</h3>
+                  <p className="text-gray-600">Prøv å justere søkekriteriene dine</p>
+                </CardContent>
+              </Card>
+            ) : null}
+          </div>
         </div>
       </div>
+
+      {/* Save Filter Dialog */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Lagre søkefilter</DialogTitle>
+            <DialogDescription>
+              Lagre dette filteret slik at du enkelt kan bruke det igjen senere.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="filterName">Navn på filter</Label>
+              <Input
+                id="filterName"
+                placeholder="F.eks. 'Store AS i Oslo med e-post'"
+                value={filterName}
+                onChange={(e) => setFilterName(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+              Avbryt
+            </Button>
+            <Button
+              onClick={saveCurrentFilter}
+              disabled={createFilterMutation.isPending}
+            >
+              {createFilterMutation.isPending ? "Lagrer..." : "Lagre filter"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
