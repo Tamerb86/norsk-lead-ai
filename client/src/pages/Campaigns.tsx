@@ -215,13 +215,6 @@ export default function Campaigns() {
                   />
                 </div>
 
-                {/* AI Email Writer */}
-                <div className="my-6">
-                  <AIEmailWriter
-                    onEmailGenerated={handleAIEmailGenerated}
-                  />
-                </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div>
                     <Label htmlFor="senderName" className="text-sm font-semibold text-gray-700">
@@ -249,6 +242,13 @@ export default function Campaigns() {
                       className="mt-1.5 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
+                </div>
+
+                {/* AI Email Writer */}
+                <div className="my-6">
+                  <AIEmailWriter
+                    onEmailGenerated={handleAIEmailGenerated}
+                  />
                 </div>
 
                 <div>
