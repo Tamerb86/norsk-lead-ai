@@ -14,6 +14,7 @@ import { CampaignsListSkeleton } from "@/components/SkeletonLoaders";
 import { Link, useSearch } from "wouter";
 import { toast } from "sonner";
 import { toastSuccess, toastError, toastDeleteWithUndo, toastWithViewDetails } from "@/lib/toast-utils";
+import { AIEmailWriter } from "@/components/AIEmailWriter";
 
 export default function Campaigns() {
   const { user } = useAuth();
@@ -46,6 +47,15 @@ export default function Campaigns() {
   const [showPreview, setShowPreview] = useState(false);
   const [filterTab, setFilterTab] = useState<'all' | 'drafts'>('all');
   const [editingCampaignId, setEditingCampaignId] = useState<number | null>(null);
+
+  const handleAIEmailGenerated = (subject: string, body: string) => {
+    setFormData({
+      ...formData,
+      emailSubject: subject,
+      emailBody: body,
+    });
+    toast.success("AI-generert innhold lagt til i skjemaet!");
+  };
 
   const renderPreviewEmail = () => {
     return formData.emailBody
@@ -232,6 +242,13 @@ export default function Campaigns() {
                       className="mt-1.5 border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                     />
                   </div>
+                </div>
+
+                {/* AI Email Writer */}
+                <div className="my-6">
+                  <AIEmailWriter
+                    onEmailGenerated={handleAIEmailGenerated}
+                  />
                 </div>
 
                 <div>
