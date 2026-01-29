@@ -25,6 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Plus, MoreVertical, Play, Pause, Archive, Edit, Trash2, Users } from "lucide-react";
 import { toastSuccess, toastError, toastDeleteWithUndo } from "@/lib/toast-utils";
+import { PageHelp, PAGE_DESCRIPTIONS } from "@/components/PageHelp";
 
 export default function Sequences() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -118,7 +119,7 @@ export default function Sequences() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">E-postsekvenser</h1>
+            <PageHelp title="Sekvenser" description={PAGE_DESCRIPTIONS.sequences} />
             <p className="text-gray-600">
               Automatiser oppfølgings-e-poster med multi-step workflows
             </p>

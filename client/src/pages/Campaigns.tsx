@@ -15,6 +15,7 @@ import { Link, useSearch } from "wouter";
 import { toast } from "sonner";
 import { toastSuccess, toastError, toastDeleteWithUndo, toastWithViewDetails } from "@/lib/toast-utils";
 import { AIEmailWriter } from "@/components/AIEmailWriter";
+import { PageHelp, PAGE_DESCRIPTIONS } from "@/components/PageHelp";
 
 export default function Campaigns() {
   const { user } = useAuth();
@@ -170,7 +171,7 @@ export default function Campaigns() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Kampanjer</h1>
+            <PageHelp title="Kampanjer" description={PAGE_DESCRIPTIONS.campaigns} />
             <p className="text-gray-600">Administrer dine e-postkampanjer</p>
           </div>
           <Button 

@@ -482,6 +482,36 @@ export const appRouter = router({
         return result;
       }),
   }),
+  // ============================================
+  // ENRICHMENT ROUTER
+  // ============================================
+  enrichment: router({
+    getStats: protectedProcedure.query(async ({ ctx }) => {
+      const { getEnrichmentStats } = await import("./services/autoEnrichment");
+      return await getEnrichmentStats();
+    }),
+    getSchedulerStatus: protectedProcedure.query(async ({ ctx }) => {
+      const { getSchedulerStatus } = await import("./services/enrichmentScheduler");
+      return await getSchedulerStatus();
+    }),
+    startAutoEnrichment: protectedProcedure.mutation(async ({ ctx }) => {
+      const { autoEnrichAllCompanies } = await import("./services/autoEnrichment");
+      const queued = await autoEnrichAllCompanies();
+      return { queued };
+    }),
+    retryFailedJobs: protectedProcedure.mutation(async ({ ctx }) => {
+      const { retryFailedJobs } = await import("./services/autoEnrichment");
+      const retried = await retryFailedJobs();
+      return { retried };
+    }),
+    clearOldJobs: protectedProcedure
+      .input(z.object({ daysOld: z.number().default(30) }))
+      .mutation(async ({ ctx, input }) => {
+        const { clearOldJobs } = await import("./services/autoEnrichment");
+        const cleared = await clearOldJobs(input.daysOld);
+        return { cleared };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

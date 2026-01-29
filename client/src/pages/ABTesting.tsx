@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { PageHelp, PAGE_DESCRIPTIONS } from "@/components/PageHelp";
 import { 
   FlaskConical, 
   Plus, 
@@ -155,7 +156,7 @@ export default function ABTesting() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">A/B-testing</h1>
+            <PageHelp title="A/B-testing" description={PAGE_DESCRIPTIONS.abTesting} />
             <p className="text-muted-foreground">
               Test ulike versjoner av e-postene dine for å finne hva som fungerer best
             </p>

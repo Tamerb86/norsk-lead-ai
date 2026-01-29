@@ -729,3 +729,57 @@ export const webhookDeliveries = pgTable("webhook_deliveries", {
 }));
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 export type InsertWebhookDelivery = typeof webhookDeliveries.$inferInsert;
+
+// Enrichment Queue - Auto-enrichment system
+export const enrichmentStatusEnum = pgEnum("enrichment_status", ["pending", "processing", "completed", "failed"]);
+
+export const enrichmentQueue = pgTable("enrichment_queue", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").notNull(),
+  userId: integer("user_id"),
+  status: enrichmentStatusEnum("status").default("pending").notNull(),
+  priority: integer("priority").default(5).notNull(), // 1-10, higher = more important
+  attempts: integer("attempts").default(0).notNull(),
+  // Progress tracking
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  // Results
+  enrichedFields: text("enriched_fields"), // JSON array of fields that were enriched
+  error: text("error"),
+  // Timestamps
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  companyIdIdx: index("enrichment_queue_company_id_idx").on(table.companyId),
+  statusIdx: index("enrichment_queue_status_idx").on(table.status),
+  priorityIdx: index("enrichment_queue_priority_idx").on(table.priority),
+  createdAtIdx: index("enrichment_queue_created_at_idx").on(table.createdAt),
+}));
+export type EnrichmentJob = typeof enrichmentQueue.$inferSelect;
+export type InsertEnrichmentJob = typeof enrichmentQueue.$inferInsert;
+
+// Enrichment Jobs - Detailed job tracking
+export const enrichmentJobs = pgTable("enrichment_jobs", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  // Job configuration
+  filters: text("filters"), // JSON filters for selecting companies
+  totalCompanies: integer("total_companies").default(0).notNull(),
+  processedCompanies: integer("processed_companies").default(0).notNull(),
+  successfulCompanies: integer("successful_companies").default(0).notNull(),
+  failedCompanies: integer("failed_companies").default(0).notNull(),
+  // Status
+  status: enrichmentStatusEnum("status").default("pending").notNull(),
+  progress: integer("progress").default(0).notNull(), // 0-100
+  // Timestamps
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("enrichment_jobs_user_id_idx").on(table.userId),
+  statusIdx: index("enrichment_jobs_status_idx").on(table.status),
+  createdAtIdx: index("enrichment_jobs_created_at_idx").on(table.createdAt),
+}));
+export type EnrichmentJobRecord = typeof enrichmentJobs.$inferSelect;
+export type InsertEnrichmentJobRecord = typeof enrichmentJobs.$inferInsert;

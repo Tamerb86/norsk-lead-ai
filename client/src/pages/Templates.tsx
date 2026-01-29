@@ -17,6 +17,7 @@ import { toastSuccess, toastError } from "@/lib/toast-utils";
 import { VariableInserter } from "@/components/VariableInserter";
 import { replaceVariables } from "@/lib/template-variables";
 import { prebuiltTemplates, templateCategories, EmailTemplate } from "@/data/emailTemplates";
+import { PageHelp, PAGE_DESCRIPTIONS } from "@/components/PageHelp";
 
 export default function Templates() {
   const { user } = useAuth();
@@ -136,7 +137,7 @@ export default function Templates() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">E-postmaler</h1>
+            <PageHelp title="Maler" description={PAGE_DESCRIPTIONS.templates} />
             <p className="text-gray-600">Lag og administrer e-postmaler</p>
           </div>
           <Button 

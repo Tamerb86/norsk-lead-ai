@@ -37,6 +37,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { DashboardStatsSkeleton } from "@/components/SkeletonLoaders";
+import { PageHelp, PAGE_DESCRIPTIONS } from "@/components/PageHelp";
 
 const COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#3b82f6"];
 
@@ -95,9 +96,7 @@ function FullPageEmptyState() {
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-6 shadow-lg">
               <BarChart3 className="w-12 h-12 text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-3">
-              Ingen data å vise ennå
-            </h2>
+            <PageHelp title="Analyser" description={PAGE_DESCRIPTIONS.analytics} />
             <p className="text-slate-600 max-w-md mx-auto mb-8">
               Start med å opprette din første kampanje for å se detaljert analyse av e-postytelse, 
               lead-engasjement og konverteringsrater.

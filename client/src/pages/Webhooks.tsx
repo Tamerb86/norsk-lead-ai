@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { PageHelp, PAGE_DESCRIPTIONS } from "@/components/PageHelp";
 import { 
   Webhook, 
   Plus, 
@@ -181,7 +182,7 @@ export default function Webhooks() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Webhooks</h1>
+            <PageHelp title="Webhooks" description={PAGE_DESCRIPTIONS.webhooks} />
             <p className="text-muted-foreground">
               Integrer med eksterne systemer ved å motta hendelser i sanntid
             </p>

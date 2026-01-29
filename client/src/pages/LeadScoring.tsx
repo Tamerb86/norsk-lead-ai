@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { PageHelp, PAGE_DESCRIPTIONS } from "@/components/PageHelp";
 import { 
   Target, 
   Plus, 
@@ -187,7 +188,7 @@ export default function LeadScoring() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Lead Scoring</h1>
+            <PageHelp title="Lead Scoring" description={PAGE_DESCRIPTIONS.leadScoring} />
             <p className="text-muted-foreground">
               Automatisk rangering av leads basert på engasjement og egenskaper
             </p>

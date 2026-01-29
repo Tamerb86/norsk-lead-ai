@@ -45,6 +45,7 @@ import { toastError, toastSuccess } from "@/lib/toast-utils";
 import { exportCompaniesToCSV } from "@/lib/export-utils";
 import { useLocation } from "wouter";
 import { COMMON_NAERINGSKODER } from "../../../shared/naeringskoder";
+import { PageHelp, PAGE_DESCRIPTIONS } from "@/components/PageHelp";
 
 export default function Search() {
   const { user } = useAuth();
@@ -282,10 +283,13 @@ export default function Search() {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <Building2 className="w-6 h-6 text-blue-600" />
-              Søk bedrifter i Norge
-            </h1>
+              <PageHelp 
+                title="Søk bedrifter i Norge"
+                description={PAGE_DESCRIPTIONS.search}
+              />
+            </div>
             <p className="text-gray-600 mt-1">
               Finn relevante bedrifter basert på bransje, størrelse, lokasjon og mer. Perfekt for B2B-salg og leadgenerering.
             </p>

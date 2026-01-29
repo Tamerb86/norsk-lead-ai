@@ -48,6 +48,7 @@ const ABTesting = lazy(() => import(/* webpackChunkName: "ab-testing" */ "./page
 const LeadScoringPage = lazy(() => import(/* webpackChunkName: "lead-scoring" */ "./pages/LeadScoring"));
 const Webhooks = lazy(() => import(/* webpackChunkName: "webhooks" */ "./pages/Webhooks"));
 const AIAssistant = lazy(() => import(/* webpackChunkName: "ai-assistant" */ "./pages/AIAssistant"));
+const AutoEnrichment = lazy(() => import(/* webpackChunkName: "auto-enrichment" */ "./pages/AutoEnrichment"));
 const AIInsights = lazy(() => import(/* webpackChunkName: "ai-insights" */ "./pages/AIInsights"));
 const ForgotPassword = lazy(() => import(/* webpackChunkName: "forgot-password" */ "@/pages/ForgotPassword"));
 
@@ -130,6 +131,7 @@ function Router() {
         <Route path="/webhooks" component={Webhooks} />
         <Route path="/ai-assistant" component={AIAssistant} />
         <Route path="/ai-insights" component={AIInsights} />
+        <Route path="/auto-enrichment" component={AutoEnrichment} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/settings" component={Settings} />
         <Route path="/team" component={TeamSettings} />

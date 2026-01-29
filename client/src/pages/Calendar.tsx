@@ -50,6 +50,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isToday, parseISO, addHours } from "date-fns";
 import { nb } from "date-fns/locale";
+import { PageHelp, PAGE_DESCRIPTIONS } from "@/components/PageHelp";
 
 // Event type colors and icons
 const eventTypeConfig: Record<string, { color: string; bgColor: string; icon: any; label: string }> = {
@@ -262,7 +263,7 @@ export default function Calendar() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Kalender</h1>
+            <PageHelp title="Kalender" description={PAGE_DESCRIPTIONS.calendar} />
             <p className="text-gray-500">Planlegg oppfølginger og møter</p>
           </div>
           <Dialog open={isCreateDialogOpen} onOpenChange={(open) => {

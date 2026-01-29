@@ -50,6 +50,7 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { PageHelp, PAGE_DESCRIPTIONS } from "@/components/PageHelp";
 
 interface ReferralStats {
   id: number;
@@ -217,7 +218,7 @@ export default function Referral() {
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-2">
-          <h1 className="text-3xl font-bold tracking-tight">Henvisningsprogram</h1>
+          <PageHelp title="Henvisning" description={PAGE_DESCRIPTIONS.referral} />
           <p className="text-muted-foreground">
             Inviter venner og kollegaer til NorskLeads og tjen belønninger for hver som registrerer seg.
           </p>

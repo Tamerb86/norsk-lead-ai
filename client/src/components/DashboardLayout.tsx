@@ -45,7 +45,8 @@ import {
   Target,
   Webhook,
   Sparkles,
-  Brain
+  Brain,
+  Database
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
@@ -70,6 +71,7 @@ const menuItems = [
   { icon: Gift, label: "Henvisning", path: "/referral", description: "Inviter venner" },
   { icon: Sparkles, label: "AI Assistent", path: "/ai-assistant", description: "Salgsassistent" },
   { icon: Brain, label: "AI Innsikt", path: "/ai-insights", description: "Lead-analyse" },
+  { icon: Database, label: "Auto-berikelse", path: "/auto-enrichment", description: "Automatisk berikelse" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";

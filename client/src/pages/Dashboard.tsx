@@ -10,6 +10,7 @@ import { Link } from "wouter";
 import { useState, useEffect, useRef } from "react";
 import { DashboardStatsSkeleton } from "@/components/SkeletonLoaders";
 import { OnboardingWizard, useOnboarding } from "@/components/OnboardingWizard";
+import { PageHelp, PAGE_DESCRIPTIONS } from "@/components/PageHelp";
 import { ReportExportButton } from "@/components/ReportExportButton";
 import { DashboardWidgets, WidgetType } from "@/components/dashboard/DashboardWidgets";
 import {
@@ -143,9 +144,10 @@ export default function Dashboard() {
         {/* Welcome Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              Velkommen tilbake, {user.name?.split(' ')[0] || 'bruker'}! 👋
-            </h1>
+            <PageHelp 
+              title={`Velkommen tilbake, ${user.name?.split(' ')[0] || 'bruker'}! 👋`}
+              description={PAGE_DESCRIPTIONS.dashboard}
+            />
             <p className="text-muted-foreground mt-1">Her er en oversikt over din aktivitet</p>
           </div>
           <div className="flex items-center gap-3">

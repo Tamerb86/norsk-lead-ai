@@ -14,6 +14,7 @@ import trackingRoutes from "../trackingRoutes";
 import { initSentry, setupSentryErrorHandler } from "./sentry";
 import { apiRateLimiter, authRateLimiter, checkLockout, registrationRateLimiter, passwordResetRateLimiter } from "./rateLimit";
 import { ENV } from "./env";
+import { initializeSchedulers } from "../services/enrichmentScheduler";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -189,6 +190,13 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    
+    // Initialize enrichment schedulers
+    if (process.env.NODE_ENV === 'production') {
+      initializeSchedulers();
+    } else {
+      console.log('[Schedulers] Skipped in development mode');
+    }
   });
 }
 
