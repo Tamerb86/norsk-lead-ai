@@ -1,4 +1,4 @@
-import { integer, pgEnum, pgTable, text, timestamp, varchar, boolean, json, date, index, serial } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, json, pgEnum, pgTable, real, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
 
 // Define enums for PostgreSQL
 export const roleEnum = pgEnum("role", ["admin", "manager", "viewer"]);
