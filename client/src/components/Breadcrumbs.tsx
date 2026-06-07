@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "wouter";
 import { ChevronRight, Home } from "lucide-react";
 
 interface BreadcrumbItem {
@@ -53,11 +53,11 @@ const routeLabels: Record<string, string> = {
 };
 
 export function Breadcrumbs({ items, className = "" }: BreadcrumbsProps) {
-  const location = useLocation();
+  const [pathname] = useLocation();
   
   // Auto-generate breadcrumbs from URL if items not provided
   const breadcrumbItems: BreadcrumbItem[] = items || (() => {
-    const pathSegments = location.pathname.split("/").filter(Boolean);
+    const pathSegments = pathname.split("/").filter(Boolean);
     const generatedItems: BreadcrumbItem[] = [
       { label: "Hjem", href: "/" }
     ];
@@ -79,7 +79,7 @@ export function Breadcrumbs({ items, className = "" }: BreadcrumbsProps) {
   })();
 
   // Don't show breadcrumbs on home page
-  if (location.pathname === "/" || breadcrumbItems.length <= 1) {
+  if (pathname === "/" || breadcrumbItems.length <= 1) {
     return null;
   }
 
