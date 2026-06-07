@@ -3050,3 +3050,203 @@ async function sendWebhook(webhook: any, deliveryId: number, eventType: string, 
     });
   }
 }
+
+// ============================================
+// Leads + saved-companies API used by the tRPC routers
+// ============================================
+
+export async function toggleSaveCompany(userId: number, companyId: number) {
+  const isSaved = await checkCompanySaved(userId, companyId);
+  if (isSaved) {
+    await removeSavedCompany(userId, companyId);
+    return { saved: false };
+  }
+  await saveCompany({ userId, companyId, listName: "default" });
+  return { saved: true };
+}
+
+export async function getLeads(
+  userId: number,
+  campaignId?: number,
+  status?: string
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const conditions = [eq(leads.userId, userId)];
+  if (campaignId !== undefined) conditions.push(eq(leads.campaignId, campaignId));
+  if (status) conditions.push(eq(leads.status, status));
+
+  return await db
+    .select({
+      lead: leads,
+      company: norwegianCompanies,
+    })
+    .from(leads)
+    .leftJoin(norwegianCompanies, eq(leads.companyId, norwegianCompanies.id))
+    .where(and(...conditions))
+    .orderBy(desc(leads.createdAt));
+}
+
+export async function getLeadById(userId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [row] = await db
+    .select({
+      lead: leads,
+      company: norwegianCompanies,
+    })
+    .from(leads)
+    .leftJoin(norwegianCompanies, eq(leads.companyId, norwegianCompanies.id))
+    .where(and(eq(leads.id, id), eq(leads.userId, userId)))
+    .limit(1);
+
+  return row || null;
+}
+
+export async function createLead(data: {
+  userId: number;
+  campaignId?: number;
+  companyId: number;
+  status?: string;
+  email?: string;
+  name?: string;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  if (data.campaignId === undefined) {
+    throw new Error("campaignId is required to create a lead");
+  }
+
+  const { generateTrackingId } = await import("./emailTracking");
+  const trackingId = generateTrackingId();
+
+  const [row] = await db
+    .insert(leads)
+    .values({
+      userId: data.userId,
+      campaignId: data.campaignId,
+      companyId: data.companyId,
+      status: (data.status as any) || "pending",
+      trackingId,
+      openCount: 0,
+      clickCount: 0,
+      followUpCount: 0,
+    })
+    .returning();
+
+  return row;
+}
+
+export async function bulkUpdateLeadStatus(
+  ids: number[],
+  userId: number,
+  status: string
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  if (ids.length === 0) return { success: true, updated: 0 };
+
+  const result = await db
+    .update(leads)
+    .set({ status: status as any, updatedAt: new Date() })
+    .where(and(inArray(leads.id, ids), eq(leads.userId, userId)));
+
+  return { success: true, updated: (result as any).rowCount || 0 };
+}
+
+export async function getLeadStats(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [stats] = await db
+    .select({
+      total: sql<number>`count(*)`,
+      pending: sql<number>`sum(case when status = 'pending' then 1 else 0 end)`,
+      sent: sql<number>`sum(case when status = 'sent' then 1 else 0 end)`,
+      opened: sql<number>`sum(case when status = 'opened' then 1 else 0 end)`,
+      clicked: sql<number>`sum(case when status = 'clicked' then 1 else 0 end)`,
+      replied: sql<number>`sum(case when status = 'replied' then 1 else 0 end)`,
+      bounced: sql<number>`sum(case when status = 'bounced' then 1 else 0 end)`,
+    })
+    .from(leads)
+    .where(eq(leads.userId, userId));
+
+  return {
+    total: Number(stats?.total) || 0,
+    pending: Number(stats?.pending) || 0,
+    sent: Number(stats?.sent) || 0,
+    opened: Number(stats?.opened) || 0,
+    clicked: Number(stats?.clicked) || 0,
+    replied: Number(stats?.replied) || 0,
+    bounced: Number(stats?.bounced) || 0,
+  };
+}
+
+// ============================================
+// Team API used by the tRPC team router (delegates to teamDb)
+// ============================================
+
+export async function getTeamInfo(userId: number) {
+  const user = await getUserById(userId);
+  if (!user?.teamId) return null;
+
+  const teamDb = await import("./teamDb");
+  const team = await teamDb.getTeamById(user.teamId);
+  if (!team) return null;
+
+  const members = await teamDb.getTeamMembers(user.teamId);
+  const invitations = await teamDb.getTeamInvitations(user.teamId);
+
+  return {
+    team,
+    members: members.map(m => ({
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      role: m.role,
+      lastSignedIn: m.lastSignedIn,
+    })),
+    invitations,
+  };
+}
+
+export async function inviteTeamMember(userId: number, email: string, role: string) {
+  const user = await getUserById(userId);
+  if (!user?.teamId) throw new Error("You are not part of a team");
+
+  const allowedRoles = ["admin", "manager", "viewer"] as const;
+  if (!allowedRoles.includes(role as any)) throw new Error("Invalid role");
+
+  const teamDb = await import("./teamDb");
+  const team = await teamDb.getTeamById(user.teamId);
+  if (team?.ownerId !== userId && user.role !== "admin") {
+    throw new Error("Only the team owner or an admin can invite members");
+  }
+
+  return await teamDb.createInvitation({
+    teamId: user.teamId,
+    email: email.toLowerCase(),
+    role: role as (typeof allowedRoles)[number],
+    invitedBy: userId,
+  });
+}
+
+export async function removeTeamMember(userId: number, memberId: number) {
+  const user = await getUserById(userId);
+  if (!user?.teamId) throw new Error("You are not part of a team");
+
+  const teamDb = await import("./teamDb");
+  const team = await teamDb.getTeamById(user.teamId);
+  if (team?.ownerId !== userId && user.role !== "admin") {
+    throw new Error("Only the team owner or an admin can remove members");
+  }
+  if (memberId === team?.ownerId) {
+    throw new Error("The team owner cannot be removed");
+  }
+
+  return await teamDb.removeMember(memberId, user.teamId);
+}

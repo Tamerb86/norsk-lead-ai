@@ -1,21 +1,19 @@
-import { db, companies, enrichmentJobs, enrichmentQueue } from "../db";
 import { eq, and, isNull, lt, sql } from "drizzle-orm";
-import { researchCompany, generateLeadInsights } from "./aiInsights";
-import { enrichCompanyData } from "./brregIntegration";
+import { getDb } from "../db";
+import { norwegianCompanies, enrichmentQueue } from "../../drizzle/schema";
+import { getBrregCompany, convertBrregToCompany } from "./brregIntegration";
 
 /**
  * Auto Enrichment Service
- * 
- * Automatically enriches company data in the background using:
- * 1. Brreg API for official Norwegian company data
- * 2. AI for missing data (email, phone, pain points, etc.)
- * 3. Web scraping for additional information
+ *
+ * Automatically enriches company data in the background using the
+ * official Brreg (Brønnøysundregistrene) API.
  */
 
 export interface EnrichmentJobStatus {
   id: number;
   companyId: number;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: "pending" | "processing" | "completed" | "failed";
   progress: number;
   startedAt?: Date;
   completedAt?: Date;
@@ -32,38 +30,47 @@ export interface EnrichmentStats {
   averageTime: number; // in seconds
 }
 
+async function requireDb() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  return db;
+}
+
 /**
  * Add companies to enrichment queue
  */
 export async function queueCompaniesForEnrichment(
   companyIds: number[],
-  priority: 'low' | 'normal' | 'high' = 'normal'
+  priority: "low" | "normal" | "high" = "normal"
 ): Promise<number> {
+  if (companyIds.length === 0) return 0;
+  const db = await requireDb();
   const priorityValue = { low: 1, normal: 5, high: 10 }[priority];
-  
+
   const jobs = companyIds.map(companyId => ({
     companyId,
-    status: 'pending' as const,
+    status: "pending" as const,
     priority: priorityValue,
     attempts: 0,
     createdAt: new Date(),
   }));
 
   const result = await db.insert(enrichmentQueue).values(jobs);
-  return result.rowCount || 0;
+  return (result as any).rowCount ?? jobs.length;
 }
 
 /**
  * Process next enrichment job from queue
  */
 export async function processNextEnrichmentJob(): Promise<boolean> {
-  // Get next pending job with highest priority
+  const db = await requireDb();
+
   const [job] = await db
     .select()
     .from(enrichmentQueue)
     .where(
       and(
-        eq(enrichmentQueue.status, 'pending'),
+        eq(enrichmentQueue.status, "pending"),
         lt(enrichmentQueue.attempts, 3) // Max 3 attempts
       )
     )
@@ -75,43 +82,40 @@ export async function processNextEnrichmentJob(): Promise<boolean> {
   }
 
   try {
-    // Update status to processing
     await db
       .update(enrichmentQueue)
       .set({
-        status: 'processing',
+        status: "processing",
         startedAt: new Date(),
         attempts: job.attempts + 1,
       })
       .where(eq(enrichmentQueue.id, job.id));
 
-    // Get company data
     const [company] = await db
       .select()
-      .from(companies)
-      .where(eq(companies.id, job.companyId));
+      .from(norwegianCompanies)
+      .where(eq(norwegianCompanies.id, job.companyId));
 
     if (!company) {
       throw new Error(`Company ${job.companyId} not found`);
     }
 
-    // Enrich company data
     const enrichedData = await enrichCompany(company);
 
-    // Update company with enriched data
-    await db
-      .update(companies)
-      .set({
-        ...enrichedData,
-        lastEnrichedAt: new Date(),
-      })
-      .where(eq(companies.id, job.companyId));
+    if (Object.keys(enrichedData).length > 0) {
+      await db
+        .update(norwegianCompanies)
+        .set({
+          ...enrichedData,
+          updatedAt: new Date(),
+        })
+        .where(eq(norwegianCompanies.id, job.companyId));
+    }
 
-    // Mark job as completed
     await db
       .update(enrichmentQueue)
       .set({
-        status: 'completed',
+        status: "completed",
         completedAt: new Date(),
         enrichedFields: JSON.stringify(Object.keys(enrichedData)),
       })
@@ -119,13 +123,12 @@ export async function processNextEnrichmentJob(): Promise<boolean> {
 
     return true;
   } catch (error) {
-    // Mark job as failed
     await db
       .update(enrichmentQueue)
       .set({
-        status: 'failed',
+        status: "failed",
         completedAt: new Date(),
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       })
       .where(eq(enrichmentQueue.id, job.id));
 
@@ -134,68 +137,36 @@ export async function processNextEnrichmentJob(): Promise<boolean> {
   }
 }
 
+type NorwegianCompany = typeof norwegianCompanies.$inferSelect;
+
 /**
- * Enrich a single company
+ * Enrich a single company from Brreg. Only fills fields that are missing.
  */
-async function enrichCompany(company: any): Promise<Partial<typeof company>> {
-  const enriched: any = {};
+async function enrichCompany(
+  company: NorwegianCompany
+): Promise<Partial<NorwegianCompany>> {
+  const enriched: Partial<NorwegianCompany> = {};
 
-  // 1. Enrich with Brreg if orgNr is available
-  if (company.orgNr && !company.lastEnrichedAt) {
-    try {
-      const brregData = await enrichCompanyData(company.orgNr);
-      Object.assign(enriched, brregData);
-    } catch (error) {
-      console.error(`Brreg enrichment failed for ${company.orgNr}:`, error);
-    }
-  }
+  if (!company.organisasjonsnummer) return enriched;
 
-  // 2. Use AI to fill missing data
-  const missingFields: string[] = [];
-  
-  if (!company.email) missingFields.push('email');
-  if (!company.phone) missingFields.push('phone');
-  if (!company.website) missingFields.push('website');
-  if (!company.linkedin) missingFields.push('linkedin');
-  if (!company.painPoints) missingFields.push('painPoints');
+  const brreg = await getBrregCompany(company.organisasjonsnummer);
+  if (!brreg) return enriched;
 
-  if (missingFields.length > 0) {
-    try {
-      const aiData = await researchCompany({
-        companyName: company.name,
-        industry: company.industry || company.naeringskodeBeskrivelse,
-        website: company.website || enriched.website,
-        orgNr: company.orgNr,
-      });
+  const data = convertBrregToCompany(brreg);
 
-      // Map AI data to company fields
-      if (aiData.email && !company.email) enriched.email = aiData.email;
-      if (aiData.phone && !company.phone) enriched.phone = aiData.phone;
-      if (aiData.website && !company.website) enriched.website = aiData.website;
-      if (aiData.linkedin && !company.linkedin) enriched.linkedin = aiData.linkedin;
-      if (aiData.painPoints) enriched.painPoints = JSON.stringify(aiData.painPoints);
-      if (aiData.keyContacts) enriched.keyContacts = JSON.stringify(aiData.keyContacts);
-    } catch (error) {
-      console.error(`AI enrichment failed for ${company.name}:`, error);
-    }
-  }
-
-  // 3. Generate lead insights if not exists
-  if (!company.leadInsights) {
-    try {
-      const insights = await generateLeadInsights({
-        companyName: company.name,
-        industry: company.industry || enriched.industry,
-        size: company.employees || enriched.employees,
-        website: company.website || enriched.website,
-        recentActivity: company.recentActivity,
-      });
-
-      enriched.leadInsights = JSON.stringify(insights);
-    } catch (error) {
-      console.error(`Lead insights generation failed for ${company.name}:`, error);
-    }
-  }
+  if (data.epostadresse && !company.epostadresse) enriched.epostadresse = data.epostadresse;
+  if (data.telefon && !company.telefon) enriched.telefon = data.telefon;
+  if (data.hjemmeside && !company.hjemmeside) enriched.hjemmeside = data.hjemmeside;
+  if (data.forretningsadresse && !company.forretningsadresse) enriched.forretningsadresse = data.forretningsadresse;
+  if (data.poststed && !company.poststed) enriched.poststed = data.poststed;
+  if (data.postnummer && !company.postnummer) enriched.postnummer = data.postnummer;
+  if (data.kommune && !company.kommune) enriched.kommune = data.kommune;
+  if (data.fylke && !company.fylke) enriched.fylke = data.fylke;
+  if (data.naeringskode && !company.naeringskode1) enriched.naeringskode1 = data.naeringskode;
+  if (data.naeringsbeskrivelse && !company.naeringsbeskrivelse1) enriched.naeringsbeskrivelse1 = data.naeringsbeskrivelse;
+  if (data.antallAnsatte != null && company.antallAnsatte == null) enriched.antallAnsatte = data.antallAnsatte;
+  if (typeof data.konkurs === "boolean") enriched.konkurs = data.konkurs;
+  if (typeof data.underAvvikling === "boolean") enriched.underAvvikling = data.underAvvikling;
 
   return enriched;
 }
@@ -204,6 +175,7 @@ async function enrichCompany(company: any): Promise<Partial<typeof company>> {
  * Get enrichment statistics
  */
 export async function getEnrichmentStats(): Promise<EnrichmentStats> {
+  const db = await requireDb();
   const [stats] = await db
     .select({
       total: sql<number>`count(*)`,
@@ -216,19 +188,22 @@ export async function getEnrichmentStats(): Promise<EnrichmentStats> {
     .from(enrichmentQueue);
 
   return {
-    total: Number(stats.total) || 0,
-    pending: Number(stats.pending) || 0,
-    processing: Number(stats.processing) || 0,
-    completed: Number(stats.completed) || 0,
-    failed: Number(stats.failed) || 0,
-    averageTime: Number(stats.averageTime) || 0,
+    total: Number(stats?.total) || 0,
+    pending: Number(stats?.pending) || 0,
+    processing: Number(stats?.processing) || 0,
+    completed: Number(stats?.completed) || 0,
+    failed: Number(stats?.failed) || 0,
+    averageTime: Number(stats?.averageTime) || 0,
   };
 }
 
 /**
  * Get enrichment job status
  */
-export async function getEnrichmentJobStatus(jobId: number): Promise<EnrichmentJobStatus | null> {
+export async function getEnrichmentJobStatus(
+  jobId: number
+): Promise<EnrichmentJobStatus | null> {
+  const db = await requireDb();
   const [job] = await db
     .select()
     .from(enrichmentQueue)
@@ -240,7 +215,7 @@ export async function getEnrichmentJobStatus(jobId: number): Promise<EnrichmentJ
     id: job.id,
     companyId: job.companyId,
     status: job.status,
-    progress: job.status === 'completed' ? 100 : job.status === 'processing' ? 50 : 0,
+    progress: job.status === "completed" ? 100 : job.status === "processing" ? 50 : 0,
     startedAt: job.startedAt || undefined,
     completedAt: job.completedAt || undefined,
     error: job.error || undefined,
@@ -252,22 +227,24 @@ export async function getEnrichmentJobStatus(jobId: number): Promise<EnrichmentJ
  * Retry failed enrichment jobs
  */
 export async function retryFailedJobs(): Promise<number> {
+  const db = await requireDb();
   const result = await db
     .update(enrichmentQueue)
     .set({
-      status: 'pending',
+      status: "pending",
       attempts: 0,
       error: null,
     })
-    .where(eq(enrichmentQueue.status, 'failed'));
+    .where(eq(enrichmentQueue.status, "failed"));
 
-  return result.rowCount || 0;
+  return (result as any).rowCount || 0;
 }
 
 /**
  * Clear completed enrichment jobs older than X days
  */
 export async function clearOldJobs(daysOld: number = 30): Promise<number> {
+  const db = await requireDb();
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
@@ -275,32 +252,29 @@ export async function clearOldJobs(daysOld: number = 30): Promise<number> {
     .delete(enrichmentQueue)
     .where(
       and(
-        eq(enrichmentQueue.status, 'completed'),
+        eq(enrichmentQueue.status, "completed"),
         lt(enrichmentQueue.completedAt, cutoffDate)
       )
     );
 
-  return result.rowCount || 0;
+  return (result as any).rowCount || 0;
 }
 
 /**
- * Auto-enrich all companies without enrichment
+ * Auto-enrich companies that are missing contact info
  */
 export async function autoEnrichAllCompanies(): Promise<number> {
-  // Find companies that haven't been enriched yet
-  const unenrichedCompanies = await db
-    .select({ id: companies.id })
-    .from(companies)
-    .where(isNull(companies.lastEnrichedAt))
+  const db = await requireDb();
+  const candidates = await db
+    .select({ id: norwegianCompanies.id })
+    .from(norwegianCompanies)
+    .where(isNull(norwegianCompanies.epostadresse))
     .limit(1000); // Process in batches
 
-  const companyIds = unenrichedCompanies.map(c => c.id);
-  
-  if (companyIds.length === 0) {
-    return 0;
-  }
+  const companyIds = candidates.map(c => c.id);
+  if (companyIds.length === 0) return 0;
 
-  return await queueCompaniesForEnrichment(companyIds, 'normal');
+  return await queueCompaniesForEnrichment(companyIds, "normal");
 }
 
 /**
@@ -308,8 +282,8 @@ export async function autoEnrichAllCompanies(): Promise<number> {
  * Call this function periodically (e.g., every minute)
  */
 export async function enrichmentWorker(): Promise<void> {
-  console.log('[Enrichment Worker] Starting...');
-  
+  console.log("[Enrichment Worker] Starting...");
+
   let processed = 0;
   let hasMore = true;
 
