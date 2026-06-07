@@ -153,52 +153,6 @@ export default defineConfig({
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
-        manualChunks: (id) => {
-          // Core React libraries
-          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
-            return 'vendor-react';
-          }
-          // Radix UI components
-          if (id.includes('@radix-ui')) {
-            return 'vendor-radix';
-          }
-          // Charts library (large)
-          if (id.includes('recharts') || id.includes('d3-')) {
-            return 'vendor-charts';
-          }
-          // Calendar library
-          if (id.includes('react-big-calendar') || id.includes('moment')) {
-            return 'vendor-calendar';
-          }
-          // PDF generation
-          if (id.includes('jspdf') || id.includes('html2canvas')) {
-            return 'vendor-pdf';
-          }
-          // Drag and drop
-          if (id.includes('react-beautiful-dnd') || id.includes('@hello-pangea/dnd')) {
-            return 'vendor-dnd';
-          }
-          // Form handling
-          if (id.includes('react-hook-form') || id.includes('@hookform') || id.includes('zod')) {
-            return 'vendor-forms';
-          }
-          // tRPC and tanstack query
-          if (id.includes('@trpc') || id.includes('@tanstack/react-query')) {
-            return 'vendor-query';
-          }
-          // Utility libraries
-          if (id.includes('date-fns') || id.includes('clsx') || id.includes('tailwind-merge') || id.includes('class-variance-authority')) {
-            return 'vendor-utils';
-          }
-          // Lucide icons (can be large)
-          if (id.includes('lucide-react')) {
-            return 'vendor-icons';
-          }
-          // Other node_modules
-          if (id.includes('node_modules')) {
-            return 'vendor-misc';
-          }
-        },
       },
     },
   },
