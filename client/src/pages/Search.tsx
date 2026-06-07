@@ -274,7 +274,19 @@ export default function Search() {
   const selectedNaeringskode = COMMON_NAERINGSKODER.find(n => n.code === naeringskode);
 
   if (!user) {
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center p-8 bg-card rounded-2xl shadow-xl max-w-md">
+          <h2 className="text-2xl font-bold text-foreground mb-2">Logg inn for å fortsette</h2>
+          <p className="text-muted-foreground mb-6">Du må være logget inn for å søke i bedriftsdatabasen</p>
+          <a href="/login">
+            <Button size="lg" className="w-full bg-gradient-to-r from-blue-600 to-purple-600">
+              Logg inn
+            </Button>
+          </a>
+        </div>
+      </div>
+    );
   }
 
   return (
