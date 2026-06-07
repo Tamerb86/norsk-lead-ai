@@ -644,7 +644,7 @@ export default function Search() {
         </Card>
 
         {/* Saved Filters */}
-        {savedFiltersData && savedFiltersData.filters.length > 0 && (
+        {savedFiltersData && savedFiltersData.length > 0 && (
           <Card className="border-dashed border-gray-300">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -653,7 +653,7 @@ export default function Search() {
             </CardHeader>
             <CardContent className="space-y-2">
               <div className="flex flex-wrap gap-2">
-                {savedFiltersData.filters.map((filter) => (
+                {savedFiltersData.map((filter) => (
                   <DropdownMenu key={filter.id}>
                     <DropdownMenuTrigger asChild>
                       <Button
