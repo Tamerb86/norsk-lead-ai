@@ -4,6 +4,7 @@
  */
 
 import { Request, Response } from "express";
+import crypto from "crypto";
 import { getDb } from "./db";
 import { emailEvents, leads } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
@@ -204,17 +205,36 @@ export async function handleSendGridWebhook(req: Request, res: Response) {
  * https://docs.sendgrid.com/for-developers/tracking-events/getting-started-event-webhook-security-features
  */
 export function verifySendGridSignature(req: Request): boolean {
-  // TODO: Implement signature verification when SENDGRID_WEBHOOK_VERIFICATION_KEY is set
-  // For now, we'll skip verification (not recommended for production)
-  
   const verificationKey = process.env.SENDGRID_WEBHOOK_VERIFICATION_KEY;
+
   if (!verificationKey) {
-    console.warn("⚠️ SENDGRID_WEBHOOK_VERIFICATION_KEY not set - webhook signature verification disabled");
-    return true; // Allow all requests
+    if (process.env.NODE_ENV === "production") {
+      console.error("❌ SENDGRID_WEBHOOK_VERIFICATION_KEY not set - rejecting webhook in production");
+      return false;
+    }
+    console.warn("⚠️ SENDGRID_WEBHOOK_VERIFICATION_KEY not set - skipping verification (dev only)");
+    return true;
   }
 
-  // Signature verification logic would go here
-  // See: https://github.com/sendgrid/sendgrid-nodejs/tree/main/packages/eventwebhook
+  const signature = req.headers["x-twilio-email-event-webhook-signature"];
+  const timestamp = req.headers["x-twilio-email-event-webhook-timestamp"];
+  const rawBody = (req as any).rawBody as Buffer | undefined;
 
-  return true;
+  if (typeof signature !== "string" || typeof timestamp !== "string" || !rawBody) {
+    return false;
+  }
+
+  try {
+    // SendGrid verification key is a base64-encoded DER (SPKI) EC public key
+    const publicKey = crypto.createPublicKey({
+      key: Buffer.from(verificationKey, "base64"),
+      format: "der",
+      type: "spki",
+    });
+    const payload = Buffer.concat([Buffer.from(timestamp, "utf8"), rawBody]);
+    return crypto.verify("sha256", payload, publicKey, Buffer.from(signature, "base64"));
+  } catch (error) {
+    console.error("[SendGrid Webhook] Signature verification error:", error);
+    return false;
+  }
 }

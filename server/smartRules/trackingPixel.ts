@@ -9,6 +9,7 @@ import { emailEvents, emails, campaigns } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
+import { signTrackingUrl } from "../emailTracking";
 const router = Router();
 
 // صورة GIF شفافة 1x1 pixel
@@ -227,7 +228,20 @@ router.get("/open/:trackingId.gif", async (req: Request, res: Response) => {
  */
 router.get("/click/:trackingId/:linkId", async (req: Request, res: Response) => {
   const { trackingId, linkId } = req.params;
-  const { url } = req.query;
+  const { url, sig } = req.query;
+
+  // Validate the redirect target before doing anything else
+  if (typeof url !== "string" || !/^https?:\/\//i.test(url)) {
+    return res.status(400).send("Invalid URL");
+  }
+  const expectedSig = signTrackingUrl(trackingId, url);
+  const sigValid =
+    typeof sig === "string" &&
+    sig.length === expectedSig.length &&
+    crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expectedSig));
+  if (!sigValid) {
+    return res.status(400).send("Invalid or expired link");
+  }
 
   try {
     // الحصول على معلومات البريد
@@ -296,12 +310,8 @@ router.get("/click/:trackingId/:linkId", async (req: Request, res: Response) => 
     console.error("[Tracking] Error recording click:", error);
   }
 
-  // إعادة التوجيه إلى الرابط الأصلي
-  if (url && typeof url === "string") {
-    res.redirect(url);
-  } else {
-    res.status(400).send("Invalid URL");
-  }
+  // إعادة التوجيه إلى الرابط الأصلي (تم التحقق من التوقيع أعلاه)
+  res.redirect(url);
 });
 
 /**
@@ -319,7 +329,7 @@ export function convertLinksToTracked(
   
   return htmlContent.replace(linkRegex, (match, prefix, url, suffix) => {
     linkIndex++;
-    const trackedUrl = `${baseUrl}/api/track/click/${trackingId}/${linkIndex}?url=${encodeURIComponent(url)}`;
+    const trackedUrl = `${baseUrl}/api/track/click/${trackingId}/${linkIndex}?url=${encodeURIComponent(url)}&sig=${signTrackingUrl(trackingId, url)}`;
     return `<a ${prefix}${trackedUrl}${suffix}>`;
   });
 }

@@ -58,7 +58,10 @@ export function registerAuthRoutes(app: Express) {
       });
     } catch (error) {
       console.error("[Auth] Registration failed:", error);
-      const message = error instanceof Error ? error.message : "Registration failed";
+      const message =
+        error instanceof Error && error.message === "Email already registered"
+          ? error.message
+          : "Registration failed";
       res.status(400).json({ error: message });
     }
   });
@@ -89,9 +92,9 @@ export function registerAuthRoutes(app: Express) {
         }
 
         // Verify 2FA code
-        const { verifyToken, verifyBackupCode, decryptSecret } = await import("../services/twoFactorAuth");
-        const encryptionKey = ENV.appSecret || "default-key";
-        const decryptedSecret = decryptSecret(user.twoFactorSecret, encryptionKey);
+        const { verifyToken, verifyBackupCode, decryptSecretWithFallback } = await import("../services/twoFactorAuth");
+        const encryptionKey = ENV.appSecret;
+        const decryptedSecret = decryptSecretWithFallback(user.twoFactorSecret, encryptionKey);
         
         let isValid = verifyToken(decryptedSecret, twoFactorCode);
         
@@ -166,8 +169,7 @@ export function registerAuthRoutes(app: Express) {
         ...getClientInfo(req),
         details: { error: error instanceof Error ? error.message : "Unknown error" },
       });
-      const message = error instanceof Error ? error.message : "Login failed";
-      res.status(401).json({ error: message });
+      res.status(401).json({ error: "Invalid email or password" });
     }
   });
 
@@ -189,9 +191,9 @@ export function registerAuthRoutes(app: Express) {
         return res.status(400).json({ error: "2FA is not enabled for this account" });
       }
 
-      const { verifyToken, verifyBackupCode, decryptSecret } = await import("../services/twoFactorAuth");
-      const encryptionKey = ENV.appSecret || "default-key";
-      const decryptedSecret = decryptSecret(user.twoFactorSecret, encryptionKey);
+      const { verifyToken, verifyBackupCode, decryptSecretWithFallback } = await import("../services/twoFactorAuth");
+      const encryptionKey = ENV.appSecret;
+      const decryptedSecret = decryptSecretWithFallback(user.twoFactorSecret, encryptionKey);
       
       let isValid = false;
 
@@ -261,8 +263,7 @@ export function registerAuthRoutes(app: Express) {
       });
     } catch (error) {
       console.error("[Auth] 2FA login failed:", error);
-      const message = error instanceof Error ? error.message : "Login failed";
-      res.status(401).json({ error: message });
+      res.status(401).json({ error: "Invalid email or password" });
     }
   });
 
@@ -528,7 +529,7 @@ export function registerAuthRoutes(app: Express) {
       const qrCode = await generateQRCode(otpAuthUrl);
       
       // Store encrypted secret temporarily (not enabled yet)
-      const encryptionKey = ENV.appSecret || "default-key";
+      const encryptionKey = ENV.appSecret;
       const encryptedSecret = encryptSecret(secret, encryptionKey);
       
       const { updateUserTwoFactor } = await import("../db");
@@ -565,9 +566,9 @@ export function registerAuthRoutes(app: Express) {
         return res.status(400).json({ error: "Please setup 2FA first" });
       }
 
-      const { verifyToken, decryptSecret, generateBackupCodes, hashBackupCode } = await import("../services/twoFactorAuth");
-      const encryptionKey = ENV.appSecret || "default-key";
-      const decryptedSecret = decryptSecret(user.twoFactorSecret, encryptionKey);
+      const { verifyToken, decryptSecretWithFallback, generateBackupCodes, hashBackupCode } = await import("../services/twoFactorAuth");
+      const encryptionKey = ENV.appSecret;
+      const decryptedSecret = decryptSecretWithFallback(user.twoFactorSecret, encryptionKey);
 
       const isValid = verifyToken(decryptedSecret, code);
       if (!isValid) {
@@ -632,9 +633,9 @@ export function registerAuthRoutes(app: Express) {
           return res.status(400).json({ error: "2FA code is required" });
         }
         
-        const { verifyToken, decryptSecret } = await import("../services/twoFactorAuth");
-        const encryptionKey = ENV.appSecret || "default-key";
-        const decryptedSecret = decryptSecret(user.twoFactorSecret, encryptionKey);
+        const { verifyToken, decryptSecretWithFallback } = await import("../services/twoFactorAuth");
+        const encryptionKey = ENV.appSecret;
+        const decryptedSecret = decryptSecretWithFallback(user.twoFactorSecret, encryptionKey);
         
         const isValid = verifyToken(decryptedSecret, code);
         if (!isValid) {
@@ -708,9 +709,9 @@ export function registerAuthRoutes(app: Express) {
       }
 
       // Verify current 2FA code
-      const { verifyToken, decryptSecret, generateBackupCodes, hashBackupCode } = await import("../services/twoFactorAuth");
-      const encryptionKey = ENV.appSecret || "default-key";
-      const decryptedSecret = decryptSecret(user.twoFactorSecret, encryptionKey);
+      const { verifyToken, decryptSecretWithFallback, generateBackupCodes, hashBackupCode } = await import("../services/twoFactorAuth");
+      const encryptionKey = ENV.appSecret;
+      const decryptedSecret = decryptSecretWithFallback(user.twoFactorSecret, encryptionKey);
       
       const isValid = verifyToken(decryptedSecret, code);
       if (!isValid) {

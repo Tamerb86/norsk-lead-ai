@@ -5,8 +5,9 @@ import type { TrpcContext } from "./_core/context";
  * Role hierarchy and permissions
  */
 export const ROLE_HIERARCHY = {
-  admin: 3,
-  manager: 2,
+  admin: 4,
+  manager: 3,
+  user: 2, // default role for new accounts
   viewer: 1,
 } as const;
 
@@ -46,6 +47,16 @@ export function canPerformAction(
     ],
     manager: [
       // Campaign and lead management
+      "campaign:create",
+      "campaign:edit",
+      "campaign:send",
+      "lead:create",
+      "lead:edit",
+      "template:create",
+      "template:edit",
+    ],
+    user: [
+      // Default role: manage own campaigns, leads and templates
       "campaign:create",
       "campaign:edit",
       "campaign:send",

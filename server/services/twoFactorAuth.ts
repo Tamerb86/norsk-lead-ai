@@ -33,6 +33,19 @@ export async function generateQRCode(otpAuthUrl: string): Promise<string> {
 }
 
 /**
+ * Decrypt secret, falling back to the legacy "default-key" for secrets
+ * created before APP_SECRET was configured. Returns null if both fail.
+ */
+export function decryptSecretWithFallback(encryptedSecret: string, key: string): string {
+  try {
+    return decryptSecret(encryptedSecret, key);
+  } catch {
+    // Legacy: secrets encrypted before APP_SECRET existed
+    return decryptSecret(encryptedSecret, "default-key");
+  }
+}
+
+/**
  * Verify a TOTP token
  */
 export function verifyToken(secret: string, token: string): boolean {

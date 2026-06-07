@@ -24,6 +24,8 @@ export const ENV = {
   // Required variables (will throw if missing)
   appId: required("VITE_APP_ID"),
   cookieSecret: required("JWT_SECRET"),
+  // Secret for 2FA secret encryption and tracking-URL signing (falls back to JWT_SECRET)
+  appSecret: optional("APP_SECRET") || required("JWT_SECRET"),
   databaseUrl: required("DATABASE_URL"),
   
   // Clerk Auth

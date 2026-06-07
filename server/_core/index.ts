@@ -125,9 +125,23 @@ async function startServer() {
     })
   );
   
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // Stripe webhook needs the raw body for signature verification,
+  // so it MUST be registered before express.json()
+  app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+    const { handleStripeWebhook } = await import("../stripeWebhook");
+    await handleStripeWebhook(req, res);
+  });
+
+  // Body parser. rawBody is kept for webhook signature verification (SendGrid).
+  app.use(
+    express.json({
+      limit: "10mb",
+      verify: (req, _res, buf) => {
+        (req as any).rawBody = buf;
+      },
+    })
+  );
+  app.use(express.urlencoded({ limit: "10mb", extended: true }));
   
   // Auth routes with advanced rate limiting
   // Login: strict rate limit + lockout check
@@ -144,12 +158,6 @@ async function startServer() {
   registerAdminRoutes(app);
   // Email tracking routes
   app.use("/api/track", trackingRoutes);
-  
-  // Stripe webhook endpoint (MUST be before express.json())
-  app.post("/api/stripe/webhook", express.raw({ type: 'application/json' }), async (req, res) => {
-    const { handleStripeWebhook } = await import("../stripeWebhook");
-    await handleStripeWebhook(req, res);
-  });
   
   // SendGrid webhook endpoint
   app.post("/api/sendgrid/webhook", async (req, res) => {
@@ -182,7 +190,8 @@ async function startServer() {
   setupSentryErrorHandler(app);
 
   const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  // In production the platform routes traffic to $PORT — never bind elsewhere.
+  const port = ENV.isProduction ? preferredPort : await findAvailablePort(preferredPort);
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);

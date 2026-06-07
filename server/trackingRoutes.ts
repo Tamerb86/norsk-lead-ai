@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
-import { logEmailEvent } from "./emailTracking";
+import crypto from "crypto";
+import { logEmailEvent, signTrackingUrl } from "./emailTracking";
 
 const router = Router();
 
@@ -46,11 +47,33 @@ router.get("/open/:trackingId", async (req: Request, res: Response) => {
  */
 router.get("/click/:trackingId/:encodedUrl", async (req: Request, res: Response) => {
   const { trackingId, encodedUrl } = req.params;
-  
+
+  // Decode and validate the target URL
+  let originalUrl: string;
   try {
-    // Decode the original URL
-    const originalUrl = decodeURIComponent(encodedUrl);
-    
+    originalUrl = decodeURIComponent(encodedUrl);
+  } catch {
+    return res.status(400).send("Invalid URL");
+  }
+
+  // Only allow http(s) targets
+  if (!/^https?:\/\//i.test(originalUrl)) {
+    return res.status(400).send("Invalid URL");
+  }
+
+  // Verify HMAC signature to prevent open-redirect abuse
+  const sig = req.query.sig;
+  const expected = signTrackingUrl(trackingId, originalUrl);
+  const valid =
+    typeof sig === "string" &&
+    sig.length === expected.length &&
+    crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected));
+
+  if (!valid) {
+    return res.status(400).send("Invalid or expired link");
+  }
+
+  try {
     // Log the click event
     await logEmailEvent({
       trackingId,
@@ -59,20 +82,12 @@ router.get("/click/:trackingId/:encodedUrl", async (req: Request, res: Response)
       userAgent: req.headers["user-agent"],
       ipAddress: req.ip || req.connection.remoteAddress,
     });
-    
-    // Redirect to the original URL
-    res.redirect(302, originalUrl);
   } catch (error) {
     console.error("[Tracking] Failed to log click event:", error);
-    
-    // Try to redirect anyway
-    try {
-      const originalUrl = decodeURIComponent(encodedUrl);
-      res.redirect(302, originalUrl);
-    } catch {
-      res.status(400).send("Invalid URL");
-    }
+    // Logging failure shouldn't block the (verified) redirect
   }
+
+  res.redirect(302, originalUrl);
 });
 
 /**

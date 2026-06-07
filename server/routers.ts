@@ -10,7 +10,30 @@ export const appRouter = router({
   system: systemRouter,
   
   auth: router({
-    me: publicProcedure.query(opts => opts.ctx.user),
+    me: publicProcedure.query(({ ctx }) => {
+      // Return only safe fields — never expose passwordHash, 2FA secrets,
+      // backup codes, or Stripe identifiers to the client.
+      if (!ctx.user) return null;
+      const u = ctx.user;
+      return {
+        id: u.id,
+        openId: u.openId,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        teamId: u.teamId,
+        loginMethod: u.loginMethod,
+        subscriptionPlan: u.subscriptionPlan,
+        subscriptionStatus: u.subscriptionStatus,
+        subscriptionPeriodEnd: u.subscriptionPeriodEnd,
+        monthlyLeadsQuota: u.monthlyLeadsQuota,
+        usedLeadsThisMonth: u.usedLeadsThisMonth,
+        twoFactorEnabled: u.twoFactorEnabled,
+        isActive: u.isActive,
+        createdAt: u.createdAt,
+        lastSignedIn: u.lastSignedIn,
+      };
+    }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
