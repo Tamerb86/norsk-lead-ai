@@ -46,9 +46,22 @@ export function useAuth(options?: UseAuthOptions) {
     try {
       setState(prev => ({ ...prev, loading: true, error: null }));
       
-      const response = await fetch("/api/auth/me", {
+      let response = await fetch("/api/auth/me", {
         credentials: "include",
       });
+
+      // Access token may have expired — try the refresh token once, then retry
+      if (response.status === 401) {
+        const refreshRes = await fetch("/api/auth/refresh", {
+          method: "POST",
+          credentials: "include",
+        });
+        if (refreshRes.ok) {
+          response = await fetch("/api/auth/me", {
+            credentials: "include",
+          });
+        }
+      }
 
       if (response.ok) {
         const data = await response.json();
@@ -82,6 +95,16 @@ export function useAuth(options?: UseAuthOptions) {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Silently refresh the access token every 20 minutes while authenticated
+  // (access tokens expire after 30 minutes; refresh tokens last 7 days)
+  useEffect(() => {
+    if (!state.isAuthenticated) return;
+    const interval = setInterval(() => {
+      fetch("/api/auth/refresh", { method: "POST", credentials: "include" }).catch(() => {});
+    }, 20 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [state.isAuthenticated]);
 
   // Redirect if not authenticated
   useEffect(() => {
