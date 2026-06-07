@@ -36,6 +36,8 @@ const plugins = [
       ]
     },
     workbox: {
+      // Allow caching of large bundled chunks (default limit is 2 MiB)
+      maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       // Cache strategies
       runtimeCaching: [
         {
