@@ -64,7 +64,7 @@ export default function Search() {
   const [foundedBefore, setFoundedBefore] = useState("");
   const [minEmployees, setMinEmployees] = useState("");
   const [maxEmployees, setMaxEmployees] = useState("");
-  const [sortBy, setSortBy] = useState<"employees" | "revenue" | "age">("employees");
+  const [sortBy, setSortBy] = useState<"employees" | "age">("employees");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   // UI State
@@ -260,7 +260,7 @@ export default function Search() {
     refetch();
   };
 
-  const handleSortChange = (newSortBy: "employees" | "revenue" | "age") => {
+  const handleSortChange = (newSortBy: "employees" | "age") => {
     if (newSortBy === sortBy) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
@@ -461,14 +461,6 @@ export default function Search() {
                         onClick={() => handleSortChange("employees")}
                       >
                         Antall ansatte
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={sortBy === "revenue" ? "default" : "outline"}
-                        onClick={() => handleSortChange("revenue")}
-                      >
-                        Omsetning
                       </Button>
                       <Button
                         type="button"

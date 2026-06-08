@@ -237,23 +237,28 @@ export async function searchCompanies(params: {
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-  // Determine sort order
+  // Determine sort order (NULLS LAST so empty values don't dominate the top)
   let orderByClause;
-  const sortOrder = params.sortOrder === 'asc' ? asc : desc;
-  
+  const dir = params.sortOrder === 'asc' ? 'ASC' : 'DESC';
+
   switch (params.sortBy) {
     case 'name':
-      orderByClause = sortOrder(norwegianCompanies.navn);
+      orderByClause = sql`${norwegianCompanies.navn} ${sql.raw(dir)} NULLS LAST`;
+      break;
+    case 'age':
+      // Company age: "desc" (most age) = oldest = earliest founding date (ASC).
+      orderByClause = sql`${norwegianCompanies.stiftelsesdato} ${sql.raw(dir === 'DESC' ? 'ASC' : 'DESC')} NULLS LAST`;
       break;
     case 'founded':
-      orderByClause = sortOrder(norwegianCompanies.stiftelsesdato);
+      orderByClause = sql`${norwegianCompanies.stiftelsesdato} ${sql.raw(dir)} NULLS LAST`;
       break;
     case 'recent':
-      orderByClause = desc(norwegianCompanies.registreringsdato);
+      orderByClause = sql`${norwegianCompanies.registreringsdato} ${sql.raw(dir)} NULLS LAST`;
       break;
+    case 'revenue': // No revenue column in the dataset — fall back to employee count.
     case 'employees':
     default:
-      orderByClause = desc(norwegianCompanies.antallAnsatte);
+      orderByClause = sql`${norwegianCompanies.antallAnsatte} ${sql.raw(dir)} NULLS LAST`;
       break;
   }
 
