@@ -5,6 +5,15 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { getCampaignPerformance } from "./analyticsDb";
+import {
+  analyticsRouter,
+  templatesRouter,
+  sequencesRouter,
+  calendarRouter,
+  referralRouter,
+  leadsExtraRouter,
+  teamExtraRouter,
+} from "./routersExtra";
 
 export const appRouter = router({
   system: systemRouter,
@@ -162,6 +171,7 @@ export const appRouter = router({
       const stats = await db.getLeadStats(ctx.user.id);
       return stats;
     }),
+    ...leadsExtraRouter,
   }),
 
   // ============================================
@@ -444,6 +454,7 @@ export const appRouter = router({
         const result = await db.removeTeamMember(ctx.user.id, input.memberId);
         return result;
       }),
+    ...teamExtraRouter,
   }),
 
   // ============================================
@@ -535,6 +546,12 @@ export const appRouter = router({
         return { cleared };
       }),
   }),
+
+  analytics: analyticsRouter,
+  templates: templatesRouter,
+  sequences: sequencesRouter,
+  calendar: calendarRouter,
+  referral: referralRouter,
 });
 
 export type AppRouter = typeof appRouter;
