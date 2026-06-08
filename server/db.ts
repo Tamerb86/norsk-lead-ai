@@ -1,4 +1,4 @@
-import { eq, and, or, like, ilike, desc, asc, sql, inArray } from "drizzle-orm";
+import { eq, and, or, like, ilike, desc, asc, sql, inArray, gte, lte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import { 
@@ -17,7 +17,9 @@ import {
   aiIntegrations,
   InsertAIIntegration,
   systemSettings,
-  InsertSystemSetting
+  InsertSystemSetting,
+  notifications,
+  calendarEvents
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -928,36 +930,35 @@ export async function getSavedCompanyLists(userId: number): Promise<string[]> {
 
 export async function getNotifications(userId: number, limit: number = 20) {
   const db = await getDb();
+  if (!db) return [];
 
-  const result = await db.execute(
-    sql`SELECT id, type, title, message, related_id as "relatedId", related_type as "relatedType", 
-               is_read as "isRead", created_at as "createdAt"
-        FROM notifications 
-        WHERE user_id = ${userId}
-        ORDER BY created_at DESC
-        LIMIT ${limit}`
-  );
-
-  return result.rows || [];
+  return await db
+    .select()
+    .from(notifications)
+    .where(eq(notifications.userId, userId))
+    .orderBy(desc(notifications.createdAt))
+    .limit(limit);
 }
 
 export async function getUnreadNotificationCount(userId: number): Promise<number> {
   const db = await getDb();
+  if (!db) return 0;
 
-  const result = await db.execute(
-    sql`SELECT COUNT(*) as count FROM notifications WHERE user_id = ${userId} AND is_read = false`
-  );
-
-  return Number(result.rows?.[0]?.count || 0);
+  const rows = await db
+    .select({ id: notifications.id })
+    .from(notifications)
+    .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+  return rows.length;
 }
 
 export async function markNotificationAsRead(id: number, userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.execute(
-    sql`UPDATE notifications SET is_read = true WHERE id = ${id} AND user_id = ${userId}`
-  );
+  await db
+    .update(notifications)
+    .set({ isRead: true })
+    .where(and(eq(notifications.id, id), eq(notifications.userId, userId)));
 
   return { success: true };
 }
@@ -966,9 +967,10 @@ export async function markAllNotificationsAsRead(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.execute(
-    sql`UPDATE notifications SET is_read = true WHERE user_id = ${userId}`
-  );
+  await db
+    .update(notifications)
+    .set({ isRead: true })
+    .where(eq(notifications.userId, userId));
 
   return { success: true };
 }
@@ -1994,35 +1996,33 @@ export async function getCalendarEvents(userId: number, params?: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  let query = sql`
-    SELECT ce.*, 
-           nc.navn as company_name,
-           l.email as lead_email,
-           c.name as campaign_name
-    FROM calendar_events ce
-    LEFT JOIN norwegian_companies nc ON ce.company_id = nc.id
-    LEFT JOIN leads l ON ce.lead_id = l.id
-    LEFT JOIN campaigns c ON ce.campaign_id = c.id
-    WHERE ce.user_id = ${userId}
-  `;
+  const conditions = [eq(calendarEvents.userId, userId)];
+  if (params?.startDate) conditions.push(gte(calendarEvents.startTime, params.startDate));
+  if (params?.endDate) conditions.push(lte(calendarEvents.startTime, params.endDate));
+  if (params?.eventType) conditions.push(eq(calendarEvents.eventType, params.eventType));
+  if (params?.status) conditions.push(eq(calendarEvents.status, params.status));
 
-  if (params?.startDate) {
-    query = sql`${query} AND ce.start_time >= ${params.startDate}`;
-  }
-  if (params?.endDate) {
-    query = sql`${query} AND ce.start_time <= ${params.endDate}`;
-  }
-  if (params?.eventType) {
-    query = sql`${query} AND ce.event_type = ${params.eventType}`;
-  }
-  if (params?.status) {
-    query = sql`${query} AND ce.status = ${params.status}`;
-  }
+  const rows = await db
+    .select({
+      event: calendarEvents,
+      company_name: norwegianCompanies.navn,
+      lead_email: leads.email,
+      campaign_name: campaigns.name,
+    })
+    .from(calendarEvents)
+    .leftJoin(norwegianCompanies, eq(calendarEvents.companyId, norwegianCompanies.id))
+    .leftJoin(leads, eq(calendarEvents.leadId, leads.id))
+    .leftJoin(campaigns, eq(calendarEvents.campaignId, campaigns.id))
+    .where(and(...conditions))
+    .orderBy(asc(calendarEvents.startTime));
 
-  query = sql`${query} ORDER BY ce.start_time ASC`;
-
-  const result = await db.execute(query);
-  return result.rows || [];
+  // Flatten to match the previous raw-SQL shape (event fields + joined names)
+  return rows.map((r: any) => ({
+    ...r.event,
+    company_name: r.company_name,
+    lead_email: r.lead_email,
+    campaign_name: r.campaign_name,
+  }));
 }
 
 /**
