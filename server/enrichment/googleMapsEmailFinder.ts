@@ -54,53 +54,27 @@ function extractNorwegianPhones(text: string): string[] {
  * Fetch webpage content
  */
 async function fetchWebpage(url: string, timeout: number = 15000): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const parsedUrl = new URL(url);
-    const protocol = parsedUrl.protocol === "https:" ? https : http;
-
-    const options = {
-      hostname: parsedUrl.hostname,
-      port: parsedUrl.port,
-      path: parsedUrl.pathname + parsedUrl.search,
-      method: "GET",
-      timeout,
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, {
+      redirect: "follow",
+      signal: controller.signal,
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         "Accept-Language": "no,en;q=0.9",
       },
-    };
-
-    const req = protocol.request(options, (res) => {
-      // Handle redirects
-      if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        const redirectUrl = new URL(res.headers.location, url).toString();
-        fetchWebpage(redirectUrl, timeout).then(resolve).catch(reject);
-        return;
-      }
-
-      let data = "";
-      res.on("data", (chunk) => {
-        data += chunk;
-        // Limit response size to 1MB
-        if (data.length > 1024 * 1024) {
-          req.destroy();
-          resolve(data);
-        }
-      });
-      res.on("end", () => resolve(data));
     });
-
-    req.on("error", reject);
-    req.on("timeout", () => {
-      req.destroy();
-      reject(new Error("Request timeout"));
-    });
-
-    req.end();
-  });
+    // global fetch transparently decompresses gzip/brotli (the old raw http
+    // implementation did not, which corrupted compressed pages).
+    const text = await res.text();
+    return text.slice(0, 1024 * 1024); // cap at 1MB
+  } finally {
+    clearTimeout(timer);
+  }
 }
-
 /**
  * Scrape email from company website
  */
