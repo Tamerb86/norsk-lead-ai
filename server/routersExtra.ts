@@ -167,13 +167,31 @@ export const teamExtraRouter = {
     .mutation(async ({ ctx, input }) => {
       const user = await db.getUserById(ctx.user.id);
       if (!user?.teamId) throw new Error("You are not part of a team");
-      const { updateMemberRole } = await import("./teamDb");
+      const { getTeamById, updateMemberRole } = await import("./teamDb");
+      const team = await getTeamById(user.teamId);
+      if (team?.ownerId !== ctx.user.id && user.role !== "admin") {
+        throw new Error("Only the team owner or an admin can change member roles");
+      }
+      if (input.memberId === team?.ownerId) {
+        throw new Error("The team owner's role cannot be changed");
+      }
       return updateMemberRole(input.memberId, user.teamId, input.role);
     }),
   cancelInvitation: protectedProcedure
     .input(z.object({ invitationId: z.number() }))
-    .mutation(async ({ input }) => {
-      const { cancelInvitation } = await import("./teamDb");
+    .mutation(async ({ ctx, input }) => {
+      const user = await db.getUserById(ctx.user.id);
+      if (!user?.teamId) throw new Error("You are not part of a team");
+      const { getTeamById, getTeamInvitations, cancelInvitation } = await import("./teamDb");
+      const team = await getTeamById(user.teamId);
+      if (team?.ownerId !== ctx.user.id && user.role !== "admin") {
+        throw new Error("Only the team owner or an admin can cancel invitations");
+      }
+      // Ensure the invitation belongs to the caller's team (prevent IDOR)
+      const invitations = await getTeamInvitations(user.teamId);
+      if (!invitations.some((inv: any) => inv.id === input.invitationId)) {
+        throw new Error("Invitation not found for your team");
+      }
       return cancelInvitation(input.invitationId);
     }),
 };
