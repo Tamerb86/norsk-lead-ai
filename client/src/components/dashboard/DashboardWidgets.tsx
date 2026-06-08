@@ -195,6 +195,8 @@ export function DashboardWidgets({ renderWidget, width = 1200 }: DashboardWidget
   const [isEditing, setIsEditing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  const isMobile = width < 768;
+
   // Save layout to localStorage
   useEffect(() => {
     localStorage.setItem("dashboard-layout", JSON.stringify(layout));
@@ -315,7 +317,25 @@ export function DashboardWidgets({ renderWidget, width = 1200 }: DashboardWidget
         </div>
       </div>
 
-      {/* Grid Layout */}
+      {/* Grid Layout (desktop) / stacked (mobile) */}
+      {isMobile ? (
+        <div className="flex flex-col gap-4">
+          {visibleWidgets.map((widgetId) => {
+            const config = widgetConfigs[widgetId];
+            return (
+              <Card key={widgetId} className="overflow-hidden">
+                <CardHeader className="pb-2 flex flex-row items-center gap-2 space-y-0">
+                  {config.icon}
+                  <CardTitle className="text-sm font-medium">{config.title}</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 max-h-[420px] overflow-auto">
+                  {renderWidget(widgetId)}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      ) : (
       <GridLayout
         className="layout"
         layout={filteredLayout}
@@ -364,6 +384,7 @@ export function DashboardWidgets({ renderWidget, width = 1200 }: DashboardWidget
           );
         })}
       </GridLayout>
+      )}
 
       {/* Empty state */}
       {visibleWidgets.length === 0 && (
