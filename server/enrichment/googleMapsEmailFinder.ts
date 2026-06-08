@@ -21,13 +21,28 @@ function extractEmails(text: string): string[] {
   const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   const matches = text.match(emailRegex) || [];
   
+  // Placeholder/example addresses commonly shown in website templates (Norwegian + English)
+  const PLACEHOLDER_DOMAINS = new Set([
+    "example.com", "example.no", "example.org", "eksempel.no", "domene.no",
+    "dittdomene.no", "dittfirma.no", "domain.com", "yourdomain.com", "test.com",
+    "epost.no", "firma.no", "bedrift.no", "mittfirma.no", "email.com",
+  ]);
+  const PLACEHOLDER_LOCALPARTS = new Set([
+    "bruker", "dittnavn", "ditt.navn", "navn", "fornavn", "etternavn",
+    "fornavn.etternavn", "eksempel", "example", "din", "dinepost", "din.epost",
+    "user", "name", "email", "epost", "post.din",
+  ]);
+
   // Filter out common false positives
   return matches.filter(email => {
     const lower = email.toLowerCase();
     // Exclude image files and common non-email patterns
     if (lower.endsWith('.png') || lower.endsWith('.jpg') || lower.endsWith('.gif')) return false;
-    if (lower.includes('example.com') || lower.includes('test.com')) return false;
     if (lower.includes('sentry.io') || lower.includes('wixpress.com')) return false;
+    const [local, domain] = lower.split("@");
+    if (!local || !domain) return false;
+    if (PLACEHOLDER_DOMAINS.has(domain)) return false;
+    if (PLACEHOLDER_LOCALPARTS.has(local)) return false;
     return true;
   });
 }
