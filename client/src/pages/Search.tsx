@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
@@ -21,6 +21,8 @@ import {
   TrendingUp,
   ShieldCheck,
   Info,
+  X,
+  RotateCcw,
 } from "lucide-react";
 import { LeadScoreBadge } from "@/components/LeadScoreBadge";
 import { EmailVerificationBadge } from "@/components/EmailVerificationBadge";
@@ -52,6 +54,7 @@ export default function Search() {
   const [, setLocation] = useLocation();
   
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [hasEmail, setHasEmail] = useState(false);
   const [hasPhone, setHasPhone] = useState(false);
   const [hasWebsite, setHasWebsite] = useState(false);
@@ -75,6 +78,57 @@ export default function Search() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedCompanies, setSelectedCompanies] = useState<number[]>([]);
   const itemsPerPage = 20;
+
+  // Debounce the free-text query so we don't fire a query on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedQuery(query);
+      setCurrentPage(1);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  // Reset to first page whenever any filter changes (keeps results consistent)
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [hasEmail, hasPhone, hasWebsite, poststed, naeringskode, organisasjonsform, foundedAfter, foundedBefore, minEmployees, maxEmployees, sortBy, sortOrder]);
+
+  const resetAll = () => {
+    setQuery("");
+    setHasEmail(false);
+    setHasPhone(false);
+    setHasWebsite(false);
+    setPoststed("");
+    setNaeringskode("");
+    setOrganisasjonsform("");
+    setFoundedAfter("");
+    setFoundedBefore("");
+    setMinEmployees("");
+    setMaxEmployees("");
+    setSortBy("employees");
+    setSortOrder("desc");
+    setCurrentPage(1);
+  };
+
+  // Chips for every active filter, each removable with one click
+  const activeFilters = useMemo(() => {
+    const f: { key: string; label: string; onRemove: () => void }[] = [];
+    if (query) f.push({ key: "q", label: `Søk: ${query}`, onRemove: () => setQuery("") });
+    if (hasEmail) f.push({ key: "email", label: "Har e-post", onRemove: () => setHasEmail(false) });
+    if (hasPhone) f.push({ key: "phone", label: "Har telefon", onRemove: () => setHasPhone(false) });
+    if (hasWebsite) f.push({ key: "web", label: "Har nettside", onRemove: () => setHasWebsite(false) });
+    if (poststed) f.push({ key: "city", label: `By: ${poststed}`, onRemove: () => setPoststed("") });
+    if (naeringskode && naeringskode !== "all") {
+      const n = COMMON_NAERINGSKODER.find((x) => x.code === naeringskode);
+      f.push({ key: "nk", label: `Bransje: ${n ? n.name : naeringskode}`, onRemove: () => setNaeringskode("") });
+    }
+    if (organisasjonsform && organisasjonsform !== "all") f.push({ key: "of", label: `Form: ${organisasjonsform}`, onRemove: () => setOrganisasjonsform("") });
+    if (foundedAfter) f.push({ key: "fa", label: `Stiftet etter: ${foundedAfter}`, onRemove: () => setFoundedAfter("") });
+    if (foundedBefore) f.push({ key: "fb", label: `Stiftet før: ${foundedBefore}`, onRemove: () => setFoundedBefore("") });
+    if (minEmployees) f.push({ key: "min", label: `Min ansatte: ${minEmployees}`, onRemove: () => setMinEmployees("") });
+    if (maxEmployees) f.push({ key: "max", label: `Maks ansatte: ${maxEmployees}`, onRemove: () => setMaxEmployees("") });
+    return f;
+  }, [query, hasEmail, hasPhone, hasWebsite, poststed, naeringskode, organisasjonsform, foundedAfter, foundedBefore, minEmployees, maxEmployees]);
 
   // Save Filter
   const [showSaveDialog, setShowSaveDialog] = useState(false);
@@ -121,7 +175,7 @@ export default function Search() {
     !organisasjonsform || organisasjonsform === "all" ? undefined : organisasjonsform;
 
   const { data, isLoading, refetch, isFetching, error, isError } = trpc.companies.search.useQuery({
-    query,
+    query: debouncedQuery,
     hasEmail,
     hasPhone,
     hasWebsite,
@@ -138,10 +192,10 @@ export default function Search() {
     offset: offset,
   }, {
     enabled: true,
-    refetchOnMount: true,
     refetchOnWindowFocus: false,
-    staleTime: 0,
-    retry: 3,
+    staleTime: 30_000, // cache identical searches for 30s
+    placeholderData: (prev) => prev, // keep showing previous results while refetching
+    retry: 1,
   });
 
   const handleSearch = () => {
@@ -365,24 +419,10 @@ export default function Search() {
                 <Button
                   variant="outline"
                   type="button"
-                  onClick={() => {
-                    setQuery("");
-                    setHasEmail(false);
-                    setHasPhone(false);
-                    setHasWebsite(false);
-                    setPoststed("");
-                    setNaeringskode("");
-                    setOrganisasjonsform("");
-                    setFoundedAfter("");
-                    setFoundedBefore("");
-                    setMinEmployees("");
-                    setMaxEmployees("");
-                    setSortBy("employees");
-                    setSortOrder("desc");
-                    setCurrentPage(1);
-                    refetch();
-                  }}
+                  onClick={resetAll}
+                  disabled={activeFilters.length === 0}
                 >
+                  <RotateCcw className="w-4 h-4 mr-2" />
                   Nullstill
                 </Button>
               </div>
@@ -431,8 +471,38 @@ export default function Search() {
               >
                 <Filter className="w-4 h-4" />
                 {showAdvanced ? "Skjul avanserte filtre" : "Vis avanserte filtre"}
+                {activeFilters.length > 0 && (
+                  <span className="ml-1 inline-flex items-center justify-center rounded-full bg-blue-600 text-white text-xs font-semibold h-5 min-w-[1.25rem] px-1.5">
+                    {activeFilters.length}
+                  </span>
+                )}
               </Button>
             </div>
+
+            {/* Active filter chips */}
+            {activeFilters.length > 0 && (
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <span className="text-xs text-gray-500">Aktive filtre:</span>
+                {activeFilters.map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={f.onRemove}
+                    className="inline-flex items-center gap-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1 text-xs hover:bg-blue-100 transition-colors"
+                  >
+                    {f.label}
+                    <X className="w-3 h-3" />
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={resetAll}
+                  className="text-xs text-gray-500 hover:text-red-600 underline ml-1"
+                >
+                  Fjern alle
+                </button>
+              </div>
+            )}
 
             {/* Advanced Filters */}
             {showAdvanced && (
