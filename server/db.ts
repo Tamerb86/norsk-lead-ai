@@ -364,7 +364,7 @@ export async function createCampaign(data: {
       totalBounced: 0,
       totalUnsubscribed: 0,
     })
-    .$returningId();
+    .returning({ id: campaigns.id });
 
   if (!inserted || !inserted.id) {
     throw new Error("Failed to create campaign");
@@ -450,17 +450,16 @@ export async function addLeadToCampaign(data: {
   const { generateTrackingId } = await import("./emailTracking");
   const trackingId = generateTrackingId();
 
-  const result = await db.insert(leads).values({
+  const [inserted] = await db.insert(leads).values({
     ...data,
     trackingId,
     status: "pending",
     openCount: 0,
     clickCount: 0,
     followUpCount: 0,
-  });
+  }).returning({ id: leads.id });
 
-  const insertId = (result as any).insertId;
-  return { id: Number(insertId), trackingId };
+  return { id: inserted?.id, trackingId };
 }
 
 export async function updateLeadStatus(
