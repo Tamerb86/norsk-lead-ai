@@ -144,6 +144,33 @@ function EmailFinderTab() {
   const [limit, setLimit] = useState<number>(50);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [brregSyncing, setBrregSyncing] = useState(false);
+  const [brregResult, setBrregResult] = useState<string | null>(null);
+
+  const runBrregSync = async () => {
+    setBrregSyncing(true);
+    setBrregResult(null);
+    try {
+      await fetch("/api/auth/refresh", { method: "POST", credentials: "include" }).catch(() => {});
+      const res = await fetch("/api/trpc/brreg.syncNow?batch=1", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 0: { json: { maxRecords: 2000 } } }),
+      });
+      const j = await res.json();
+      const data = j?.[0]?.result?.data?.json;
+      if (data) {
+        setBrregResult(`Oppdatert ${data.updated} bedrifter (behandlet ${data.processed}, flagget ${data.deletedFlagged}, feil ${data.errors}).`);
+      } else {
+        setBrregResult("Feil: " + (j?.[0]?.error?.json?.message || "ukjent feil"));
+      }
+    } catch (e) {
+      setBrregResult("Feil: " + (e instanceof Error ? e.message : "ukjent feil"));
+    } finally {
+      setBrregSyncing(false);
+    }
+  };
 
   // Fetch stats on mount
   useEffect(() => {
@@ -326,6 +353,25 @@ function EmailFinderTab() {
           <AlertDescription className="text-green-700">{success}</AlertDescription>
         </Alert>
       )}
+
+      {/* Brreg data sync */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Oppdater bedriftsdata fra Brreg</CardTitle>
+          <CardDescription>
+            Synkroniser bedrifter mot Brønnøysundregistrene (navn, org.form, nettside, telefon,
+            adresse, bransje, ansatte, stiftelsesdato, konkursstatus). Kjøres også automatisk hver dag.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <Button onClick={runBrregSync} disabled={brregSyncing}>
+              {brregSyncing ? "Synkroniserer..." : "Oppdater nå"}
+            </Button>
+            {brregResult && <span className="text-sm text-muted-foreground">{brregResult}</span>}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Controls */}
       <Card>
