@@ -885,7 +885,6 @@ export default function Search() {
                                     <Building2 className="w-4 h-4 text-blue-500" />
                                     {company.navn}
                                   </h3>
-                                  <LeadScoreBadge score={company.leadScore || 0} />
                                 </div>
                                 <p className="text-xs text-gray-500">
                                   Org.nr: {company.organisasjonsnummer} • {company.poststed}
@@ -896,11 +895,10 @@ export default function Search() {
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs text-gray-700 mt-2">
                               <div className="space-y-1">
                                 <p className="font-medium text-gray-900">Kontakt</p>
-                                {company.epost && (
+                                {company.epostadresse && (
                                   <p className="flex items-center gap-1">
                                     <Mail className="w-3 h-3 text-blue-500" />
-                                    <span className="truncate">{company.epost}</span>
-                                    <EmailVerificationBadge status={company.emailVerificationStatus || "unknown"} />
+                                    <span className="truncate">{company.epostadresse}</span>
                                   </p>
                                 )}
                                 {company.telefon && (
@@ -930,12 +928,6 @@ export default function Search() {
                                   Ansatte:{" "}
                                   <span className="font-semibold">
                                     {company.antallAnsatte ?? "Ukjent"}
-                                  </span>
-                                </p>
-                                <p>
-                                  Omsetning:{" "}
-                                  <span className="font-semibold">
-                                    {company.omsetning ? `${company.omsetning.toLocaleString("nb-NO")} kr` : "Ukjent"}
                                   </span>
                                 </p>
                                 <p>
@@ -969,7 +961,7 @@ export default function Search() {
                             <div className="flex flex-col gap-2">
                               <AIEmailWriter
                                 companyName={company.navn}
-                                companyEmail={company.epost || ""}
+                                companyEmail={company.epostadresse || ""}
                                 companyWebsite={company.hjemmeside || ""}
                                 leadScore={company.leadScore || 0}
                               />
@@ -978,10 +970,10 @@ export default function Search() {
                                 variant="outline" 
                                 size="sm" 
                                 onClick={() => {
-                                  navigator.clipboard.writeText(company.epost || "");
-                                  toastSuccess("E-post kopiert", { description: company.epost || "" });
+                                  navigator.clipboard.writeText(company.epostadresse || "");
+                                  toastSuccess("E-post kopiert", { description: company.epostadresse || "" });
                                 }}
-                                disabled={!company.epost}
+                                disabled={!company.epostadresse}
                               >
                                 Kopier e-post
                               </Button>
