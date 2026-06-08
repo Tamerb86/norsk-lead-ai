@@ -195,3 +195,29 @@ export const teamExtraRouter = {
       return cancelInvitation(input.invitationId);
     }),
 };
+
+// ============================================
+// BRREG DATA SYNC
+// ============================================
+import { adminProcedure } from "./_core/trpc";
+
+export const brregRouter = router({
+  status: protectedProcedure.query(async () => {
+    const { getBrregSyncStatus } = await import("./services/brregSync");
+    return getBrregSyncStatus();
+  }),
+  // Heavy operation — admin only
+  syncNow: adminProcedure
+    .input(z.object({ since: z.string().optional(), maxRecords: z.number().min(1).max(20000).optional() }))
+    .mutation(async ({ input }) => {
+      const { syncBrregUpdates } = await import("./services/brregSync");
+      return syncBrregUpdates(input);
+    }),
+  // Refresh a single company from Brreg (used by per-company action)
+  refreshCompany: protectedProcedure
+    .input(z.object({ orgNr: z.string() }))
+    .mutation(async ({ input }) => {
+      const { refreshCompaniesByOrgNr } = await import("./services/brregSync");
+      return refreshCompaniesByOrgNr([input.orgNr]);
+    }),
+});

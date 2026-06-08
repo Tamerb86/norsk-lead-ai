@@ -92,6 +92,33 @@ export function startAutoEnrichScheduler(): void {
   console.log('[Auto-Enrich Scheduler] Started successfully');
 }
 
+let brregSyncInterval: NodeJS.Timeout | null = null;
+
+export function startBrregSyncScheduler(): void {
+  console.log('[Brreg Sync Scheduler] Starting...');
+
+  const run = () => {
+    import('./brregSync').then(({ syncBrregUpdates }) =>
+      syncBrregUpdates({})
+        .then(r => console.log(`[Brreg Sync] processed ${r.processed}, updated ${r.updated}, flagged ${r.deletedFlagged}, errors ${r.errors}`))
+        .catch(err => console.error('[Brreg Sync] Error:', err))
+    );
+  };
+
+  // First run shortly after boot, then every 24 hours
+  setTimeout(run, 5 * 60 * 1000);
+  brregSyncInterval = setInterval(run, 24 * 60 * 60 * 1000);
+
+  console.log('[Brreg Sync Scheduler] Started successfully');
+}
+
+export function stopBrregSyncScheduler(): void {
+  if (brregSyncInterval) {
+    clearInterval(brregSyncInterval);
+    brregSyncInterval = null;
+  }
+}
+
 export function stopAutoEnrichScheduler(): void {
   console.log('[Auto-Enrich Scheduler] Stopping...');
   
@@ -112,6 +139,7 @@ export async function getSchedulerStatus() {
   return {
     workerRunning: isRunning,
     autoEnrichRunning: autoEnrichInterval !== null,
+    brregSyncRunning: brregSyncInterval !== null,
     stats,
   };
 }
@@ -128,6 +156,9 @@ export function initializeSchedulers(): void {
   
   // Start auto-enrich scheduler
   startAutoEnrichScheduler();
+
+  // Start daily Brreg data sync
+  startBrregSyncScheduler();
   
   console.log('[Schedulers] Initialized successfully');
 }
