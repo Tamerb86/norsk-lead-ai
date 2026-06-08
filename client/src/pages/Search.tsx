@@ -134,6 +134,25 @@ export default function Search() {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [filterName, setFilterName] = useState("");
 
+  // Create-leads-into-campaign dialog
+  const [showLeadsDialog, setShowLeadsDialog] = useState(false);
+  const [leadCampaignName, setLeadCampaignName] = useState("");
+  const [leadCampaignId, setLeadCampaignId] = useState<string>("new");
+  const { data: campaignsList } = trpc.campaigns.list.useQuery();
+  const createLeadsMutation = trpc.leads.createFromCompanies.useMutation({
+    onSuccess: (res) => {
+      setShowLeadsDialog(false);
+      clearSelection();
+      toastSuccess("Leads opprettet!", {
+        description: `${res.created} nye leads lagt til${res.skipped ? `, ${res.skipped} fantes allerede` : ""}.`,
+      });
+      setLocation("/campaigns");
+    },
+    onError: (error) => {
+      toastError("Kunne ikke opprette leads", { description: error.message });
+    },
+  });
+
   const { data: savedFiltersData, refetch: refetchSavedFilters } = trpc.savedFilters.list.useQuery();
   const createFilterMutation = trpc.savedFilters.create.useMutation({
     onSuccess: () => {
@@ -235,13 +254,21 @@ export default function Search() {
   const handleBulkCreateLeads = () => {
     if (selectedCompanies.length === 0) {
       toastError("Ingen bedrifter valgt", {
-        description: "Velg minst én bedrift for å opprette leads"
+        description: "Velg minst én bedrift for å opprette leads",
       });
       return;
     }
+    setLeadCampaignName(`Søk ${new Date().toLocaleDateString("nb-NO")}`);
+    setLeadCampaignId("new");
+    setShowLeadsDialog(true);
+  };
 
-    toastSuccess("Leads opprettet", {
-      description: `Opprettet leads for ${selectedCompanies.length} bedrifter (demo)`
+  const confirmCreateLeads = () => {
+    createLeadsMutation.mutate({
+      companyIds: selectedCompanies,
+      ...(leadCampaignId === "new"
+        ? { newCampaignName: leadCampaignName }
+        : { campaignId: parseInt(leadCampaignId) }),
     });
   };
 
@@ -1046,6 +1073,60 @@ export default function Search() {
               disabled={createFilterMutation.isPending}
             >
               {createFilterMutation.isPending ? "Lagrer..." : "Lagre filter"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create leads into campaign */}
+      <Dialog open={showLeadsDialog} onOpenChange={setShowLeadsDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Opprett leads ({selectedCompanies.length} bedrifter)</DialogTitle>
+            <DialogDescription>
+              Legg de valgte bedriftene til i en kampanje som leads. Deretter kan du
+              skrive e-poster med AI og følge opp.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label>Kampanje</Label>
+              <Select value={leadCampaignId} onValueChange={setLeadCampaignId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Velg kampanje..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">+ Ny kampanje</SelectItem>
+                  {(campaignsList || []).map((c: any) => (
+                    <SelectItem key={c.id} value={String(c.id)}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {leadCampaignId === "new" && (
+              <div className="space-y-2">
+                <Label htmlFor="leadCampaignName">Navn på ny kampanje</Label>
+                <Input
+                  id="leadCampaignName"
+                  value={leadCampaignName}
+                  onChange={(e) => setLeadCampaignName(e.target.value)}
+                  placeholder="F.eks. Hoteller Oslo Q3"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowLeadsDialog(false)}>
+              Avbryt
+            </Button>
+            <Button
+              onClick={confirmCreateLeads}
+              disabled={createLeadsMutation.isPending || (leadCampaignId === "new" && !leadCampaignName.trim())}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white"
+            >
+              {createLeadsMutation.isPending ? "Oppretter..." : "Opprett leads"}
             </Button>
           </DialogFooter>
         </DialogContent>

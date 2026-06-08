@@ -140,6 +140,51 @@ export const leadsExtraRouter = {
       const { validatePhone } = await import("./enrichment/phoneValidator");
       return validatePhone(input.phone);
     }),
+  // Bulk-create real leads from selected companies, into a new or existing campaign.
+  createFromCompanies: protectedProcedure
+    .input(
+      z.object({
+        companyIds: z.array(z.number()).min(1),
+        campaignId: z.number().optional(),
+        newCampaignName: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Resolve the target campaign (create one if needed)
+      let campaignId = input.campaignId;
+      let campaignName: string | undefined;
+      if (!campaignId) {
+        const name =
+          input.newCampaignName?.trim() ||
+          `Søk ${new Date().toLocaleDateString("nb-NO")}`;
+        const campaign = await db.createCampaign({ userId: ctx.user.id, name });
+        campaignId = campaign.id;
+        campaignName = campaign.name;
+      }
+
+      // Skip companies already added as leads to this campaign
+      const existing = await db.getLeadsByCampaign(campaignId, ctx.user.id);
+      const existingCompanyIds = new Set(
+        (existing as any[]).map((r) => r.lead?.companyId ?? r.companyId)
+      );
+
+      let created = 0;
+      let skipped = 0;
+      for (const companyId of input.companyIds) {
+        if (existingCompanyIds.has(companyId)) {
+          skipped += 1;
+          continue;
+        }
+        try {
+          await db.addLeadToCampaign({ userId: ctx.user.id, campaignId, companyId });
+          created += 1;
+        } catch {
+          skipped += 1;
+        }
+      }
+
+      return { campaignId, campaignName, created, skipped };
+    }),
 };
 
 export const teamExtraRouter = {
