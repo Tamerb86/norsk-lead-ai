@@ -266,3 +266,101 @@ export const brregRouter = router({
       return refreshCompaniesByOrgNr([input.orgNr]);
     }),
 });
+
+// ============================================
+// EMAIL FINDER / ENRICHMENT
+// ============================================
+export const emailFinderRouter = router({
+  getStats: protectedProcedure.query(async () => {
+    return db.getEmailEnrichmentStats();
+  }),
+
+  getCompaniesWithoutEmail: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(200).default(50),
+        fylke: z.string().optional(),
+        kommune: z.string().optional(),
+        hasWebsite: z.boolean().optional(),
+      })
+    )
+    .query(async ({ input }) => {
+      return db.getCompaniesWithoutEmail(input);
+    }),
+
+  // Find an email for a single company (scrape its website, then validate).
+  findEmail: protectedProcedure
+    .input(z.object({ companyId: z.number() }))
+    .mutation(async ({ input }) => {
+      const company = await db.getCompanyById(input.companyId);
+      if (!company) throw new Error("Company not found");
+      if (!company.hjemmeside) {
+        return { email: null, companyName: company.navn, source: null, confidence: 0 };
+      }
+
+      const { scrapeEmailFromWebsite } = await import("./enrichment/googleMapsEmailFinder");
+      const { quickValidate } = await import("./services/emailVerification");
+
+      const scraped = await scrapeEmailFromWebsite(company.hjemmeside);
+      let email = scraped.email;
+
+      // Reject obviously invalid addresses
+      if (email && !quickValidate(email).valid) email = null;
+
+      if (email) {
+        await db.updateCompanyContact(company.id, { epostadresse: email });
+        return {
+          email,
+          companyName: company.navn,
+          source: "website_scrape" as const,
+          confidence: (scraped as any).confidence ?? 70,
+        };
+      }
+      return { email: null, companyName: company.navn, source: null, confidence: 0 };
+    }),
+
+  // Bulk: scrape + store emails for companies that have a website but no email.
+  autoEnrich: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(100).default(25),
+        fylke: z.string().optional(),
+        kommune: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const companies = await db.getCompaniesWithoutEmail({
+        limit: input.limit,
+        fylke: input.fylke,
+        kommune: input.kommune,
+        hasWebsite: true,
+      });
+
+      const { scrapeEmailFromWebsite } = await import("./enrichment/googleMapsEmailFinder");
+      const { quickValidate } = await import("./services/emailVerification");
+
+      let found = 0;
+      let updated = 0;
+      let processed = 0;
+      for (const c of companies as any[]) {
+        processed += 1;
+        if (!c.hjemmeside) continue;
+        try {
+          const scraped = await scrapeEmailFromWebsite(c.hjemmeside);
+          let email = scraped.email;
+          if (email && !quickValidate(email).valid) email = null;
+          if (email) {
+            found += 1;
+            await db.updateCompanyContact(c.id, { epostadresse: email });
+            updated += 1;
+          }
+        } catch {
+          /* skip */
+        }
+        // gentle pacing — we are scraping external sites
+        if (processed % 10 === 0) await new Promise((r) => setTimeout(r, 500));
+      }
+
+      return { processed, found, updated };
+    }),
+});

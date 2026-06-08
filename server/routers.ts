@@ -14,6 +14,7 @@ import {
   leadsExtraRouter,
   teamExtraRouter,
   brregRouter,
+  emailFinderRouter,
 } from "./routersExtra";
 
 export const appRouter = router({
@@ -554,6 +555,7 @@ export const appRouter = router({
   calendar: calendarRouter,
   referral: referralRouter,
   brreg: brregRouter,
+  emailFinder: emailFinderRouter,
 });
 
 export type AppRouter = typeof appRouter;
