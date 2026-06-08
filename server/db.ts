@@ -2002,27 +2002,11 @@ export async function getCalendarEvents(userId: number, params?: {
   if (params?.eventType) conditions.push(eq(calendarEvents.eventType, params.eventType));
   if (params?.status) conditions.push(eq(calendarEvents.status, params.status));
 
-  const rows = await db
-    .select({
-      event: calendarEvents,
-      company_name: norwegianCompanies.navn,
-      lead_email: leads.email,
-      campaign_name: campaigns.name,
-    })
+  return await db
+    .select()
     .from(calendarEvents)
-    .leftJoin(norwegianCompanies, eq(calendarEvents.companyId, norwegianCompanies.id))
-    .leftJoin(leads, eq(calendarEvents.leadId, leads.id))
-    .leftJoin(campaigns, eq(calendarEvents.campaignId, campaigns.id))
     .where(and(...conditions))
     .orderBy(asc(calendarEvents.startTime));
-
-  // Flatten to match the previous raw-SQL shape (event fields + joined names)
-  return rows.map((r: any) => ({
-    ...r.event,
-    company_name: r.company_name,
-    lead_email: r.lead_email,
-    campaign_name: r.campaign_name,
-  }));
 }
 
 /**
