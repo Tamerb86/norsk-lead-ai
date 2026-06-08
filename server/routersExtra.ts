@@ -305,7 +305,7 @@ export const emailFinderRouter = router({
       let email = scraped.email;
 
       // Reject obviously invalid addresses
-      if (email && !quickValidate(email).valid) email = null;
+      if (email && !quickValidate(email).isValid) email = null;
 
       if (email) {
         await db.updateCompanyContact(company.id, { epostadresse: email });
@@ -348,7 +348,7 @@ export const emailFinderRouter = router({
         try {
           const scraped = await scrapeEmailFromWebsite(c.hjemmeside);
           let email = scraped.email;
-          if (email && !quickValidate(email).valid) email = null;
+          if (email && !quickValidate(email).isValid) email = null;
           if (email) {
             found += 1;
             await db.updateCompanyContact(c.id, { epostadresse: email });
