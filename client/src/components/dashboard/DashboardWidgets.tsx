@@ -195,7 +195,16 @@ export function DashboardWidgets({ renderWidget, width = 1200 }: DashboardWidget
   const [isEditing, setIsEditing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  const isMobile = width < 768;
+  const [viewportWidth, setViewportWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1200
+  );
+  useEffect(() => {
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  const isMobile = viewportWidth < 768;
+  const gridWidth = Math.min(width, viewportWidth - 32);
 
   // Save layout to localStorage
   useEffect(() => {
@@ -341,7 +350,7 @@ export function DashboardWidgets({ renderWidget, width = 1200 }: DashboardWidget
         layout={filteredLayout}
         cols={12}
         rowHeight={80}
-        width={width}
+        width={gridWidth}
         onLayoutChange={handleLayoutChange}
         isDraggable={isEditing}
         isResizable={isEditing}
