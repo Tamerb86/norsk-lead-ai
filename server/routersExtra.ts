@@ -270,6 +270,30 @@ export const brregRouter = router({
 // ============================================
 // EMAIL FINDER / ENRICHMENT
 // ============================================
+
+// Derive a clean domain from a website URL/string.
+function domainFromWebsite(website?: string | null): string | null {
+  if (!website) return null;
+  let d = website.trim().toLowerCase();
+  d = d.replace(/^https?:\/\//, "").replace(/^www\./, "");
+  d = d.split("/")[0].split("?")[0].split("#")[0];
+  return /^[a-z0-9.-]+\.[a-z]{2,}$/.test(d) ? d : null;
+}
+
+// Fallback: guess the common Norwegian pattern post@domain and accept it only
+// if the domain actually has MX records (can receive mail). Returns null otherwise.
+async function guessEmailByPattern(website?: string | null): Promise<string | null> {
+  const domain = domainFromWebsite(website);
+  if (!domain) return null;
+  const { validateEmail } = await import("./enrichment/emailValidator");
+  const candidate = `post@${domain}`;
+  try {
+    const res = await validateEmail(candidate);
+    return res.checks?.mxRecords ? candidate : null;
+  } catch {
+    return null;
+  }
+}
 export const emailFinderRouter = router({
   getStats: protectedProcedure.query(async () => {
     return db.getEmailEnrichmentStats();
@@ -316,6 +340,14 @@ export const emailFinderRouter = router({
           confidence: (scraped as any).confidence ?? 70,
         };
       }
+
+      // Fallback: common Norwegian pattern verified by MX records
+      const guessed = await guessEmailByPattern(company.hjemmeside);
+      if (guessed) {
+        await db.updateCompanyContact(company.id, { epostadresse: guessed });
+        return { email: guessed, companyName: company.navn, source: "pattern_mx" as const, confidence: 45 };
+      }
+
       return { email: null, companyName: company.navn, source: null, confidence: 0 };
     }),
 
@@ -349,6 +381,8 @@ export const emailFinderRouter = router({
           const scraped = await scrapeEmailFromWebsite(c.hjemmeside);
           let email = scraped.email;
           if (email && !quickValidate(email).isValid) email = null;
+          // Fallback to MX-verified Norwegian pattern if scraping found nothing
+          if (!email) email = await guessEmailByPattern(c.hjemmeside);
           if (email) {
             found += 1;
             await db.updateCompanyContact(c.id, { epostadresse: email });
