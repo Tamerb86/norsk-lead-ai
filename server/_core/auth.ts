@@ -163,7 +163,7 @@ class AuthService {
   async verifyAndRotateRefreshToken(
     token: string,
     req: Request
-  ): Promise<{ user: User; newRefreshToken: string } | null> {
+  ): Promise<{ user: User; newRefreshToken: string } | { raceIgnored: true } | null> {
     const tokenHash = this.hashRefreshToken(token);
     
     // Find the token in database
@@ -181,7 +181,16 @@ class AuthService {
 
     // Check if token is revoked
     if (storedToken.revokedAt) {
-      // Possible token reuse attack - revoke all tokens for this user
+      // A recently-rotated token replayed within a short grace window is almost
+      // always a benign concurrent refresh (e.g. two browser tabs), NOT theft.
+      // Ignore it without nuking the whole token family so the user stays logged in.
+      const REUSE_GRACE_MS = 60 * 1000;
+      const revokedMsAgo = Date.now() - new Date(storedToken.revokedAt).getTime();
+      if (revokedMsAgo <= REUSE_GRACE_MS) {
+        console.warn(`[Auth] Concurrent refresh within grace window for user ${storedToken.userId} — ignoring`);
+        return { raceIgnored: true } as const;
+      }
+      // Replayed long after rotation -> likely token theft. Revoke everything.
       await db.revokeAllUserRefreshTokens(storedToken.userId);
       console.warn(`[Security] Possible refresh token reuse detected for user ${storedToken.userId}`);
       return null;

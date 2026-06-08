@@ -281,6 +281,12 @@ export function registerAuthRoutes(app: Express) {
 
       const result = await authService.verifyAndRotateRefreshToken(refreshToken, req);
 
+      if (result && "raceIgnored" in result) {
+        // Benign concurrent refresh (another tab already rotated the token).
+        // Leave existing cookies untouched so the user stays logged in.
+        return res.json({ success: true, raceIgnored: true });
+      }
+
       if (!result) {
         // Clear cookies on invalid refresh token
         authService.clearSessionCookie(res, req);
