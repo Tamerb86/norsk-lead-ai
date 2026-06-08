@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import GridLayout, { Layout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
@@ -204,7 +204,21 @@ export function DashboardWidgets({ renderWidget, width = 1200 }: DashboardWidget
     return () => window.removeEventListener("resize", onResize);
   }, []);
   const isMobile = viewportWidth < 768;
-  const gridWidth = Math.min(width, viewportWidth - 32);
+
+  // Measure the actual available width via a full-width sentinel (avoids the
+  // chicken-and-egg where the grid container grows to its own content width).
+  const measureRef = useRef<HTMLDivElement>(null);
+  const [measuredWidth, setMeasuredWidth] = useState(0);
+  useEffect(() => {
+    if (!measureRef.current) return;
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width;
+      if (w) setMeasuredWidth(w);
+    });
+    ro.observe(measureRef.current);
+    return () => ro.disconnect();
+  }, []);
+  const gridWidth = measuredWidth || Math.min(width, viewportWidth - 32);
 
   // Save layout to localStorage
   useEffect(() => {
@@ -326,6 +340,7 @@ export function DashboardWidgets({ renderWidget, width = 1200 }: DashboardWidget
         </div>
       </div>
 
+      <div ref={measureRef} className="w-full h-0" aria-hidden="true" />
       {/* Grid Layout (desktop) / stacked (mobile) */}
       {isMobile ? (
         <div className="flex flex-col gap-4">
