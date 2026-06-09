@@ -147,6 +147,30 @@ function EmailFinderTab() {
   const [brregSyncing, setBrregSyncing] = useState(false);
   const [brregResult, setBrregResult] = useState<string | null>(null);
 
+  const [delivDomain, setDelivDomain] = useState("nexifyhub.no");
+  const [delivChecking, setDelivChecking] = useState(false);
+  const [delivReport, setDelivReport] = useState<any>(null);
+
+  const runDeliverabilityCheck = async () => {
+    setDelivChecking(true);
+    setDelivReport(null);
+    try {
+      await fetch("/api/auth/refresh", { method: "POST", credentials: "include" }).catch(() => {});
+      const res = await fetch("/api/trpc/deliverability.check?batch=1", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 0: { json: { domain: delivDomain } } }),
+      });
+      const j = await res.json();
+      setDelivReport(j?.[0]?.result?.data?.json || { summary: "Feil: " + (j?.[0]?.error?.json?.message || "ukjent") , checks: [], score: 0 });
+    } catch (e) {
+      setDelivReport({ summary: "Feil ved sjekk", checks: [], score: 0 });
+    } finally {
+      setDelivChecking(false);
+    }
+  };
+
   const runBrregSync = async () => {
     setBrregSyncing(true);
     setBrregResult(null);
@@ -370,6 +394,51 @@ function EmailFinderTab() {
             </Button>
             {brregResult && <span className="text-sm text-muted-foreground">{brregResult}</span>}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Deliverability checker */}
+      <Card>
+        <CardHeader>
+          <CardTitle>E-post leveringsevne (SPF / DKIM / DMARC)</CardTitle>
+          <CardDescription>
+            Sjekk om avsenderdomenet ditt er riktig satt opp slik at e-postene havner i innboksen, ikke i spam.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-end gap-3 flex-wrap">
+            <div className="flex-1 min-w-[220px]">
+              <Label htmlFor="delivDomain">Avsenderdomene</Label>
+              <Input id="delivDomain" value={delivDomain} onChange={(e) => setDelivDomain(e.target.value)} placeholder="f.eks. nexifyhub.no" />
+            </div>
+            <Button onClick={runDeliverabilityCheck} disabled={delivChecking}>
+              {delivChecking ? "Sjekker..." : "Sjekk domene"}
+            </Button>
+          </div>
+          {delivReport && (
+            <div className="mt-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl font-bold">{delivReport.score}/100</span>
+                <span className="text-sm text-muted-foreground">{delivReport.summary}</span>
+              </div>
+              <div className="space-y-2">
+                {(delivReport.checks || []).map((c: any, i: number) => (
+                  <div key={i} className="rounded-lg border p-3 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className={
+                        c.status === "pass" ? "text-green-600" : c.status === "warn" ? "text-amber-600" : "text-red-600"
+                      }>
+                        {c.status === "pass" ? "✓" : c.status === "warn" ? "!" : "✗"}
+                      </span>
+                      <span className="font-semibold">{c.name}</span>
+                    </div>
+                    <p className="text-muted-foreground mt-1 break-all">{c.detail}</p>
+                    {c.fix && <p className="text-blue-700 mt-1">{c.fix}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -15,6 +15,7 @@ import {
   teamExtraRouter,
   brregRouter,
   emailFinderRouter,
+  deliverabilityRouter,
 } from "./routersExtra";
 
 export const appRouter = router({
@@ -556,6 +557,7 @@ export const appRouter = router({
   referral: referralRouter,
   brreg: brregRouter,
   emailFinder: emailFinderRouter,
+  deliverability: deliverabilityRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -398,3 +398,15 @@ export const emailFinderRouter = router({
       return { processed, found, updated };
     }),
 });
+
+// ============================================
+// DELIVERABILITY (SPF/DKIM/DMARC checker)
+// ============================================
+export const deliverabilityRouter = router({
+  check: protectedProcedure
+    .input(z.object({ domain: z.string().min(3) }))
+    .mutation(async ({ input }) => {
+      const { checkDeliverability } = await import("./services/deliverability");
+      return checkDeliverability(input.domain);
+    }),
+});
