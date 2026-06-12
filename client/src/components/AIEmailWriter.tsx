@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { trpc } from "@/lib/trpc";
+import { trpcClient } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -55,7 +55,7 @@ export function AIEmailWriter({
 
   const generateMutation = useMutation({
     mutationFn: async () => {
-      const result = await trpc.ai.generateEmail.mutate({
+      const result = await trpcClient.ai.generateEmail.mutate({
         companyName,
         industry: industry || undefined,
         location: location || undefined,
@@ -85,7 +85,7 @@ export function AIEmailWriter({
 
   const improveMutation = useMutation({
     mutationFn: async (instruction: string) => {
-      const result = await trpc.ai.improveEmail.mutate({
+      const result = await trpcClient.ai.improveEmail.mutate({
         originalEmail: `Emne: ${generatedSubject}\n\n${generatedBody}`,
         instruction,
         language,
@@ -105,7 +105,7 @@ export function AIEmailWriter({
 
   const subjectsMutation = useMutation({
     mutationFn: async () => {
-      const result = await trpc.ai.generateSubjects.mutate({
+      const result = await trpcClient.ai.generateSubjects.mutate({
         emailBody: generatedBody,
         count: 5,
         language,

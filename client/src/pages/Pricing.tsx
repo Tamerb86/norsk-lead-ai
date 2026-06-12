@@ -73,7 +73,7 @@ export default function Pricing() {
     "offers": SUBSCRIPTION_PLANS.map(plan => ({
       "@type": "Offer",
       "name": plan.name,
-      "price": plan.price,
+      "price": plan.priceMonthly,
       "priceCurrency": "NOK",
       "availability": "https://schema.org/InStock"
     }))

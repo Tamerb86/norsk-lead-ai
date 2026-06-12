@@ -29,7 +29,8 @@ export default function Leads() {
   const [bulkStatus, setBulkStatus] = useState<string>("");
   const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
-  const { data: leads, isLoading, refetch } = trpc.leads.list.useQuery({ campaignId: 0 });
+  const { data: leadsData, isLoading, refetch } = trpc.leads.list.useQuery({ campaignId: 0 });
+  const leads = leadsData?.leads;
   const updateStatusMutation = trpc.leads.updateStatus.useMutation({
     onSuccess: () => {
       toastSuccess("Status oppdatert!", {
@@ -309,7 +310,7 @@ export default function Leads() {
                             {(provided, snapshot) => (
                               <div
                                 ref={provided.innerRef}
-                                {...provided.draggableProps}
+                                {...(provided.draggableProps as any) /* rbd types clash with React 19 CSSProperties */}
                                 {...provided.dragHandleProps}
                                 className={`p-4 bg-white rounded-lg border-2 ${
                                   selectedLeads.includes(item.lead.id) ? 'border-blue-500 bg-blue-50' : 'border-gray-200'

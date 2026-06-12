@@ -15,5 +15,13 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
+    // server/_core/env.ts validates required env vars at import time;
+    // provide harmless defaults so unit tests run without a real .env.
+    // A pre-set DATABASE_URL (e.g. pointing at a local test container) wins.
+    env: {
+      VITE_APP_ID: process.env.VITE_APP_ID ?? "test-app",
+      JWT_SECRET: process.env.JWT_SECRET ?? "vitest-only-jwt-secret-not-used-in-real-environments",
+      DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://test:test@localhost:5432/test",
+    },
   },
 });

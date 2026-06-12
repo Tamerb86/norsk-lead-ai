@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { authService } from "./auth";
 import * as db from "../db";
+import { logSecurityEvent, SecurityEventType, getClientInfo } from "./securityLogger";
 
 /**
  * Middleware to check if user is admin
@@ -54,13 +55,30 @@ export function registerAdminRoutes(app: Express) {
   app.put("/api/admin/users/:id/role", requireAdmin, async (req: Request, res: Response) => {
     try {
       const userId = parseInt(req.params.id);
+      const currentUser = (req as any).user;
       const { role } = req.body;
+
+      if (!Number.isInteger(userId)) {
+        return res.status(400).json({ error: "Invalid user id" });
+      }
+
+      // Prevent an admin from changing their own role (avoids accidental
+      // lockout and self-escalation games with multiple admin accounts)
+      if (currentUser.id === userId) {
+        return res.status(400).json({ error: "Cannot change your own role" });
+      }
 
       if (!["admin", "user", "manager", "viewer"].includes(role)) {
         return res.status(400).json({ error: "Invalid role" });
       }
 
       await db.updateUserRole(userId, role);
+      logSecurityEvent({
+        type: SecurityEventType.ROLE_CHANGED,
+        userId: currentUser.id,
+        ...getClientInfo(req),
+        details: { action: "role_change", targetUserId: userId, newRole: role },
+      });
       res.json({ success: true });
     } catch (error) {
       console.error("[Admin] Failed to update user role:", error);
@@ -83,6 +101,12 @@ export function registerAdminRoutes(app: Express) {
       }
 
       await db.deleteUser(userId);
+      logSecurityEvent({
+        type: SecurityEventType.USER_DELETED,
+        userId: currentUser.id,
+        ...getClientInfo(req),
+        details: { targetUserId: userId },
+      });
       res.json({ success: true });
     } catch (error) {
       console.error("[Admin] Failed to delete user:", error);

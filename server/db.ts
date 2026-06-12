@@ -51,6 +51,8 @@ export async function getDb() {
         idleTimeoutMillis: 30000, // Close idle connections after 30 seconds
         connectionTimeoutMillis: 10000, // Timeout for acquiring a connection
         maxUses: 7500, // Close connection after 7500 queries (prevents memory leaks)
+        statement_timeout: 30000, // Kill queries running longer than 30s so they can't exhaust the pool
+        query_timeout: 30000,
       });
       _db = drizzle(_pool);
       console.log("✅ [Database] Connected successfully (PostgreSQL)");
@@ -63,6 +65,17 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+/**
+ * Close the connection pool (graceful shutdown).
+ */
+export async function closeDb(): Promise<void> {
+  if (_pool) {
+    await _pool.end();
+    _pool = null;
+    _db = null;
+  }
 }
 
 // ============================================
@@ -152,6 +165,11 @@ export async function getUserByOpenId(openId: string) {
 // NORWEGIAN COMPANIES FUNCTIONS
 // ============================================
 
+/** Escape LIKE/ILIKE wildcards in user input so they match literally. */
+function escapeLikePattern(input: string): string {
+  return input.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+}
+
 export async function searchCompanies(params: {
   query?: string;
   fylke?: string;
@@ -166,7 +184,7 @@ export async function searchCompanies(params: {
   hasEmail?: boolean;
   hasPhone?: boolean;
   hasWebsite?: boolean;
-  sortBy?: 'name' | 'employees' | 'founded' | 'recent';
+  sortBy?: 'name' | 'employees' | 'founded' | 'recent' | 'age' | 'revenue';
   sortOrder?: 'asc' | 'desc';
   limit?: number;
   offset?: number;
@@ -177,11 +195,12 @@ export async function searchCompanies(params: {
   const conditions = [];
 
   if (params.query) {
-    // Use ILIKE for case-insensitive search
+    // Use ILIKE for case-insensitive search (wildcards escaped to match literally)
+    const q = escapeLikePattern(params.query);
     conditions.push(
       or(
-        sql`${norwegianCompanies.navn} ILIKE ${`%${params.query}%`}`,
-        sql`${norwegianCompanies.organisasjonsnummer} ILIKE ${`%${params.query}%`}`
+        sql`${norwegianCompanies.navn} ILIKE ${`%${q}%`}`,
+        sql`${norwegianCompanies.organisasjonsnummer} ILIKE ${`%${q}%`}`
       )
     );
   }
@@ -196,11 +215,11 @@ export async function searchCompanies(params: {
 
   if (params.poststed) {
     // Use ILIKE for case-insensitive city search
-    conditions.push(sql`${norwegianCompanies.poststed} ILIKE ${`%${params.poststed}%`}`);
+    conditions.push(sql`${norwegianCompanies.poststed} ILIKE ${`%${escapeLikePattern(params.poststed)}%`}`);
   }
 
   if (params.naeringskode) {
-    conditions.push(like(norwegianCompanies.naeringskode1, `${params.naeringskode}%`));
+    conditions.push(like(norwegianCompanies.naeringskode1, `${escapeLikePattern(params.naeringskode)}%`));
   }
 
   if (params.minEmployees !== undefined) {
@@ -277,7 +296,8 @@ export async function searchCompanies(params: {
 
   return {
     companies: companiesResult,
-    total: totalResult[0]?.count || 0,
+    // count(*) comes back from pg as a string — normalize to number
+    total: Number(totalResult[0]?.count ?? 0),
   };
 }
 
@@ -482,15 +502,31 @@ export async function updateLeadStatus(
 // EMAIL TEMPLATES FUNCTIONS
 // ============================================
 
-export async function getTemplates(userId: number) {
+export async function getTemplates(userId: number, category?: string) {
   const db = await getDb();
   // getDb() now throws if database is not available
+
+  const conditions = [eq(emailTemplates.userId, userId)];
+  if (category) conditions.push(eq(emailTemplates.category, category));
 
   return await db
     .select()
     .from(emailTemplates)
-    .where(eq(emailTemplates.userId, userId))
+    .where(and(...conditions))
     .orderBy(desc(emailTemplates.createdAt));
+}
+
+export async function getTemplateById(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [row] = await db
+    .select()
+    .from(emailTemplates)
+    .where(and(eq(emailTemplates.id, id), eq(emailTemplates.userId, userId)))
+    .limit(1);
+
+  return row || null;
 }
 
 export async function createTemplate(data: {
@@ -503,12 +539,13 @@ export async function createTemplate(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const result = await db.insert(emailTemplates).values({
+  const [row] = await db.insert(emailTemplates).values({
     ...data,
     isDefault: false,
-  }).returning({ id: emailTemplates.id });
+  }).returning();
 
-  return { id: result[0]?.id || 0 };
+  if (!row) throw new Error("Failed to create template");
+  return row;
 }
 
 export async function updateTemplate(
@@ -524,12 +561,13 @@ export async function updateTemplate(
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db
+  const [row] = await db
     .update(emailTemplates)
-    .set(data)
-    .where(and(eq(emailTemplates.id, id), eq(emailTemplates.userId, userId)));
+    .set({ ...data, updatedAt: new Date() })
+    .where(and(eq(emailTemplates.id, id), eq(emailTemplates.userId, userId)))
+    .returning();
 
-  return { success: true };
+  return row || null;
 }
 
 export async function deleteTemplate(id: number, userId: number) {
@@ -1915,10 +1953,12 @@ export async function insertCompanyFromBrreg(data: {
 export async function getTopLeads(userId: number, limit: number = 5) {
   const db = await getDb();
   
+  // Engagement score derived from activity (the leads table has no score column)
+  const engagementScore = sql<number>`(${leads.openCount} + ${leads.clickCount} * 2)`;
   const result = await db.select({
     id: leads.id,
     companyId: leads.companyId,
-    score: leads.score,
+    score: engagementScore,
     status: leads.status,
     updatedAt: leads.updatedAt,
     companyName: norwegianCompanies.navn,
@@ -1927,7 +1967,7 @@ export async function getTopLeads(userId: number, limit: number = 5) {
     .from(leads)
     .leftJoin(norwegianCompanies, eq(leads.companyId, norwegianCompanies.id))
     .where(eq(leads.userId, userId))
-    .orderBy(desc(leads.score))
+    .orderBy(desc(engagementScore))
     .limit(limit);
   
   return result.map(lead => ({
@@ -2540,7 +2580,7 @@ export async function getAbTests(userId: number) {
     FROM ab_tests t
     LEFT JOIN campaigns c ON t.campaign_id = c.id
     WHERE t.user_id = ${userId}
-    ORDER BY t.created_at DESC
+    ORDER BY t."createdAt" DESC
   `);
   
   return result.rows || [];
@@ -2557,13 +2597,17 @@ export async function getAbTestById(testId: number, userId: number) {
   `);
   
   if (testResult.rows.length === 0) return null;
-  
+
   const variantsResult = await db.execute(sql`
     SELECT * FROM ab_test_variants WHERE test_id = ${testId}
   `);
-  
+
+  const row = testResult.rows[0] as Record<string, unknown>;
   return {
-    ...testResult.rows[0],
+    ...row,
+    // camelCase aliases for the snake_case columns callers rely on
+    campaignId: row.campaign_id,
+    userId: row.user_id,
     variants: variantsResult.rows || [],
   };
 }
@@ -2723,11 +2767,93 @@ export async function getLeadScores(userId: number, options?: { tier?: string; m
   return result.rows || [];
 }
 
+/** Aggregate lead-score counts per tier for a user. */
+export async function getLeadScoreTierStats(userId: number) {
+  const db = await getDb();
+
+  const result = await db.execute(sql`
+    SELECT tier, count(*) as count, COALESCE(avg(total_score), 0) as avg_score
+    FROM lead_scores
+    WHERE user_id = ${userId}
+    GROUP BY tier
+  `);
+
+  const stats: Record<string, { count: number; avgScore: number }> = {
+    very_hot: { count: 0, avgScore: 0 },
+    hot: { count: 0, avgScore: 0 },
+    warm: { count: 0, avgScore: 0 },
+    cold: { count: 0, avgScore: 0 },
+  };
+  let total = 0;
+  for (const row of result.rows as any[]) {
+    const count = Number(row.count) || 0;
+    stats[row.tier] = { count, avgScore: Math.round(Number(row.avg_score) || 0) };
+    total += count;
+  }
+
+  return { ...stats, total };
+}
+
+function tierFromScore(score: number): string {
+  if (score >= 80) return "very_hot";
+  if (score >= 50) return "hot";
+  if (score >= 25) return "warm";
+  return "cold";
+}
+
+/**
+ * Recalculate lead scores for all of a user's leads based on the company
+ * attributes (uses the scoring service) and upsert into lead_scores.
+ */
+export async function recalculateLeadScores(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const { calculateLeadScore } = await import("./services/leadScoring");
+  const rows = await getLeads(userId);
+
+  let updated = 0;
+  for (const row of rows as any[]) {
+    const { lead, company } = row;
+    if (!lead || !company) continue;
+
+    const score = calculateLeadScore({
+      id: company.id,
+      navn: company.navn,
+      organisasjonsform: company.organisasjonsform,
+      naeringskode1: company.naeringskode1,
+      naeringsbeskrivelse1: company.naeringsbeskrivelse1,
+      antallAnsatte: company.antallAnsatte,
+      epostadresse: company.epostadresse,
+      telefon: company.telefon,
+      hjemmeside: company.hjemmeside,
+      fylke: company.fylke,
+      kommune: company.kommune,
+      stiftelsesdato: company.stiftelsesdato,
+    });
+
+    const tier = tierFromScore(score.totalScore);
+    await db.execute(sql`
+      INSERT INTO lead_scores (lead_id, company_id, user_id, total_score, engagement_score, company_score, behavior_score, tier)
+      VALUES (${lead.id}, ${company.id}, ${userId}, ${score.totalScore}, 0, ${score.totalScore}, 0, ${tier})
+      ON CONFLICT (lead_id) DO UPDATE
+      SET total_score = ${score.totalScore},
+          company_score = ${score.totalScore},
+          tier = ${tier},
+          last_score_update = NOW(),
+          "updatedAt" = NOW()
+    `);
+    updated += 1;
+  }
+
+  return { updated };
+}
+
 export async function getScoringRules(userId: number) {
   const db = await getDb();
   
   const result = await db.execute(sql`
-    SELECT * FROM scoring_rules WHERE user_id = ${userId} ORDER BY priority DESC, created_at DESC
+    SELECT * FROM scoring_rules WHERE user_id = ${userId} ORDER BY priority DESC, "createdAt" DESC
   `);
   
   return result.rows || [];
@@ -2739,19 +2865,20 @@ export async function createScoringRule(data: {
   description?: string;
   ruleType: string;
   condition: string;
-  operator: string;
-  value: string;
+  operator?: string;
+  value?: string;
   scoreChange: number;
   priority?: number;
+  isActive?: boolean;
 }) {
   const db = await getDb();
-  
+
   const result = await db.execute(sql`
-    INSERT INTO scoring_rules (user_id, name, description, rule_type, condition, operator, value, score_change, priority)
-    VALUES (${data.userId}, ${data.name}, ${data.description || null}, ${data.ruleType}, ${data.condition}, ${data.operator}, ${data.value}, ${data.scoreChange}, ${data.priority || 0})
+    INSERT INTO scoring_rules (user_id, name, description, rule_type, condition, operator, value, score_change, priority, is_active)
+    VALUES (${data.userId}, ${data.name}, ${data.description || null}, ${data.ruleType}, ${data.condition}, ${data.operator || "equals"}, ${data.value ?? ""}, ${data.scoreChange}, ${data.priority || 0}, ${data.isActive ?? true})
     RETURNING id
   `);
-  
+
   return { id: (result.rows[0] as any).id };
 }
 
@@ -2823,12 +2950,17 @@ export async function createWebhook(data: {
 
 export async function getWebhooks(userId: number) {
   const db = await getDb();
-  
+
   const result = await db.execute(sql`
-    SELECT * FROM webhooks WHERE user_id = ${userId} ORDER BY created_at DESC
+    SELECT * FROM webhooks WHERE user_id = ${userId} ORDER BY "createdAt" DESC
   `);
-  
-  return result.rows || [];
+
+  // Add camelCase aliases alongside the raw snake_case columns so both the
+  // existing client (snake_case) and newer consumers (camelCase) work.
+  return (result.rows || []).map((r: any) => ({
+    ...r,
+    isActive: r.is_active,
+  }));
 }
 
 export async function getWebhookById(webhookId: number, userId: number) {
@@ -2955,7 +3087,7 @@ export async function getWebhookDeliveries(webhookId: number, userId: number, li
     FROM webhook_deliveries d
     JOIN webhooks w ON d.webhook_id = w.id
     WHERE d.webhook_id = ${webhookId} AND w.user_id = ${userId}
-    ORDER BY d.created_at DESC
+    ORDER BY d."createdAt" DESC
     LIMIT ${limit}
   `);
   
@@ -3126,6 +3258,218 @@ export async function createLead(data: {
     .returning();
 
   return row;
+}
+
+/**
+ * Find (or create) the user's default campaign used for leads that are
+ * created directly (not via a campaign flow).
+ */
+async function getOrCreateDirectLeadsCampaign(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const DIRECT_NAME = "Direkte leads";
+  const [existing] = await db
+    .select({ id: campaigns.id })
+    .from(campaigns)
+    .where(and(eq(campaigns.userId, userId), eq(campaigns.name, DIRECT_NAME)))
+    .limit(1);
+  if (existing) return existing.id;
+
+  const created = await createCampaign({ userId, name: DIRECT_NAME });
+  return created.id;
+}
+
+/** Flatten a {lead, company} row into the CRM-style lead shape. */
+function flattenLeadRow(row: { lead: any; company: any }) {
+  const { lead, company } = row;
+  return {
+    ...lead,
+    companyName: company?.navn ?? null,
+    email: company?.epostadresse ?? null,
+    phone: company?.telefon ?? null,
+    website: company?.hjemmeside ?? null,
+    industry: company?.naeringsbeskrivelse1 ?? null,
+    employees: company?.antallAnsatte ?? null,
+    lead,
+    company,
+  };
+}
+
+/**
+ * Create a lead directly from contact details (CRM-style). A placeholder
+ * company row is created to hold the contact details.
+ */
+export async function createDirectLead(data: {
+  userId: number;
+  companyName: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  industry?: string;
+  employees?: number;
+  notes?: string;
+  status?: string;
+  campaignId?: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Insert a placeholder company (orgnr is required+unique, so generate one).
+  let company: any = null;
+  for (let attempt = 0; attempt < 3 && !company; attempt++) {
+    const orgNr = String(900000000 + Math.floor(Math.random() * 99999999));
+    try {
+      const [inserted] = await db
+        .insert(norwegianCompanies)
+        .values({
+          organisasjonsnummer: orgNr,
+          navn: data.companyName,
+          epostadresse: data.email || null,
+          telefon: data.phone ? data.phone.slice(0, 20) : null,
+          hjemmeside: data.website || null,
+          naeringsbeskrivelse1: data.industry || null,
+          antallAnsatte: data.employees ?? null,
+        })
+        .returning();
+      company = inserted;
+    } catch (err: any) {
+      // Retry on unique violation for the generated org number
+      if (attempt === 2) throw err;
+    }
+  }
+
+  const campaignId = data.campaignId ?? (await getOrCreateDirectLeadsCampaign(data.userId));
+
+  const { generateTrackingId } = await import("./emailTracking");
+  const [lead] = await db
+    .insert(leads)
+    .values({
+      userId: data.userId,
+      campaignId,
+      companyId: company.id,
+      status: (data.status as any) || "new",
+      notes: data.notes || null,
+      trackingId: generateTrackingId(),
+      openCount: 0,
+      clickCount: 0,
+      followUpCount: 0,
+    })
+    .returning();
+
+  return flattenLeadRow({ lead, company });
+}
+
+/**
+ * List leads with company info, filtering and total count (CRM-style).
+ */
+export async function listLeads(
+  userId: number,
+  options?: {
+    campaignId?: number;
+    status?: string;
+    search?: string;
+    limit?: number;
+    offset?: number;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const conditions = [eq(leads.userId, userId)];
+  // campaignId 0 (or undefined) means "all campaigns"
+  if (options?.campaignId) conditions.push(eq(leads.campaignId, options.campaignId));
+  if (options?.status) conditions.push(eq(leads.status, options.status));
+  if (options?.search) {
+    const q = escapeLikePattern(options.search);
+    conditions.push(sql`${norwegianCompanies.navn} ILIKE ${`%${q}%`}`);
+  }
+
+  const whereClause = and(...conditions);
+
+  const rows = await db
+    .select({ lead: leads, company: norwegianCompanies })
+    .from(leads)
+    .leftJoin(norwegianCompanies, eq(leads.companyId, norwegianCompanies.id))
+    .where(whereClause)
+    .orderBy(desc(leads.createdAt))
+    .limit(options?.limit ?? 100)
+    .offset(options?.offset ?? 0);
+
+  const totalResult = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(leads)
+    .leftJoin(norwegianCompanies, eq(leads.companyId, norwegianCompanies.id))
+    .where(whereClause);
+
+  return {
+    leads: rows.map(flattenLeadRow),
+    total: Number(totalResult[0]?.count ?? 0),
+  };
+}
+
+/** Get a single lead (flat CRM shape). Returns null when not found. */
+export async function getLeadFlatById(userId: number, id: number) {
+  const row = await getLeadById(userId, id);
+  return row ? flattenLeadRow(row as any) : null;
+}
+
+/**
+ * Update a lead and (optionally) its placeholder company contact details.
+ */
+export async function updateLead(
+  id: number,
+  userId: number,
+  data: Partial<{
+    companyName: string;
+    email: string;
+    phone: string;
+    website: string;
+    industry: string;
+    employees: number;
+    notes: string;
+    status: string;
+  }>
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const existing = await getLeadById(userId, id);
+  if (!existing) return null;
+
+  const leadUpdates: Record<string, unknown> = { updatedAt: new Date() };
+  if (data.status !== undefined) leadUpdates.status = data.status;
+  if (data.notes !== undefined) leadUpdates.notes = data.notes;
+  await db
+    .update(leads)
+    .set(leadUpdates as any)
+    .where(and(eq(leads.id, id), eq(leads.userId, userId)));
+
+  const companyUpdates: Record<string, unknown> = {};
+  if (data.companyName !== undefined) companyUpdates.navn = data.companyName;
+  if (data.email !== undefined) companyUpdates.epostadresse = data.email;
+  if (data.phone !== undefined) companyUpdates.telefon = data.phone.slice(0, 20);
+  if (data.website !== undefined) companyUpdates.hjemmeside = data.website;
+  if (data.industry !== undefined) companyUpdates.naeringsbeskrivelse1 = data.industry;
+  if (data.employees !== undefined) companyUpdates.antallAnsatte = data.employees;
+  if (Object.keys(companyUpdates).length > 0 && (existing as any).company?.id) {
+    await db
+      .update(norwegianCompanies)
+      .set({ ...companyUpdates, updatedAt: new Date() } as any)
+      .where(eq(norwegianCompanies.id, (existing as any).company.id));
+  }
+
+  const updated = await getLeadById(userId, id);
+  return updated ? flattenLeadRow(updated as any) : null;
+}
+
+/** Delete a lead (ownership enforced). */
+export async function deleteLead(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(leads).where(and(eq(leads.id, id), eq(leads.userId, userId)));
+  return { success: true };
 }
 
 export async function bulkUpdateLeadStatus(

@@ -37,7 +37,7 @@ interface Notification {
   relatedId: number | null;
   relatedType: string | null;
   isRead: boolean;
-  createdAt: string;
+  createdAt: string | Date;
 }
 
 // Notification type configuration

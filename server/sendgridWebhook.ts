@@ -63,6 +63,27 @@ function mapEventType(sgEvent: SendGridEventType): "open" | "click" | "bounce" |
   }
 }
 
+// Cross-batch dedup for retransmitted events (best-effort, in-memory LRU).
+const MAX_PROCESSED_IDS = 10000;
+const processedEventIds = new Set<string>();
+
+function recentlyProcessed(id: string): boolean {
+  return processedEventIds.has(id);
+}
+
+function markProcessed(id: string): void {
+  processedEventIds.add(id);
+  if (processedEventIds.size > MAX_PROCESSED_IDS) {
+    // Evict oldest entries (Set preserves insertion order)
+    const it = processedEventIds.values();
+    for (let i = 0; i < 1000; i++) {
+      const next = it.next();
+      if (next.done) break;
+      processedEventIds.delete(next.value);
+    }
+  }
+}
+
 /**
  * Handle SendGrid webhook events
  */
@@ -82,8 +103,18 @@ export async function handleSendGridWebhook(req: Request, res: Response) {
     }
 
     // Process each event
+    const seenEventIds = new Set<string>();
     for (const event of events) {
       try {
+        // Deduplicate within the batch (SendGrid may include retransmits)
+        if (event.sg_event_id) {
+          if (seenEventIds.has(event.sg_event_id) || recentlyProcessed(event.sg_event_id)) {
+            continue;
+          }
+          seenEventIds.add(event.sg_event_id);
+          markProcessed(event.sg_event_id);
+        }
+
         // Map event type
         const eventType = mapEventType(event.event);
         if (!eventType) {
@@ -196,7 +227,7 @@ export async function handleSendGridWebhook(req: Request, res: Response) {
 
   } catch (error: any) {
     console.error("❌ SendGrid webhook error:", error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Internal error" });
   }
 }
 
@@ -221,6 +252,14 @@ export function verifySendGridSignature(req: Request): boolean {
   const rawBody = (req as any).rawBody as Buffer | undefined;
 
   if (typeof signature !== "string" || typeof timestamp !== "string" || !rawBody) {
+    return false;
+  }
+
+  // Reject stale/future timestamps to limit replay of captured webhooks
+  const webhookTimeMs = parseInt(timestamp, 10) * 1000;
+  const skewMs = Date.now() - webhookTimeMs;
+  if (isNaN(webhookTimeMs) || skewMs > 10 * 60 * 1000 || skewMs < -60 * 1000) {
+    console.error(`[SendGrid Webhook] Timestamp outside acceptable window: ${timestamp}`);
     return false;
   }
 

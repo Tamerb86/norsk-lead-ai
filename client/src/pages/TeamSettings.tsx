@@ -96,11 +96,11 @@ export default function TeamSettings() {
 
   const handleRemoveMember = () => {
     if (!memberToRemove) return;
-    removeMemberMutation.mutate({ userId: memberToRemove });
+    removeMemberMutation.mutate({ memberId: memberToRemove });
   };
 
   const handleUpdateRole = (userId: number, role: "admin" | "manager" | "viewer") => {
-    updateRoleMutation.mutate({ userId, role });
+    updateRoleMutation.mutate({ memberId: userId, role });
   };
 
   const getRoleBadge = (role: string) => {
@@ -157,7 +157,7 @@ export default function TeamSettings() {
           <div className="space-y-4">
             <div>
               <Label>Team Name</Label>
-              <Input value={team.name} disabled className="mt-1" />
+              <Input value={team.team.name} disabled className="mt-1" />
             </div>
             <div>
               <Label>Total Members</Label>

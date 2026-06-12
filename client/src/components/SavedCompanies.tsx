@@ -32,7 +32,7 @@ import {
   Building2,
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import { toastSuccess, toastError } from "@/lib/toast";
+import { toastSuccess, toastError } from "@/lib/toast-utils";
 
 interface SavedCompany {
   id: number;

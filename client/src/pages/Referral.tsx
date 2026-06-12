@@ -52,17 +52,6 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { PageHelp, PAGE_DESCRIPTIONS } from "@/components/PageHelp";
 
-interface ReferralStats {
-  id: number;
-  user_id: number;
-  referral_code: string;
-  total_invites: number;
-  total_signups: number;
-  total_conversions: number;
-  total_rewards_earned: number;
-  pending_rewards: number;
-}
-
 interface Referral {
   id: number;
   referrer_id: number;
@@ -133,7 +122,7 @@ export default function Referral() {
     },
   });
   
-  const referralCode = (stats as ReferralStats)?.referral_code || "";
+  const referralCode = stats?.referralCode || "";
   const referralLink = `${window.location.origin}/register?ref=${referralCode}`;
   
   const copyToClipboard = async () => {
@@ -210,8 +199,8 @@ export default function Referral() {
     );
   }
   
-  const typedStats = stats as ReferralStats | undefined;
-  const typedReferrals = (referrals || []) as Referral[];
+  const typedStats = stats;
+  const typedReferrals: Referral[] = (referrals || []) as unknown as Referral[];
   
   return (
     <DashboardLayout>
@@ -232,7 +221,7 @@ export default function Referral() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{typedStats?.total_invites || 0}</div>
+              <div className="text-2xl font-bold">{typedStats?.totalInvited || 0}</div>
               <p className="text-xs text-muted-foreground">Invitasjoner sendt</p>
             </CardContent>
           </Card>
@@ -243,7 +232,7 @@ export default function Referral() {
               <UserPlus className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{typedStats?.total_signups || 0}</div>
+              <div className="text-2xl font-bold">{typedStats?.totalSignedUp || 0}</div>
               <p className="text-xs text-muted-foreground">Nye brukere</p>
             </CardContent>
           </Card>
@@ -254,7 +243,7 @@ export default function Referral() {
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{typedStats?.total_conversions || 0}</div>
+              <div className="text-2xl font-bold">{typedStats?.totalConverted || 0}</div>
               <p className="text-xs text-muted-foreground">Betalende kunder</p>
             </CardContent>
           </Card>
@@ -265,9 +254,9 @@ export default function Referral() {
               <Coins className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{typedStats?.total_rewards_earned || 0}</div>
+              <div className="text-2xl font-bold">{typedStats?.totalRewards || 0}</div>
               <p className="text-xs text-muted-foreground">
-                {typedStats?.pending_rewards ? `+${typedStats.pending_rewards} ventende` : "Kreditter"}
+                {typedStats?.pendingRewards ? `+${typedStats.pendingRewards} ventende` : "Kreditter"}
               </p>
             </CardContent>
           </Card>

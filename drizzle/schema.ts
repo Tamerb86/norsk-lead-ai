@@ -1,4 +1,4 @@
-import { boolean, date, index, integer, json, pgEnum, pgTable, real, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
+import { bigint, boolean, date, index, integer, json, pgEnum, pgTable, real, serial, text, timestamp, varchar } from "drizzle-orm/pg-core";
 
 // Define enums for PostgreSQL
 export const roleEnum = pgEnum("role", ["admin", "manager", "viewer"]);
@@ -531,7 +531,8 @@ export type InsertReferral = typeof referrals.$inferInsert;
 // Referral Stats - Aggregate stats per user
 export const referralStats = pgTable("referral_stats", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().unique(),
+  // bigint: test/seed users may use timestamp-based ids that overflow int4
+  userId: bigint("user_id", { mode: "number" }).notNull().unique(),
   referralCode: varchar("referral_code", { length: 20 }).notNull().unique(),
   totalInvites: integer("total_invites").default(0),
   totalSignups: integer("total_signups").default(0),

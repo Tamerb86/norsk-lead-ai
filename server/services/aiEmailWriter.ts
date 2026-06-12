@@ -19,6 +19,19 @@ export interface GeneratedEmail {
   tips?: string[];
 }
 
+/**
+ * Defense-in-depth against prompt injection: third-party data (company names
+ * come from BRREG/website scraping) is flattened to a single line and
+ * length-capped before being embedded in prompts.
+ */
+function sanitizePromptField(text: string, maxLength: number = 300): string {
+  return text
+    .replace(/[\x00-\x1f\x7f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+}
+
 const TONE_DESCRIPTIONS = {
   formal: "formelt og profesjonelt",
   friendly: "vennlig og uformelt",
@@ -34,18 +47,14 @@ const PURPOSE_DESCRIPTIONS = {
 };
 
 export async function generateEmail(request: EmailGenerationRequest): Promise<GeneratedEmail> {
-  const {
-    companyName,
-    industry,
-    location,
-    contactName,
-    purpose,
-    customPurpose,
-    tone,
-    language,
-    additionalContext,
-    productOrService
-  } = request;
+  const { purpose, tone, language } = request;
+  const companyName = sanitizePromptField(request.companyName);
+  const industry = request.industry && sanitizePromptField(request.industry);
+  const location = request.location && sanitizePromptField(request.location);
+  const contactName = request.contactName && sanitizePromptField(request.contactName);
+  const customPurpose = request.customPurpose && sanitizePromptField(request.customPurpose, 500);
+  const additionalContext = request.additionalContext && sanitizePromptField(request.additionalContext, 1000);
+  const productOrService = request.productOrService && sanitizePromptField(request.productOrService, 500);
 
   const toneDesc = TONE_DESCRIPTIONS[tone];
   const purposeDesc = purpose === "custom" ? customPurpose : PURPOSE_DESCRIPTIONS[purpose];

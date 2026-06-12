@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -841,17 +841,17 @@ function BrregSettingsCard() {
   const [saving, setSaving] = useState(false);
 
   // Fetch current Brreg settings
-  const { data: settings, refetch } = trpc.aiSettings.getSettings.useQuery(
-    { category: "brreg" },
-    {
-      onSuccess: (data) => {
-        const enabledSetting = data?.find((s: any) => s.key === "brreg_enabled");
-        const limitSetting = data?.find((s: any) => s.key === "brreg_daily_limit");
-        if (enabledSetting) setBrregEnabled(enabledSetting.value === "true");
-        if (limitSetting) setDailyLimit(limitSetting.value);
-      },
-    }
-  );
+  const { data: settings, refetch } = trpc.aiSettings.getSettings.useQuery({
+    category: "brreg",
+  });
+
+  useEffect(() => {
+    if (!settings) return;
+    const enabledSetting = settings.find((s: any) => s.key === "brreg_enabled");
+    const limitSetting = settings.find((s: any) => s.key === "brreg_daily_limit");
+    if (enabledSetting) setBrregEnabled(enabledSetting.value === "true");
+    if (limitSetting && limitSetting.value !== null) setDailyLimit(limitSetting.value);
+  }, [settings]);
 
   const setSettingMutation = trpc.aiSettings.setSetting.useMutation({
     onSuccess: () => {

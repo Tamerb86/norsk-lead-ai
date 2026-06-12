@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { trpc } from "@/lib/trpc";
+import { trpcClient } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,18 +49,18 @@ export default function ABTesting() {
   // Fetch A/B tests
   const { data: tests, isLoading } = useQuery({
     queryKey: ["abTests"],
-    queryFn: () => trpc.abTests.list.query(),
+    queryFn: () => trpcClient.abTests.list.query(),
   });
 
   // Fetch campaigns for selection
   const { data: campaigns } = useQuery({
     queryKey: ["campaigns"],
-    queryFn: () => trpc.campaigns.list.query(),
+    queryFn: () => trpcClient.campaigns.list.query(),
   });
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: (data: any) => trpc.abTests.create.mutate(data),
+    mutationFn: (data: any) => trpcClient.abTests.create.mutate(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["abTests"] });
       setIsCreateDialogOpen(false);
@@ -74,7 +74,7 @@ export default function ABTesting() {
 
   // Start test mutation
   const startMutation = useMutation({
-    mutationFn: (testId: number) => trpc.abTests.start.mutate({ testId }),
+    mutationFn: (testId: number) => trpcClient.abTests.start.mutate({ testId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["abTests"] });
       toast.success("Test startet!");
@@ -84,7 +84,7 @@ export default function ABTesting() {
   // Select winner mutation
   const selectWinnerMutation = useMutation({
     mutationFn: ({ testId, winnerId }: { testId: number; winnerId: "A" | "B" }) =>
-      trpc.abTests.selectWinner.mutate({ testId, winnerId }),
+      trpcClient.abTests.selectWinner.mutate({ testId, winnerId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["abTests"] });
       toast.success("Vinner valgt!");
