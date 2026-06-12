@@ -187,8 +187,9 @@ describe("referral.claimReward", () => {
 
 describe("referral integration", () => {
   it("creates referral stats on first access", async () => {
-    // Use a unique user ID to simulate new user
-    const ctx = createAuthContext("user", Date.now());
+    // Use a unique user ID to simulate a new user (kept within int32 range —
+    // user ids are serial integers in Postgres)
+    const ctx = createAuthContext("user", 10_000 + (Date.now() % 1_000_000_000));
     const caller = appRouter.createCaller(ctx);
 
     const stats = await caller.referral.getMyStats();
