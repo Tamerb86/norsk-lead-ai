@@ -44,6 +44,7 @@ import {
   FlaskConical,
   Target,
   Webhook,
+  Inbox,
   Sparkles,
   Brain,
   Database
@@ -61,6 +62,7 @@ const menuItems = [
   { icon: Users, label: "Leads", path: "/leads", description: "Administrer leads" },
   { icon: Target, label: "Lead Scoring", path: "/lead-scoring", description: "Rangering" },
   { icon: Mail, label: "Kampanjer", path: "/campaigns", description: "E-postkampanjer" },
+  { icon: Inbox, label: "Innboks", path: "/inbox", description: "Svar fra leads" },
   { icon: FlaskConical, label: "A/B-testing", path: "/ab-testing", description: "Test e-poster" },
   { icon: FileText, label: "Maler", path: "/templates", description: "E-postmaler" },
   { icon: Zap, label: "Sekvenser", path: "/sequences", description: "Automatisering" },

@@ -15,6 +15,10 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
+    // These are integration tests hitting a real Postgres; the default 5s
+    // timeout flakes for DB-heavy tests under parallel load. 20s is a generous
+    // margin that still catches genuine hangs.
+    testTimeout: 20000,
     // server/_core/env.ts validates required env vars at import time;
     // provide harmless defaults so unit tests run without a real .env.
     // A pre-set DATABASE_URL (e.g. pointing at a local test container) wins.

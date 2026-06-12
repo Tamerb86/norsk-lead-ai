@@ -49,6 +49,24 @@ describe("classifyReply", () => {
     expect(r.category).toBe(REPLY_CATEGORIES.UNSUBSCRIBE);
   });
 
+  it("treats Norwegian negation 'ikke interessert' as NOT interested, not interested", () => {
+    // Regression: "interessert" is a substring of "ikke interessert"; the
+    // negation must win so a rejection is never auto-replied to.
+    const r = classifyReply("Nei takk, ikke interessert.");
+    expect(r.category).toBe(REPLY_CATEGORIES.NOT_INTERESTED);
+    expect(r.sentiment).toBe("negative");
+  });
+
+  it("treats English 'not interested' as NOT interested", () => {
+    const r = classifyReply("Thanks, but we're not interested at this time.");
+    expect(r.category).toBe(REPLY_CATEGORIES.NOT_INTERESTED);
+  });
+
+  it("still classifies a genuine positive as interested", () => {
+    const r = classifyReply("Ja, vi er veldig interessert! Fortell mer.");
+    expect(r.category).toBe(REPLY_CATEGORIES.INTERESTED);
+  });
+
   it("handles empty input safely", () => {
     const r = classifyReply("");
     expect(r.category).toBe(REPLY_CATEGORIES.NEUTRAL);
