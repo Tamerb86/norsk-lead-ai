@@ -141,8 +141,15 @@ async function startServer() {
   // Stripe webhook needs the raw body for signature verification,
   // so it MUST be registered before express.json()
   app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
-    const { handleStripeWebhook } = await import("../stripeWebhook");
-    await handleStripeWebhook(req, res);
+    try {
+      const { handleStripeWebhook } = await import("../stripeWebhook");
+      await handleStripeWebhook(req, res);
+    } catch (error) {
+      // An async error here would otherwise become an unhandled rejection
+      // and take the whole process down.
+      console.error("[Stripe Webhook] Handler error:", error);
+      if (!res.headersSent) res.status(500).send("Webhook error");
+    }
   });
 
   // Body parser. rawBody is kept for webhook signature verification (SendGrid).
@@ -174,19 +181,24 @@ async function startServer() {
   
   // SendGrid webhook endpoint
   app.post("/api/sendgrid/webhook", async (req, res) => {
-    const { handleSendGridWebhook, verifySendGridSignature } = await import("../sendgridWebhook");
+    try {
+      const { handleSendGridWebhook, verifySendGridSignature } = await import("../sendgridWebhook");
 
-    if (!verifySendGridSignature(req)) {
-      const { logSecurityEvent, SecurityEventType, getClientInfo } = await import("./securityLogger");
-      logSecurityEvent({
-        type: SecurityEventType.SUSPICIOUS_ACTIVITY,
-        ...getClientInfo(req),
-        details: { reason: "SendGrid webhook signature verification failed" },
-      });
-      return res.status(401).json({ error: "Invalid signature" });
+      if (!verifySendGridSignature(req)) {
+        const { logSecurityEvent, SecurityEventType, getClientInfo } = await import("./securityLogger");
+        logSecurityEvent({
+          type: SecurityEventType.SUSPICIOUS_ACTIVITY,
+          ...getClientInfo(req),
+          details: { reason: "SendGrid webhook signature verification failed" },
+        });
+        return res.status(401).json({ error: "Invalid signature" });
+      }
+
+      await handleSendGridWebhook(req, res);
+    } catch (error) {
+      console.error("[SendGrid Webhook] Handler error:", error);
+      if (!res.headersSent) res.status(500).send("Webhook error");
     }
-
-    await handleSendGridWebhook(req, res);
   });
   // tRPC API with rate limiting
   app.use(
@@ -251,6 +263,12 @@ async function startServer() {
   };
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));
+
+  // Last-resort safety net: log instead of letting a stray rejection kill
+  // the server (Node's default since v15 is to crash the process).
+  process.on("unhandledRejection", (reason) => {
+    console.error("[Fatal] Unhandled promise rejection:", reason);
+  });
 }
 
 startServer().catch(console.error);
