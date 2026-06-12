@@ -75,7 +75,12 @@ export const ENV = {
   
   // SendGrid
   sendgridApiKey: optional("SENDGRID_API_KEY"),
-  
+
+  // Domain used for tagged reply addresses (lead follow-up agent).
+  // A SendGrid Inbound Parse MX record must point at this host.
+  // Defaults to a reply.* subdomain of the sending domain if unset.
+  replyDomain: optional("REPLY_DOMAIN", "reply.nexifyhub.no"),
+
   // Computed
   isProduction,
 };
