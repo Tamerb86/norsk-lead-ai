@@ -114,7 +114,17 @@ export default function Campaigns() {
       });
       return;
     }
-    createMutation.mutate(formData);
+    // Only send populated fields — the server rejects empty strings for
+    // optional email fields (z.string().email().optional()), and expects
+    // `scheduledAt` rather than the form's `scheduledFor`.
+    createMutation.mutate({
+      name: formData.name,
+      emailSubject: formData.emailSubject || undefined,
+      emailBody: formData.emailBody || undefined,
+      senderName: formData.senderName || undefined,
+      senderEmail: formData.senderEmail || undefined,
+      scheduledAt: formData.scheduledFor || undefined,
+    });
   };
 
   const handleEditDraft = (campaign: any) => {

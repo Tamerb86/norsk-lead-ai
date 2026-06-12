@@ -1,204 +1,105 @@
 import { test, expect } from "@playwright/test";
+import { loginAsNewUser } from "./helpers/auth";
 
-test.describe("Company Search Flow", () => {
+test.describe("Company Search", () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to search page
+    await loginAsNewUser(page);
     await page.goto("/search");
-    await page.waitForLoadState("networkidle");
+    await expect(
+      page.getByRole("heading", { name: /Søk bedrifter i Norge/i }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
-  test("should display search page with filters", async ({ page }) => {
-    // Check if on search page or redirected to OAuth
-    if (page.url().includes("/search")) {
-      // Check for search input
-      const searchInput = page.getByPlaceholder(/søk|search/i);
-      await expect(searchInput).toBeVisible();
+  test("search page renders search input and basic filters", async ({
+    page,
+  }) => {
+    await expect(page.locator("#query")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Søk$/ })).toBeVisible();
 
-      // Check for filter button
-      const filterButton = page.getByText(/vis filtre|show filters/i);
-      if (await filterButton.isVisible().catch(() => false)) {
-        await expect(filterButton).toBeVisible();
-      }
-    }
+    // Basic checkbox filters
+    await expect(page.locator("#hasEmail")).toBeVisible();
+    await expect(page.locator("#hasPhone")).toBeVisible();
+    await expect(page.locator("#hasWebsite")).toBeVisible();
+
+    // Advanced filter toggle
+    await expect(
+      page.getByRole("button", { name: /Vis avanserte filtre/i }),
+    ).toBeVisible();
   });
 
-  test("should toggle advanced filters", async ({ page }) => {
-    if (page.url().includes("/search")) {
-      const filterButton = page.getByText(/vis filtre|show filters/i);
+  test("advanced filters can be toggled", async ({ page }) => {
+    const toggle = page.getByRole("button", { name: /Vis avanserte filtre/i });
+    await toggle.click();
 
-      if (await filterButton.isVisible().catch(() => false)) {
-        // Click to show filters
-        await filterButton.click();
-
-        // Check for filter inputs
-        const industryFilter = page.getByLabel(/bransje|industry/i);
-        const locationFilter = page.getByLabel(/fylke|county/i);
-
-        const hasFilters =
-          (await industryFilter.isVisible().catch(() => false)) ||
-          (await locationFilter.isVisible().catch(() => false));
-
-        expect(hasFilters).toBeTruthy();
-      }
-    }
+    // Toggling flips the button label
+    await expect(
+      page.getByRole("button", { name: /Skjul avanserte filtre/i }),
+    ).toBeVisible();
   });
 
-  test("should search companies by name", async ({ page }) => {
-    if (page.url().includes("/search")) {
-      const searchInput = page.getByPlaceholder(/søk|search/i);
+  test("searching with no matching companies shows an empty state", async ({
+    page,
+  }) => {
+    // Test DB has no companies seeded — empty result is the expected state.
+    await page.locator("#query").fill("Helt Ukjent Testbedrift AS");
+    await page.getByRole("button", { name: /^Søk$/ }).click();
 
-      if (await searchInput.isVisible().catch(() => false)) {
-        // Enter search query
-        await searchInput.fill("AS");
-        await searchInput.press("Enter");
-
-        // Wait for results
-        await page.waitForTimeout(2000);
-
-        // Check for results or "no results" message
-        const resultsExist =
-          (await page.getByText(/fant|found/i).isVisible().catch(() => false)) ||
-          (await page.getByText(/ingen|no results/i).isVisible().catch(() => false));
-
-        expect(resultsExist).toBeTruthy();
-      }
-    }
-  });
-
-  test("should filter companies by city", async ({ page }) => {
-    if (page.url().includes("/search")) {
-      // Show filters
-      const filterButton = page.getByText(/vis filtre|show filters/i);
-      if (await filterButton.isVisible().catch(() => false)) {
-        await filterButton.click();
-
-        // Find city input
-        const cityInput = page.getByLabel(/by|poststed|city/i);
-        if (await cityInput.isVisible().catch(() => false)) {
-          await cityInput.fill("Oslo");
-          await page.waitForTimeout(1000);
-
-          // Results should update
-          const resultsText = await page.textContent("body");
-          expect(resultsText).toBeTruthy();
-        }
-      }
-    }
-  });
-
-  test("should display company details in results", async ({ page }) => {
-    if (page.url().includes("/search")) {
-      const searchInput = page.getByPlaceholder(/søk|search/i);
-
-      if (await searchInput.isVisible().catch(() => false)) {
-        await searchInput.fill("AS");
-        await searchInput.press("Enter");
-        await page.waitForTimeout(2000);
-
-        // Check for company cards
-        const companyCard = page.locator("[data-testid='company-card']").first();
-        const hasCards = await companyCard.isVisible().catch(() => false);
-
-        if (hasCards) {
-          // Company card should have name, email, phone
-          const cardText = await companyCard.textContent();
-          expect(cardText).toBeTruthy();
-        }
-      }
-    }
+    // Either the explicit empty state or a (possibly zero) result count —
+    // the UI must handle the empty DB without crashing.
+    const emptyState = page.getByText(/Ingen resultater/i);
+    const resultCount = page.getByText(/Viser \d+ av \d+ bedrifter/i);
+    await expect(emptyState.or(resultCount).first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });
 
-test.describe("Campaign Creation Flow", () => {
+test.describe("Campaigns", () => {
   test.beforeEach(async ({ page }) => {
+    await loginAsNewUser(page);
     await page.goto("/campaigns");
-    await page.waitForLoadState("networkidle");
+    await expect(
+      page.getByRole("heading", { name: /^Kampanjer$/ }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
-  test("should display campaigns page", async ({ page }) => {
-    if (page.url().includes("/campaigns")) {
-      // Check for "New Campaign" button or campaigns list
-      const newCampaignButton = page.getByText(/ny kampanje|new campaign/i);
-      const campaignsList = page.getByText(/kampanjer|campaigns/i);
-
-      const hasContent =
-        (await newCampaignButton.isVisible().catch(() => false)) ||
-        (await campaignsList.isVisible().catch(() => false));
-
-      expect(hasContent).toBeTruthy();
-    }
+  test("campaigns page renders with create button", async ({ page }) => {
+    await expect(
+      page.getByRole("button", { name: /Ny kampanje/i }),
+    ).toBeVisible();
   });
 
-  test("should open campaign creation dialog", async ({ page }) => {
-    if (page.url().includes("/campaigns")) {
-      const newCampaignButton = page.getByText(/ny kampanje|new campaign/i);
+  test("create campaign form opens and requires a name", async ({ page }) => {
+    await page.getByRole("button", { name: /Ny kampanje/i }).click();
 
-      if (await newCampaignButton.isVisible().catch(() => false)) {
-        await newCampaignButton.click();
+    await expect(page.getByText("Create New Campaign")).toBeVisible();
+    await expect(page.locator("#name")).toBeVisible();
 
-        // Check for campaign form
-        const campaignNameInput = page.getByLabel(/navn|name/i);
-        const hasForm = await campaignNameInput.isVisible().catch(() => false);
-
-        expect(hasForm).toBeTruthy();
-      }
-    }
+    // Submitting without a name shows a validation toast
+    await page.getByRole("button", { name: /Save as Draft/i }).click();
+    await expect(page.getByText(/Kampanjenavn er påkrevd/i)).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
-  test("should validate campaign form fields", async ({ page }) => {
-    if (page.url().includes("/campaigns")) {
-      const newCampaignButton = page.getByText(/ny kampanje|new campaign/i);
+  test("creating a campaign adds it to the list", async ({ page }) => {
+    const campaignName = `E2E Kampanje ${Date.now()}`;
 
-      if (await newCampaignButton.isVisible().catch(() => false)) {
-        await newCampaignButton.click();
+    await page.getByRole("button", { name: /Ny kampanje/i }).click();
+    await expect(page.locator("#name")).toBeVisible();
 
-        // Try to submit empty form
-        const submitButton = page.getByText(/opprett|create|lagre|save/i);
-        if (await submitButton.isVisible().catch(() => false)) {
-          await submitButton.click();
+    await page.locator("#name").fill(campaignName);
+    await page.locator("#subject").fill("E2E testemne");
+    await page.locator("#body").fill("Hei {{company_name}}, dette er en test.");
 
-          // Should show validation errors
-          await page.waitForTimeout(500);
-          const hasError = await page.getByText(/påkrevd|required/i).isVisible().catch(() => false);
+    await page.getByRole("button", { name: /Save as Draft/i }).click();
 
-          // Validation might be present
-          expect(typeof hasError).toBe("boolean");
-        }
-      }
-    }
-  });
-
-  test("should create campaign with valid data", async ({ page }) => {
-    if (page.url().includes("/campaigns")) {
-      const newCampaignButton = page.getByText(/ny kampanje|new campaign/i);
-
-      if (await newCampaignButton.isVisible().catch(() => false)) {
-        await newCampaignButton.click();
-
-        // Fill campaign form
-        const nameInput = page.getByLabel(/navn|name/i);
-        if (await nameInput.isVisible().catch(() => false)) {
-          await nameInput.fill("Test Campaign " + Date.now());
-
-          const descriptionInput = page.getByLabel(/beskrivelse|description/i);
-          if (await descriptionInput.isVisible().catch(() => false)) {
-            await descriptionInput.fill("Test campaign description");
-          }
-
-          // Submit form
-          const submitButton = page.getByText(/opprett|create|lagre|save/i);
-          if (await submitButton.isVisible().catch(() => false)) {
-            await submitButton.click();
-
-            // Wait for success message or redirect
-            await page.waitForTimeout(2000);
-
-            // Should show success or return to campaigns list
-            const url = page.url();
-            expect(url).toContain("/campaigns");
-          }
-        }
-      }
-    }
+    // Success toast + the campaign shows up in the list after refetch
+    await expect(page.getByText(/Kampanje opprettet/i)).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(campaignName)).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });

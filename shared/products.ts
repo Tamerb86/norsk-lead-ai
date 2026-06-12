@@ -21,6 +21,12 @@ export interface SubscriptionPlan {
   };
 }
 
+// This file is shared between server and browser bundles. `process` only
+// exists on the server, so guard the access to avoid a ReferenceError that
+// crashes client pages (e.g. /pricing, /account) when this module loads.
+const env: Record<string, string | undefined> =
+  typeof process !== "undefined" && process.env ? process.env : {};
+
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
     id: "free",
@@ -50,7 +56,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     name: "Basic",
     priceMonthly: 499,
     currency: "NOK",
-    stripePriceId: process.env.STRIPE_PRICE_ID_BASIC || "price_basic_placeholder",
+    stripePriceId: env.STRIPE_PRICE_ID_BASIC || "price_basic_placeholder",
     features: [
       "Søk i 1.1M norske bedrifter",
       "Inntil 1,000 bedrifter per måned",
@@ -73,7 +79,7 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     name: "Pro",
     priceMonthly: 1299,
     currency: "NOK",
-    stripePriceId: process.env.STRIPE_PRICE_ID_PRO || "price_pro_placeholder",
+    stripePriceId: env.STRIPE_PRICE_ID_PRO || "price_pro_placeholder",
     popular: true,
     features: [
       "Alt i Basic, pluss:",
