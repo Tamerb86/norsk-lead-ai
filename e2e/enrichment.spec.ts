@@ -1,226 +1,71 @@
 import { test, expect } from "@playwright/test";
+import { loginAsNewUser } from "./helpers/auth";
+
+test.describe("Auto Enrichment", () => {
+  test.beforeEach(async ({ page }) => {
+    await loginAsNewUser(page);
+  });
+
+  test("auto-enrichment page renders", async ({ page }) => {
+    await page.goto("/auto-enrichment");
+
+    await expect(
+      page.getByRole("heading", { name: "Automatisk berikelse", exact: true }),
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.getByRole("button", { name: /Start berikelse/i }),
+    ).toBeVisible();
+  });
+});
 
 test.describe("Lead Enrichment & Validation", () => {
   test.beforeEach(async ({ page }) => {
+    await loginAsNewUser(page);
     await page.goto("/enrichment");
-    await page.waitForLoadState("networkidle");
+    await expect(
+      page.getByRole("heading", { name: /Lead Enrichment & Validation/i }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
-  test("should display enrichment page with validation tools", async ({
-    page,
-  }) => {
-    if (page.url().includes("/enrichment")) {
-      // Check for email validation section
-      const emailSection = page.getByText(/email validation/i);
-      await expect(emailSection).toBeVisible();
-
-      // Check for phone validation section
-      const phoneSection = page.getByText(/phone validation/i);
-      await expect(phoneSection).toBeVisible();
-
-      // Check for website checker section
-      const websiteSection = page.getByText(/website checker/i);
-      await expect(websiteSection).toBeVisible();
-    }
+  test("renders all three validation tools", async ({ page }) => {
+    await expect(page.getByText("Email Validation")).toBeVisible();
+    await expect(page.getByText("Phone Validation")).toBeVisible();
+    await expect(page.getByText("Website Checker")).toBeVisible();
   });
 
-  test("should validate email address", async ({ page }) => {
-    if (page.url().includes("/enrichment")) {
-      // Find email input
-      const emailInput = page
-        .getByPlaceholder(/enter email/i)
-        .first();
+  test("validates an email address and shows a score", async ({ page }) => {
+    await page.getByPlaceholder(/Enter email address/i).fill("test@gmail.com");
+    await page.getByRole("button", { name: /^Validate$/ }).first().click();
 
-      if (await emailInput.isVisible().catch(() => false)) {
-        // Enter valid email
-        await emailInput.fill("test@example.com");
-
-        // Click validate button
-        const validateButton = page
-          .getByRole("button", { name: /validate/i })
-          .first();
-        await validateButton.click();
-
-        // Wait for validation result
-        await page.waitForTimeout(3000);
-
-        // Check for validation result
-        const resultVisible =
-          (await page.getByText(/valid|invalid|risky/i).isVisible().catch(() => false)) ||
-          (await page.getByText(/score/i).isVisible().catch(() => false));
-
-        expect(resultVisible).toBeTruthy();
-      }
-    }
+    // Result panel shows score and the per-check breakdown
+    await expect(page.getByText(/\/100/).first()).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByText("Syntax").first()).toBeVisible();
+    await expect(page.getByText("MX Records", { exact: true })).toBeVisible();
   });
 
-  test("should detect invalid email syntax", async ({ page }) => {
-    if (page.url().includes("/enrichment")) {
-      const emailInput = page
-        .getByPlaceholder(/enter email/i)
-        .first();
+  test("flags invalid email syntax", async ({ page }) => {
+    await page.getByPlaceholder(/Enter email address/i).fill("not-an-email");
+    await page.getByRole("button", { name: /^Validate$/ }).first().click();
 
-      if (await emailInput.isVisible().catch(() => false)) {
-        // Enter invalid email
-        await emailInput.fill("not-an-email");
-
-        const validateButton = page
-          .getByRole("button", { name: /validate/i })
-          .first();
-        await validateButton.click();
-
-        await page.waitForTimeout(2000);
-
-        // Should show invalid status
-        const invalidText = await page.textContent("body");
-        expect(invalidText?.toLowerCase()).toContain("invalid");
-      }
-    }
+    await expect(page.getByText(/\/100/).first()).toBeVisible({
+      timeout: 30_000,
+    });
+    const bodyText = (await page.textContent("body")) ?? "";
+    expect(bodyText.toLowerCase()).toContain("invalid");
   });
 
-  test("should validate Norwegian phone number", async ({ page }) => {
-    if (page.url().includes("/enrichment")) {
-      // Find phone input
-      const phoneInput = page.getByPlaceholder(/enter phone/i);
+  test("validates a Norwegian phone number", async ({ page }) => {
+    await page
+      .getByPlaceholder(/Enter phone number/i)
+      .fill("41234567");
+    await page.getByRole("button", { name: /^Validate$/ }).nth(1).click();
 
-      if (await phoneInput.isVisible().catch(() => false)) {
-        // Enter valid Norwegian mobile number
-        await phoneInput.fill("41234567");
-
-        // Click validate button
-        const validateButtons = page.getByRole("button", { name: /validate/i });
-        await validateButtons.nth(1).click();
-
-        await page.waitForTimeout(2000);
-
-        // Check for validation result
-        const resultVisible =
-          (await page.getByText(/valid|invalid/i).isVisible().catch(() => false)) ||
-          (await page.getByText(/mobile|landline/i).isVisible().catch(() => false));
-
-        expect(resultVisible).toBeTruthy();
-      }
-    }
-  });
-
-  test("should format Norwegian phone number", async ({ page }) => {
-    if (page.url().includes("/enrichment")) {
-      const phoneInput = page.getByPlaceholder(/enter phone/i);
-
-      if (await phoneInput.isVisible().catch(() => false)) {
-        await phoneInput.fill("41234567");
-
-        const validateButtons = page.getByRole("button", { name: /validate/i });
-        await validateButtons.nth(1).click();
-
-        await page.waitForTimeout(2000);
-
-        // Should show formatted number
-        const bodyText = await page.textContent("body");
-        const hasFormatted = bodyText?.includes("+47") || bodyText?.includes("412 34 567");
-
-        expect(hasFormatted).toBeTruthy();
-      }
-    }
-  });
-
-  test("should check website availability", async ({ page }) => {
-    if (page.url().includes("/enrichment")) {
-      // Find website input
-      const websiteInput = page.getByPlaceholder(/enter website/i);
-
-      if (await websiteInput.isVisible().catch(() => false)) {
-        // Enter valid website
-        await websiteInput.fill("google.com");
-
-        // Click check button
-        const checkButtons = page.getByRole("button", { name: /check/i });
-        await checkButtons.last().click();
-
-        // Wait for check to complete (might take longer)
-        await page.waitForTimeout(15000);
-
-        // Check for result
-        const resultVisible =
-          (await page.getByText(/online|offline/i).isVisible().catch(() => false)) ||
-          (await page.getByText(/reachable/i).isVisible().catch(() => false));
-
-        expect(resultVisible).toBeTruthy();
-      }
-    }
-  });
-
-  test("should detect SSL on HTTPS websites", async ({ page }) => {
-    if (page.url().includes("/enrichment")) {
-      const websiteInput = page.getByPlaceholder(/enter website/i);
-
-      if (await websiteInput.isVisible().catch(() => false)) {
-        await websiteInput.fill("https://www.google.com");
-
-        const checkButtons = page.getByRole("button", { name: /check/i });
-        await checkButtons.last().click();
-
-        await page.waitForTimeout(15000);
-
-        // Should show SSL check result
-        const bodyText = await page.textContent("body");
-        const hasSSL = bodyText?.toLowerCase().includes("ssl");
-
-        expect(hasSSL).toBeTruthy();
-      }
-    }
-  });
-
-  test("should display validation scores", async ({ page }) => {
-    if (page.url().includes("/enrichment")) {
-      const emailInput = page
-        .getByPlaceholder(/enter email/i)
-        .first();
-
-      if (await emailInput.isVisible().catch(() => false)) {
-        await emailInput.fill("test@gmail.com");
-
-        const validateButton = page
-          .getByRole("button", { name: /validate/i })
-          .first();
-        await validateButton.click();
-
-        await page.waitForTimeout(3000);
-
-        // Should show score (0-100)
-        const bodyText = await page.textContent("body");
-        const hasScore = bodyText?.includes("Score") || bodyText?.includes("/100");
-
-        expect(hasScore).toBeTruthy();
-      }
-    }
-  });
-
-  test("should display validation checks breakdown", async ({ page }) => {
-    if (page.url().includes("/enrichment")) {
-      const emailInput = page
-        .getByPlaceholder(/enter email/i)
-        .first();
-
-      if (await emailInput.isVisible().catch(() => false)) {
-        await emailInput.fill("test@example.com");
-
-        const validateButton = page
-          .getByRole("button", { name: /validate/i })
-          .first();
-        await validateButton.click();
-
-        await page.waitForTimeout(3000);
-
-        // Should show individual checks
-        const bodyText = await page.textContent("body");
-        const hasChecks =
-          bodyText?.includes("Syntax") ||
-          bodyText?.includes("Domain") ||
-          bodyText?.includes("MX");
-
-        expect(hasChecks).toBeTruthy();
-      }
-    }
+    await expect(page.getByText(/\/100/).first()).toBeVisible({
+      timeout: 30_000,
+    });
+    // Norwegian numbers are formatted with the +47 country code
+    await expect(page.getByText(/\+47/).first()).toBeVisible();
   });
 });

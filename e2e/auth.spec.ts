@@ -1,82 +1,106 @@
 import { test, expect } from "@playwright/test";
+import { loginAsNewUser, registerViaApi, uniqueEmail, TEST_PASSWORD } from "./helpers/auth";
 
 test.describe("Authentication Flow", () => {
-  test("should display landing page with login button", async ({ page }) => {
+  test("landing page renders with register CTA", async ({ page }) => {
     await page.goto("/");
 
-    // Check landing page elements
-    await expect(page).toHaveTitle(/AI Lead Generator/i);
-    await expect(page.getByText(/Kom i gang gratis/i)).toBeVisible();
+    await expect(page).toHaveTitle(/NorskLeads|Bedriftskontakter|Lead/i);
+    // Primary CTA in the navbar links to /register
+    await expect(
+      page.getByRole("link", { name: /Kom i gang gratis/i }).first(),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: /Logg inn/i }).first(),
+    ).toBeVisible();
   });
 
-  test("should navigate to OAuth login when clicking login button", async ({
+  test("registering via the UI form creates an account and reaches dashboard", async ({
     page,
   }) => {
-    await page.goto("/");
+    const email = uniqueEmail("ui-register");
 
-    // Click login button
-    const loginButton = page.getByText(/Kom i gang gratis/i).first();
-    await loginButton.click();
+    await page.goto("/register");
+    await expect(page.getByText("Opprett konto").first()).toBeVisible();
 
-    // Should redirect to OAuth portal
-    await page.waitForURL(/oauth/, { timeout: 5000 });
-    expect(page.url()).toContain("oauth");
+    await page.locator("#name").fill("UI Testbruker");
+    await page.locator("#email").fill(email);
+    await page.locator("#password").fill(TEST_PASSWORD);
+    await page.locator("#confirmPassword").fill(TEST_PASSWORD);
+    await page.locator("#terms").click();
+
+    await page.getByRole("button", { name: /Opprett konto/i }).click();
+
+    await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
+    await expect(
+      page.getByRole("heading", { name: /Velkommen tilbake/i }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
-  test("should show dashboard after successful login", async ({ page }) => {
-    // Note: This test requires manual OAuth completion or mocked auth
-    // For now, we'll test the redirect behavior
-    await page.goto("/dashboard");
+  test("login with wrong password shows an error", async ({ page, request }) => {
+    // Create the account with an isolated request context so the browser
+    // context stays logged out.
+    const account = await registerViaApi(request);
 
-    // If not authenticated, should redirect to OAuth
-    // If authenticated, should show dashboard
-    await page.waitForLoadState("networkidle");
+    await page.goto("/login");
+    await page.locator("#email").fill(account.email);
+    await page.locator("#password").fill("FeilPassord123!");
+    await page.getByRole("button", { name: /Logg inn/i }).click();
 
-    const url = page.url();
-    const isDashboard = url.includes("/dashboard");
-    const isOAuth = url.includes("oauth");
-
-    expect(isDashboard || isOAuth).toBeTruthy();
+    // Server responds 401 with a generic error which is rendered in an alert.
+    await expect(page.getByRole("alert")).toBeVisible({ timeout: 10_000 });
+    await expect(page).toHaveURL(/\/login/);
   });
 
-  test("should display user menu when authenticated", async ({ page }) => {
-    // Navigate to dashboard (will redirect if not authenticated)
-    await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
+  test("login with correct credentials reaches dashboard", async ({
+    page,
+    request,
+  }) => {
+    const account = await registerViaApi(request);
 
-    // If on dashboard, check for user menu
-    if (page.url().includes("/dashboard")) {
-      // Look for user avatar or menu button
-      const userMenu = page.locator('[data-testid="user-menu"]').or(
-        page.locator("button").filter({ hasText: /profil|innstillinger/i })
-      );
+    await page.goto("/login");
+    await page.locator("#email").fill(account.email);
+    await page.locator("#password").fill(account.password);
+    await page.getByRole("button", { name: /Logg inn/i }).click();
 
-      // User menu might be visible
-      const isVisible = await userMenu.isVisible().catch(() => false);
-      expect(typeof isVisible).toBe("boolean");
-    }
+    await page.waitForURL(/\/dashboard/, { timeout: 15_000 });
+    await expect(
+      page.getByRole("heading", { name: /Velkommen tilbake/i }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
-  test("should navigate between authenticated pages", async ({ page }) => {
+  test("protected pages ask unauthenticated users to log in", async ({
+    page,
+  }) => {
     await page.goto("/dashboard");
-    await page.waitForLoadState("networkidle");
 
-    // If authenticated, test navigation
-    if (page.url().includes("/dashboard")) {
-      // Navigate to search page
-      const searchLink = page.getByRole("link", { name: /søk|search/i });
-      if (await searchLink.isVisible().catch(() => false)) {
-        await searchLink.click();
-        await expect(page).toHaveURL(/\/search/);
-      }
+    await expect(
+      page.getByRole("heading", { name: /Logg inn for å fortsette/i }),
+    ).toBeVisible({ timeout: 15_000 });
+  });
 
-      // Navigate to campaigns page
-      await page.goto("/campaigns");
-      await expect(page).toHaveURL(/\/campaigns/);
+  test("logout returns user to the public landing page", async ({ page }) => {
+    const account = await loginAsNewUser(page, { name: "Logout Testbruker" });
 
-      // Navigate back to dashboard
-      await page.goto("/dashboard");
-      await expect(page).toHaveURL(/\/dashboard/);
-    }
+    await page.goto("/dashboard");
+    await expect(
+      page.getByRole("heading", { name: /Velkommen tilbake/i }),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Open the user menu in the sidebar footer (button shows name + email).
+    await page.getByRole("button", { name: new RegExp(account.name) }).click();
+    await page.getByRole("menuitem", { name: /Logg ut/i }).click();
+
+    // Logout redirects to "/" and the session is gone.
+    await page.waitForURL(/\/$/, { timeout: 15_000 });
+    await expect(
+      page.getByRole("link", { name: /Kom i gang gratis/i }).first(),
+    ).toBeVisible({ timeout: 15_000 });
+
+    // Session cookies are cleared — protected page now asks for login.
+    await page.goto("/dashboard");
+    await expect(
+      page.getByRole("heading", { name: /Logg inn for å fortsette/i }),
+    ).toBeVisible({ timeout: 15_000 });
   });
 });

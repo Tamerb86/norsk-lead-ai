@@ -206,14 +206,14 @@ export default function ActivityLog() {
                 </div>
               </div>
               <Select
-                value={filters.entityType}
-                onValueChange={(value) => setFilters({ ...filters, entityType: value })}
+                value={filters.entityType || "all"}
+                onValueChange={(value) => setFilters({ ...filters, entityType: value === "all" ? "" : value })}
               >
                 <SelectTrigger className="w-full sm:w-[180px] dark:bg-gray-700 dark:border-gray-600">
                   <SelectValue placeholder="Alle typer" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Alle typer</SelectItem>
+                  <SelectItem value="all">Alle typer</SelectItem>
                   <SelectItem value="company">Bedrifter</SelectItem>
                   <SelectItem value="lead">Leads</SelectItem>
                   <SelectItem value="campaign">Kampanjer</SelectItem>
@@ -223,14 +223,14 @@ export default function ActivityLog() {
                 </SelectContent>
               </Select>
               <Select
-                value={filters.action}
-                onValueChange={(value) => setFilters({ ...filters, action: value })}
+                value={filters.action || "all"}
+                onValueChange={(value) => setFilters({ ...filters, action: value === "all" ? "" : value })}
               >
                 <SelectTrigger className="w-full sm:w-[180px] dark:bg-gray-700 dark:border-gray-600">
                   <SelectValue placeholder="Alle handlinger" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Alle handlinger</SelectItem>
+                  <SelectItem value="all">Alle handlinger</SelectItem>
                   <SelectItem value="create">Opprettet</SelectItem>
                   <SelectItem value="update">Oppdatert</SelectItem>
                   <SelectItem value="delete">Slettet</SelectItem>
