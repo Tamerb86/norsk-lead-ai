@@ -2,9 +2,18 @@ import { Request, Response } from "express";
 import Stripe from "stripe";
 import * as db from "./db";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2026-02-25.clover",
-});
+// Lazy singleton: constructing Stripe with an empty key throws, which would
+// crash the whole process on the first webhook request when the key is unset.
+let _stripe: Stripe | null = null;
+function getStripe(): Stripe | null {
+  if (!process.env.STRIPE_SECRET_KEY) return null;
+  if (!_stripe) {
+    _stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2026-02-25.clover",
+    });
+  }
+  return _stripe;
+}
 
 /**
  * Stripe Webhook Handler
@@ -23,9 +32,10 @@ export async function handleStripeWebhook(req: Request, res: Response) {
     return res.status(400).send("Missing signature");
   }
 
-  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+  const stripe = getStripe();
+  if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) {
     // Never verify against an empty secret — fail closed.
-    console.error("[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured - rejecting webhook");
+    console.error("[Stripe Webhook] Stripe not configured - rejecting webhook");
     return res.status(503).send("Webhook not configured");
   }
 
