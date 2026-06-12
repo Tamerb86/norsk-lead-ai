@@ -1039,9 +1039,12 @@ export async function createNotification(data: {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  // Column names are camelCase in the table ("relatedId", "isRead", …) — they
+  // must be quoted, otherwise Postgres folds them to lowercase and the insert
+  // fails ("column related_id does not exist").
   await db.execute(
-    sql`INSERT INTO notifications (user_id, type, title, message, related_id, related_type, is_read, created_at)
-        VALUES (${data.userId}, ${data.type}, ${data.title}, ${data.message || null}, 
+    sql`INSERT INTO notifications (user_id, type, title, message, "relatedId", "relatedType", "isRead", "createdAt")
+        VALUES (${data.userId}, ${data.type}, ${data.title}, ${data.message || null},
                 ${data.relatedId || null}, ${data.relatedType || null}, false, NOW())`
   );
 

@@ -784,3 +784,51 @@ export const enrichmentJobs = pgTable("enrichment_jobs", {
 }));
 export type EnrichmentJobRecord = typeof enrichmentJobs.$inferSelect;
 export type InsertEnrichmentJobRecord = typeof enrichmentJobs.$inferInsert;
+
+/**
+ * Inbound replies from leads (lead follow-up agent — phase 1).
+ *
+ * Every row is owned by a single tenant (userId) and isolated like the rest of
+ * the app — there is no shared platform inbox. A reply enters via SendGrid
+ * Inbound Parse, is matched to its originating lead through a signed reply
+ * address (reply+{userId}-{leadId}-{token}@reply-domain), then classified.
+ */
+export const inboundStatusEnum = pgEnum("inbound_status", [
+  "received", // stored, classified, awaiting agent/owner
+  "drafted", // agent produced a draft reply (assisted mode)
+  "replied", // a follow-up was sent
+  "ignored", // owner dismissed, or negative class auto-stopped the lead
+]);
+
+export const inboundMessages = pgTable("inbound_messages", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull(), // tenant owner — all queries filter on this
+  leadId: integer("lead_id"), // null if the reply could not be matched to a lead
+  campaignId: integer("campaign_id"),
+  // Raw email fields (from SendGrid Inbound Parse)
+  fromEmail: varchar("from_email", { length: 320 }).notNull(),
+  toEmail: varchar("to_email", { length: 320 }).notNull(),
+  subject: text("subject"),
+  bodyText: text("body_text"),
+  bodyHtml: text("body_html"),
+  messageId: varchar("message_id", { length: 998 }), // RFC Message-ID header
+  inReplyTo: varchar("in_reply_to", { length: 998 }), // In-Reply-To header (threading fallback)
+  // Classification (from classifyReply)
+  classification: varchar("classification", { length: 32 }), // ReplyCategory
+  confidence: integer("confidence"), // 0-100
+  sentiment: varchar("sentiment", { length: 12 }), // positive | negative | neutral
+  // Agent workflow
+  status: inboundStatusEnum("status").default("received").notNull(),
+  draftReply: text("draft_reply"), // agent-generated follow-up awaiting approval
+  draftSubject: text("draft_subject"),
+  matchMethod: varchar("match_method", { length: 16 }), // signed_address | in_reply_to | none
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  userIdIdx: index("inbound_messages_user_id_idx").on(table.userId),
+  leadIdIdx: index("inbound_messages_lead_id_idx").on(table.leadId),
+  statusIdx: index("inbound_messages_status_idx").on(table.status),
+  createdAtIdx: index("inbound_messages_created_at_idx").on(table.createdAt),
+}));
+export type InboundMessage = typeof inboundMessages.$inferSelect;
+export type InsertInboundMessage = typeof inboundMessages.$inferInsert;

@@ -35,6 +35,13 @@ export interface EmailOptions {
   text?: string;
   trackingId?: string;
   campaignId?: number;
+  /**
+   * Tenant + lead the message belongs to. When both are set, the message gets
+   * a signed Reply-To address so the lead's reply routes back to the follow-up
+   * agent and is matched to this exact (tenant, lead). See replyAddress.ts.
+   */
+  userId?: number;
+  leadId?: number;
 }
 
 export interface EmailResult {
@@ -64,6 +71,13 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
       };
     }
 
+    // Signed Reply-To so the lead's reply routes back to the follow-up agent.
+    let replyTo: { email: string } | undefined;
+    if (options.userId && options.leadId) {
+      const { buildReplyAddress } = await import("./services/replyAddress");
+      replyTo = { email: buildReplyAddress(options.userId, options.leadId) };
+    }
+
     // Prepare email message (strip CR/LF from subject to block header injection)
     const msg = {
       to: options.to,
@@ -71,6 +85,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
         email: SENDGRID_FROM_EMAIL,
         name: SENDGRID_FROM_NAME
       },
+      ...(replyTo ? { replyTo } : {}),
       subject: options.subject.replace(/[\r\n\0]/g, " ").trim(),
       html: options.html,
       text: options.text || stripHtml(options.html),

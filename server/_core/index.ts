@@ -152,6 +152,18 @@ async function startServer() {
     }
   });
 
+  // SendGrid Inbound Parse (lead replies) — multipart/form-data, so it must be
+  // registered BEFORE express.json()/urlencoded() which would consume the stream.
+  app.post("/api/sendgrid/inbound", async (req, res) => {
+    try {
+      const { handleInboundEmail } = await import("../inboundWebhook");
+      await handleInboundEmail(req, res);
+    } catch (error) {
+      console.error("[Inbound Webhook] Handler error:", error);
+      if (!res.headersSent) res.status(200).send("ok");
+    }
+  });
+
   // Body parser. rawBody is kept for webhook signature verification (SendGrid).
   app.use(
     express.json({
