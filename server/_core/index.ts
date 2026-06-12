@@ -125,6 +125,19 @@ async function startServer() {
     })
   );
   
+  // Health check for load balancers / orchestrators (plain HTTP GET, no auth)
+  app.get("/health", async (_req, res) => {
+    try {
+      const { getDb } = await import("../db");
+      const { sql } = await import("drizzle-orm");
+      const db = await getDb();
+      await db.execute(sql`SELECT 1`);
+      res.json({ status: "ok" });
+    } catch {
+      res.status(503).json({ status: "degraded" });
+    }
+  });
+
   // Stripe webhook needs the raw body for signature verification,
   // so it MUST be registered before express.json()
   app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
@@ -162,12 +175,17 @@ async function startServer() {
   // SendGrid webhook endpoint
   app.post("/api/sendgrid/webhook", async (req, res) => {
     const { handleSendGridWebhook, verifySendGridSignature } = await import("../sendgridWebhook");
-    
-    // Verify signature (optional but recommended)
+
     if (!verifySendGridSignature(req)) {
+      const { logSecurityEvent, SecurityEventType, getClientInfo } = await import("./securityLogger");
+      logSecurityEvent({
+        type: SecurityEventType.SUSPICIOUS_ACTIVITY,
+        ...getClientInfo(req),
+        details: { reason: "SendGrid webhook signature verification failed" },
+      });
       return res.status(401).json({ error: "Invalid signature" });
     }
-    
+
     await handleSendGridWebhook(req, res);
   });
   // tRPC API with rate limiting
@@ -199,7 +217,7 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
-    
+
     // Initialize enrichment schedulers
     if (process.env.NODE_ENV === 'production') {
       initializeSchedulers();
@@ -207,6 +225,32 @@ async function startServer() {
       console.log('[Schedulers] Skipped in development mode');
     }
   });
+
+  // Graceful shutdown: stop accepting connections, then close the DB pool
+  let shuttingDown = false;
+  const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[Shutdown] Received ${signal}, closing server...`);
+    // Force-exit if connections refuse to drain
+    const forceTimer = setTimeout(() => {
+      console.error("[Shutdown] Timed out waiting for connections, forcing exit");
+      process.exit(1);
+    }, 15000);
+    forceTimer.unref();
+    server.close(async () => {
+      try {
+        const { closeDb } = await import("../db");
+        await closeDb();
+        console.log("[Shutdown] Database pool closed, exiting");
+      } catch (error) {
+        console.error("[Shutdown] Error closing database pool:", error);
+      }
+      process.exit(0);
+    });
+  };
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
 startServer().catch(console.error);

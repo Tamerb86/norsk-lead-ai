@@ -48,6 +48,42 @@ export async function updateCampaignStats(campaignId: number) {
 /**
  * Get detailed campaign analytics
  */
+/**
+ * Lightweight per-campaign stats (totals + rates from the campaign row).
+ * Used by campaigns.getStats and dashboard.recentCampaigns.
+ */
+export async function getCampaignStats(campaignId: number) {
+  const db = await getDb();
+  if (!db) return null;
+
+  const campaignResult = await db
+    .select()
+    .from(campaigns)
+    .where(eq(campaigns.id, campaignId))
+    .limit(1);
+
+  const campaign = campaignResult[0];
+  if (!campaign) return null;
+
+  const rate = (n: number) =>
+    campaign.totalSent > 0 ? ((n / campaign.totalSent) * 100).toFixed(2) : "0.00";
+
+  return {
+    totalRecipients: campaign.totalRecipients,
+    totalSent: campaign.totalSent,
+    totalDelivered: campaign.totalDelivered,
+    totalOpened: campaign.totalOpened,
+    totalClicked: campaign.totalClicked,
+    totalReplied: campaign.totalReplied,
+    totalBounced: campaign.totalBounced,
+    totalUnsubscribed: campaign.totalUnsubscribed,
+    openRate: rate(campaign.totalOpened),
+    clickRate: rate(campaign.totalClicked),
+    replyRate: rate(campaign.totalReplied),
+    bounceRate: rate(campaign.totalBounced),
+  };
+}
+
 export async function getCampaignAnalytics(campaignId: number) {
   const db = await getDb();
   if (!db) return null;

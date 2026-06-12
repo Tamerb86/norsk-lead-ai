@@ -1,6 +1,7 @@
 import https from "https";
 import http from "http";
 import { URL } from "url";
+import { assertPublicUrl } from "./urlGuard";
 
 export type GoogleMapsEmailResult = {
   companyName: string;
@@ -65,27 +66,67 @@ function extractNorwegianPhones(text: string): string[] {
   }).filter(phone => phone.length === 8);
 }
 
+const MAX_PAGE_BYTES = 1024 * 1024; // 1MB
+const MAX_REDIRECTS = 3;
+
 /**
- * Fetch webpage content
+ * Fetch webpage content.
+ * SSRF-guarded: the URL and every redirect hop must resolve to a public host,
+ * and the body is read with a hard size cap (not loaded fully into memory).
  */
 async function fetchWebpage(url: string, timeout: number = 15000): Promise<string> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   try {
-    const res = await fetch(url, {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "no,en;q=0.9",
-      },
-    });
-    // global fetch transparently decompresses gzip/brotli (the old raw http
-    // implementation did not, which corrupted compressed pages).
-    const text = await res.text();
-    return text.slice(0, 1024 * 1024); // cap at 1MB
+    let currentUrl = url;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      await assertPublicUrl(currentUrl);
+
+      const res = await fetch(currentUrl, {
+        redirect: "manual",
+        signal: controller.signal,
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "no,en;q=0.9",
+        },
+      });
+
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get("location");
+        if (!location) throw new Error(`Redirect without Location from ${currentUrl}`);
+        currentUrl = new URL(location, currentUrl).toString();
+        continue;
+      }
+
+      const contentLength = res.headers.get("content-length");
+      if (contentLength && parseInt(contentLength) > MAX_PAGE_BYTES) {
+        throw new Error(`Response too large (${contentLength} bytes)`);
+      }
+
+      // global fetch transparently decompresses gzip/brotli (the old raw http
+      // implementation did not, which corrupted compressed pages).
+      // Stream with a size cap so a huge response can't exhaust memory.
+      if (!res.body) {
+        const text = await res.text();
+        return text.slice(0, MAX_PAGE_BYTES);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let data = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        data += decoder.decode(value, { stream: true });
+        if (data.length >= MAX_PAGE_BYTES) {
+          await reader.cancel();
+          break;
+        }
+      }
+      return data.slice(0, MAX_PAGE_BYTES);
+    }
+    throw new Error(`Too many redirects fetching ${url}`);
   } finally {
     clearTimeout(timer);
   }
@@ -315,7 +356,7 @@ export async function findCompanyEmailsBatch(
           company.organisasjonsnummer,
           company.hjemmeside,
           company.telefon,
-          company.kommune
+          company.kommune ?? undefined
         )
       )
     );

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import GridLayout, { Layout } from "react-grid-layout";
+import GridLayout, { Layout, LayoutItem } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
 import "react-resizable/css/styles.css";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,7 +154,7 @@ export const widgetConfigs: Record<WidgetType, WidgetConfig> = {
 };
 
 // Default layout
-const defaultLayout: Layout[] = [
+const defaultLayout: LayoutItem[] = [
   { i: "stats-companies", x: 0, y: 0, w: 3, h: 2 },
   { i: "stats-campaigns", x: 3, y: 0, w: 3, h: 2 },
   { i: "stats-leads", x: 6, y: 0, w: 3, h: 2 },
@@ -182,7 +182,7 @@ interface DashboardWidgetsProps {
 }
 
 export function DashboardWidgets({ renderWidget, width = 1200 }: DashboardWidgetsProps) {
-  const [layout, setLayout] = useState<Layout[]>(() => {
+  const [layout, setLayout] = useState<LayoutItem[]>(() => {
     const saved = localStorage.getItem("dashboard-layout");
     return saved ? JSON.parse(saved) : defaultLayout;
   });
@@ -230,8 +230,8 @@ export function DashboardWidgets({ renderWidget, width = 1200 }: DashboardWidget
     localStorage.setItem("dashboard-visible-widgets", JSON.stringify(visibleWidgets));
   }, [visibleWidgets]);
 
-  const handleLayoutChange = (newLayout: Layout[]) => {
-    setLayout(newLayout);
+  const handleLayoutChange = (newLayout: Layout) => {
+    setLayout([...newLayout]);
   };
 
   const handleResetLayout = () => {
@@ -363,14 +363,11 @@ export function DashboardWidgets({ renderWidget, width = 1200 }: DashboardWidget
       <GridLayout
         className="layout"
         layout={filteredLayout}
-        cols={12}
-        rowHeight={80}
         width={gridWidth}
+        gridConfig={{ cols: 12, rowHeight: 80, margin: [16, 16] }}
+        dragConfig={{ enabled: isEditing, handle: ".widget-drag-handle" }}
+        resizeConfig={{ enabled: isEditing }}
         onLayoutChange={handleLayoutChange}
-        isDraggable={isEditing}
-        isResizable={isEditing}
-        draggableHandle=".widget-drag-handle"
-        margin={[16, 16]}
       >
         {visibleWidgets.map((widgetId) => {
           const config = widgetConfigs[widgetId];

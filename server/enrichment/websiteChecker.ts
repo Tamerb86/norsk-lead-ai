@@ -1,6 +1,7 @@
 import https from "https";
 import http from "http";
 import { URL } from "url";
+import { assertPublicUrl } from "./urlGuard";
 
 export type WebsiteCheckResult = {
   url: string;
@@ -54,9 +55,13 @@ function isValidUrl(url: string): boolean {
 /**
  * Make HTTP/HTTPS request with timeout
  */
-function makeRequest(
+const MAX_REDIRECTS = 3;
+
+async function makeRequest(
   url: string,
-  timeout: number = 10000
+  timeout: number = 10000,
+  redirectDepth: number = 0,
+  visitedUrls: Set<string> = new Set()
 ): Promise<{
   statusCode: number;
   headers: http.IncomingHttpHeaders;
@@ -64,6 +69,17 @@ function makeRequest(
   finalUrl: string;
   responseTime: number;
 }> {
+  if (redirectDepth > MAX_REDIRECTS) {
+    throw new Error("Too many redirects");
+  }
+  if (visitedUrls.has(url)) {
+    throw new Error("Redirect loop detected");
+  }
+  visitedUrls.add(url);
+
+  // SSRF guard: block private/internal targets (also on every redirect hop)
+  await assertPublicUrl(url);
+
   return new Promise((resolve, reject) => {
     const startTime = Date.now();
     const parsedUrl = new URL(url);
@@ -92,7 +108,7 @@ function makeRequest(
         res.headers.location
       ) {
         const redirectUrl = new URL(res.headers.location, url).toString();
-        makeRequest(redirectUrl, timeout)
+        makeRequest(redirectUrl, timeout, redirectDepth + 1, visitedUrls)
           .then((result) => {
             resolve({
               ...result,
@@ -201,7 +217,7 @@ export async function checkWebsite(
         finalUrl: result.finalUrl,
         responseTime: result.responseTime,
         contentType: result.headers["content-type"] || null,
-        server: result.headers.server || null,
+        server: (Array.isArray(result.headers.server) ? result.headers.server[0] : result.headers.server) || null,
       },
       score,
       reason,

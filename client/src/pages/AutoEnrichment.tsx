@@ -127,7 +127,7 @@ export default function AutoEnrichment() {
           <div className="flex gap-2">
             <Button
               onClick={handleStartEnrichment}
-              disabled={isStarting || startEnrichment.isLoading}
+              disabled={isStarting || startEnrichment.isPending}
               className="bg-gradient-to-r from-blue-600 to-purple-600"
             >
               {isStarting ? (
@@ -311,7 +311,7 @@ export default function AutoEnrichment() {
               <Button
                 variant="outline"
                 onClick={() => retryFailed.mutate()}
-                disabled={retryFailed.isLoading || failedJobs === 0}
+                disabled={retryFailed.isPending || failedJobs === 0}
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Prøv feilede jobber på nytt ({failedJobs})
@@ -320,7 +320,7 @@ export default function AutoEnrichment() {
               <Button
                 variant="outline"
                 onClick={() => clearOldJobs.mutate({ daysOld: 30 })}
-                disabled={clearOldJobs.isLoading}
+                disabled={clearOldJobs.isPending}
               >
                 <XCircle className="w-4 h-4 mr-2" />
                 Slett gamle jobber (30+ dager)

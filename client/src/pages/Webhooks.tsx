@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { trpc } from "@/lib/trpc";
+import { trpcClient } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -61,19 +61,19 @@ export default function Webhooks() {
   // Fetch webhooks
   const { data: webhooks, isLoading } = useQuery({
     queryKey: ["webhooks"],
-    queryFn: () => trpc.webhooks.list.query(),
+    queryFn: () => trpcClient.webhooks.list.query(),
   });
 
   // Fetch deliveries for selected webhook
   const { data: deliveries, isLoading: deliveriesLoading } = useQuery({
     queryKey: ["webhookDeliveries", selectedWebhook?.id],
-    queryFn: () => trpc.webhooks.getDeliveries.query({ webhookId: selectedWebhook.id }),
+    queryFn: () => trpcClient.webhooks.getDeliveries.query({ webhookId: selectedWebhook.id }),
     enabled: !!selectedWebhook,
   });
 
   // Create mutation
   const createMutation = useMutation({
-    mutationFn: (data: any) => trpc.webhooks.create.mutate(data),
+    mutationFn: (data: any) => trpcClient.webhooks.create.mutate(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["webhooks"] });
       setIsCreateDialogOpen(false);
@@ -88,7 +88,7 @@ export default function Webhooks() {
   // Update mutation
   const updateMutation = useMutation({
     mutationFn: ({ webhookId, isActive }: { webhookId: number; isActive: boolean }) =>
-      trpc.webhooks.update.mutate({ webhookId, isActive }),
+      trpcClient.webhooks.update.mutate({ webhookId, isActive }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["webhooks"] });
       toast.success("Webhook oppdatert!");
@@ -97,7 +97,7 @@ export default function Webhooks() {
 
   // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: (webhookId: number) => trpc.webhooks.delete.mutate({ webhookId }),
+    mutationFn: (webhookId: number) => trpcClient.webhooks.delete.mutate({ webhookId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["webhooks"] });
       toast.success("Webhook slettet!");
@@ -106,7 +106,7 @@ export default function Webhooks() {
 
   // Test mutation
   const testMutation = useMutation({
-    mutationFn: (webhookId: number) => trpc.webhooks.test.mutate({ webhookId }),
+    mutationFn: (webhookId: number) => trpcClient.webhooks.test.mutate({ webhookId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["webhookDeliveries"] });
       toast.success("Test-webhook sendt!");

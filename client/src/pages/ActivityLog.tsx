@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { trpc } from "@/lib/trpc";
+import { trpcClient } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,7 +67,7 @@ export default function ActivityLog() {
 
   const { data: logs, isLoading } = useQuery({
     queryKey: ["activityLogs", filters, page],
-    queryFn: () => trpc.activityLog.getLogs.query({
+    queryFn: () => trpcClient.activityLog.getLogs.query({
       entityType: filters.entityType || undefined,
       action: filters.action || undefined,
       limit,
@@ -77,7 +77,7 @@ export default function ActivityLog() {
 
   const { data: stats } = useQuery({
     queryKey: ["activityStats"],
-    queryFn: () => trpc.activityLog.getStats.query({ days: 30 }),
+    queryFn: () => trpcClient.activityLog.getStats.query({ days: 30 }),
   });
 
   const getActionConfig = (action: string) => {

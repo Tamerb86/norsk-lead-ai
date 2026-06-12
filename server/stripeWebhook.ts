@@ -3,13 +3,18 @@ import Stripe from "stripe";
 import * as db from "./db";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2025-12-15.clover",
+  apiVersion: "2026-02-25.clover",
 });
 
 /**
  * Stripe Webhook Handler
  * Handles subscription events from Stripe
  */
+// Idempotency: remember recently processed event ids so Stripe retries /
+// replays don't re-run handlers (best-effort, in-memory).
+const MAX_PROCESSED_EVENTS = 5000;
+const processedStripeEvents = new Set<string>();
+
 export async function handleStripeWebhook(req: Request, res: Response) {
   const sig = req.headers["stripe-signature"];
 
@@ -18,17 +23,23 @@ export async function handleStripeWebhook(req: Request, res: Response) {
     return res.status(400).send("Missing signature");
   }
 
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    // Never verify against an empty secret — fail closed.
+    console.error("[Stripe Webhook] STRIPE_WEBHOOK_SECRET not configured - rejecting webhook");
+    return res.status(503).send("Webhook not configured");
+  }
+
   let event: Stripe.Event;
 
   try {
     event = stripe.webhooks.constructEvent(
       req.body,
       sig,
-      process.env.STRIPE_WEBHOOK_SECRET || ""
+      process.env.STRIPE_WEBHOOK_SECRET
     );
   } catch (err: any) {
     console.error("[Stripe Webhook] Signature verification failed:", err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    return res.status(400).send("Webhook signature verification failed");
   }
 
   // Handle test events
@@ -37,6 +48,21 @@ export async function handleStripeWebhook(req: Request, res: Response) {
     return res.json({
       verified: true,
     });
+  }
+
+  // Skip already-processed events (Stripe retries, replays)
+  if (processedStripeEvents.has(event.id)) {
+    console.log(`[Stripe Webhook] Event ${event.id} already processed, skipping`);
+    return res.json({ received: true });
+  }
+  processedStripeEvents.add(event.id);
+  if (processedStripeEvents.size > MAX_PROCESSED_EVENTS) {
+    const it = processedStripeEvents.values();
+    for (let i = 0; i < 500; i++) {
+      const next = it.next();
+      if (next.done) break;
+      processedStripeEvents.delete(next.value);
+    }
   }
 
   console.log(`[Stripe Webhook] Received event: ${event.type}`);
@@ -131,7 +157,11 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
 
   const customerId = subscription.customer as string;
   const status = subscription.status;
-  const periodEnd = new Date(subscription.current_period_end * 1000);
+  // current_period_end moved to the subscription item in newer Stripe API versions
+  const periodEndUnix =
+    (subscription as any).current_period_end ??
+    subscription.items?.data?.[0]?.current_period_end;
+  const periodEnd = new Date(periodEndUnix * 1000);
 
   try {
     await db.updateSubscriptionByStripeCustomerId({
@@ -154,7 +184,11 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
 
   const customerId = subscription.customer as string;
   const status = subscription.status;
-  const periodEnd = new Date(subscription.current_period_end * 1000);
+  // current_period_end moved to the subscription item in newer Stripe API versions
+  const periodEndUnix =
+    (subscription as any).current_period_end ??
+    subscription.items?.data?.[0]?.current_period_end;
+  const periodEnd = new Date(periodEndUnix * 1000);
 
   try {
     await db.updateSubscriptionByStripeCustomerId({

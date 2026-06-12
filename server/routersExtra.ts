@@ -2,7 +2,8 @@
  * Additional tRPC routers that the frontend calls but were never wired up.
  * All of these delegate to existing db/service functions.
  */
-import { protectedProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as db from "./db";
 import {
@@ -26,15 +27,30 @@ export const analyticsRouter = router({
 });
 
 export const templatesRouter = router({
-  list: protectedProcedure.query(async ({ ctx }) => db.getTemplates(ctx.user.id)),
+  list: protectedProcedure
+    .input(z.object({ category: z.string().optional() }).optional())
+    .query(async ({ ctx, input }) => db.getTemplates(ctx.user.id, input?.category)),
+  getById: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const template = await db.getTemplateById(input.id, ctx.user.id);
+      if (!template) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Template not found" });
+      }
+      return template;
+    }),
   create: protectedProcedure
-    .input(z.object({ name: z.string(), subject: z.string(), body: z.string(), category: z.string().optional() }))
+    .input(z.object({ name: z.string().min(1), subject: z.string().min(1), body: z.string().min(1), category: z.string().optional() }))
     .mutation(async ({ ctx, input }) => db.createTemplate({ ...input, userId: ctx.user.id })),
   update: protectedProcedure
     .input(z.object({ id: z.number(), name: z.string().optional(), subject: z.string().optional(), body: z.string().optional(), category: z.string().optional() }))
     .mutation(async ({ ctx, input }) => {
       const { id, ...data } = input;
-      return db.updateTemplate(id, ctx.user.id, data);
+      const updated = await db.updateTemplate(id, ctx.user.id, data);
+      if (!updated) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Template not found" });
+      }
+      return updated;
     }),
   delete: protectedProcedure
     .input(z.object({ id: z.number() }))
@@ -83,14 +99,15 @@ export const calendarRouter = router({
     })),
   getCountByType: protectedProcedure.query(async ({ ctx }) => db.getEventsCountByType(ctx.user.id)),
   create: protectedProcedure
-    .input(z.object({ title: z.string(), description: z.string().optional(), eventType: z.string(), startTime: z.string(), endTime: z.string().optional(), location: z.string().optional(), reminderMinutes: z.number().optional(), color: z.string().optional() }))
+    .input(z.object({ title: z.string(), description: z.string().optional(), eventType: z.string(), startTime: z.string(), endTime: z.string().optional(), allDay: z.boolean().optional(), location: z.string().optional(), reminderMinutes: z.number().optional(), color: z.string().optional(), notes: z.string().optional() }))
     .mutation(async ({ ctx, input }) => db.createCalendarEvent({
       userId: ctx.user.id, title: input.title, description: input.description, eventType: input.eventType,
       startTime: new Date(input.startTime), endTime: input.endTime ? new Date(input.endTime) : undefined,
-      location: input.location, reminderMinutes: input.reminderMinutes, color: input.color,
+      allDay: input.allDay, location: input.location, reminderMinutes: input.reminderMinutes,
+      color: input.color, notes: input.notes,
     })),
   update: protectedProcedure
-    .input(z.object({ id: z.number(), title: z.string().optional(), description: z.string().optional(), eventType: z.string().optional(), startTime: z.string().optional(), endTime: z.string().optional(), location: z.string().optional(), reminderMinutes: z.number().optional(), color: z.string().optional() }))
+    .input(z.object({ id: z.number(), title: z.string().optional(), description: z.string().optional(), eventType: z.string().optional(), startTime: z.string().optional(), endTime: z.string().optional(), allDay: z.boolean().optional(), location: z.string().optional(), reminderMinutes: z.number().optional(), color: z.string().optional(), notes: z.string().optional(), status: z.enum(["scheduled", "completed", "cancelled"]).optional() }))
     .mutation(async ({ ctx, input }) => {
       const { id, startTime, endTime, ...rest } = input;
       return db.updateCalendarEvent(id, ctx.user.id, {
@@ -104,21 +121,71 @@ export const calendarRouter = router({
     .mutation(async ({ ctx, input }) => db.deleteCalendarEvent(input.id, ctx.user.id)),
 });
 
+/** Raw referral row shape (snake_case, straight from SQL). */
+export interface ReferralRow {
+  id: number;
+  referrer_id: number;
+  referred_id: number | null;
+  referral_code: string;
+  referred_email: string | null;
+  status: string;
+  reward_type: string | null;
+  reward_amount: number | null;
+  reward_claimed: boolean;
+  signed_up_at: string | null;
+  converted_at: string | null;
+  rewarded_at: string | null;
+  createdAt: string;
+  referred_name?: string | null;
+  referred_user_email?: string | null;
+}
+
 export const referralRouter = router({
-  getMyStats: protectedProcedure.query(async ({ ctx }) => db.getOrCreateReferralStats(ctx.user.id)),
-  getMyReferrals: protectedProcedure.query(async ({ ctx }) => db.getReferralsByUser(ctx.user.id)),
+  getMyStats: protectedProcedure.query(async ({ ctx }) => {
+    const raw = (await db.getOrCreateReferralStats(ctx.user.id)) as any;
+    return {
+      id: raw.id as number,
+      userId: Number(raw.user_id),
+      referralCode: raw.referral_code as string,
+      totalInvited: Number(raw.total_invites ?? 0),
+      totalSignedUp: Number(raw.total_signups ?? 0),
+      totalConverted: Number(raw.total_conversions ?? 0),
+      totalRewards: Number(raw.total_rewards_earned ?? 0),
+      pendingRewards: Number(raw.pending_rewards ?? 0),
+    };
+  }),
+  getMyReferrals: protectedProcedure.query(
+    async ({ ctx }) => (await db.getReferralsByUser(ctx.user.id)) as unknown as ReferralRow[]
+  ),
   sendInvite: protectedProcedure
-    .input(z.object({ email: z.string().email() }))
-    .mutation(async ({ ctx, input }) => db.createReferralInvite(ctx.user.id, input.email)),
-  validateCode: protectedProcedure
+    .input(z.object({ email: z.string().email(), name: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const referral = await db.createReferralInvite(ctx.user.id, input.email);
+      return { success: true, referral: referral as unknown as ReferralRow };
+    }),
+  // Public: used on the registration page before the user has an account.
+  validateCode: publicProcedure
     .input(z.object({ code: z.string() }))
     .query(async ({ input }) => {
-      const found = await db.findReferralByCode(input.code);
-      return { valid: !!found, referral: found };
+      const found = (await db.findReferralByCode(input.code)) as any;
+      if (!found) {
+        return { valid: false as const, referrerName: null };
+      }
+      const referrer = await db.getUserById(Number(found.user_id)).catch(() => null);
+      return { valid: true as const, referrerName: referrer?.name ?? null };
     }),
   claimReward: protectedProcedure
     .input(z.object({ referralId: z.number() }))
-    .mutation(async ({ ctx, input }) => db.claimReferralReward(ctx.user.id, input.referralId)),
+    .mutation(async ({ ctx, input }) => {
+      const claimed = await db.claimReferralReward(ctx.user.id, input.referralId);
+      if (!claimed) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Referral not found, not yours, or already claimed",
+        });
+      }
+      return claimed;
+    }),
 });
 
 export const leadsExtraRouter = {
@@ -237,7 +304,7 @@ export const teamExtraRouter = {
       if (!invitations.some((inv: any) => inv.id === input.invitationId)) {
         throw new Error("Invitation not found for your team");
       }
-      return cancelInvitation(input.invitationId);
+      return cancelInvitation(input.invitationId, user.teamId);
     }),
 };
 

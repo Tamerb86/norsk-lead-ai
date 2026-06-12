@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import { authService } from "./auth";
 import { ENV } from "./env";
 import { logSecurityEvent, SecurityEventType, getClientInfo } from "./securityLogger";
+import { recordFailedLogin, clearFailedLogins } from "./rateLimit";
 
 export function registerAuthRoutes(app: Express) {
   /**
@@ -114,6 +115,7 @@ export function registerAuthRoutes(app: Express) {
         }
 
         if (!isValid) {
+          recordFailedLogin(req.ip || "unknown");
           logSecurityEvent({
             type: SecurityEventType.LOGIN_FAILURE,
             email: user.email || undefined,
@@ -142,6 +144,9 @@ export function registerAuthRoutes(app: Express) {
       authService.setAccessTokenCookie(res, req, accessToken);
       authService.setRefreshTokenCookie(res, req, refreshToken);
 
+      // Successful login: reset the failed-attempt counter for this IP
+      clearFailedLogins(req.ip || "unknown");
+
       // Log successful login
       logSecurityEvent({
         type: SecurityEventType.LOGIN_SUCCESS,
@@ -161,7 +166,7 @@ export function registerAuthRoutes(app: Express) {
         },
       });
     } catch (error) {
-      //     } catch (error) {
+      recordFailedLogin(req.ip || "unknown");
       console.error("[Auth] Login failed:", error);
       logSecurityEvent({
         type: SecurityEventType.LOGIN_FAILURE,
@@ -216,6 +221,7 @@ export function registerAuthRoutes(app: Express) {
       }
 
       if (!isValid) {
+        recordFailedLogin(req.ip || "unknown");
         logSecurityEvent({
           type: SecurityEventType.LOGIN_FAILURE,
           email: user.email || undefined,
@@ -262,6 +268,7 @@ export function registerAuthRoutes(app: Express) {
         },
       });
     } catch (error) {
+      recordFailedLogin(req.ip || "unknown");
       console.error("[Auth] 2FA login failed:", error);
       res.status(401).json({ error: "Invalid email or password" });
     }

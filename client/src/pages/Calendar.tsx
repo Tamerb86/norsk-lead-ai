@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { trpc } from "@/lib/trpc";
+import { trpcClient } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -98,7 +98,7 @@ export default function Calendar() {
 
   const { data: events = [], isLoading } = useQuery({
     queryKey: ["calendar-events", startDate.toISOString(), endDate.toISOString()],
-    queryFn: () => trpc.calendar.getEvents.query({
+    queryFn: () => trpcClient.calendar.getEvents.query({
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),
     }),
@@ -107,12 +107,12 @@ export default function Calendar() {
   // Get event counts by type
   const { data: eventCounts = [] } = useQuery({
     queryKey: ["calendar-event-counts"],
-    queryFn: () => trpc.calendar.getCountByType.query(),
+    queryFn: () => trpcClient.calendar.getCountByType.query(),
   });
 
   // Create event mutation
   const createMutation = useMutation({
-    mutationFn: (data: typeof formData) => trpc.calendar.create.mutate({
+    mutationFn: (data: typeof formData) => trpcClient.calendar.create.mutate({
       ...data,
       eventType: data.eventType as any,
     }),
@@ -130,7 +130,9 @@ export default function Calendar() {
 
   // Update event mutation
   const updateMutation = useMutation({
-    mutationFn: (data: { id: number } & Partial<typeof formData>) => trpc.calendar.update.mutate(data),
+    mutationFn: (
+      data: { id: number; status?: "scheduled" | "completed" | "cancelled" } & Partial<typeof formData>
+    ) => trpcClient.calendar.update.mutate(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       setEditingEvent(null);
@@ -144,7 +146,7 @@ export default function Calendar() {
 
   // Delete event mutation
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => trpc.calendar.delete.mutate({ id }),
+    mutationFn: (id: number) => trpcClient.calendar.delete.mutate({ id }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
       queryClient.invalidateQueries({ queryKey: ["calendar-event-counts"] });

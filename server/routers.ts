@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import * as db from "./db";
 import { getCampaignPerformance } from "./analyticsDb";
@@ -17,6 +18,19 @@ import {
   emailFinderRouter,
   deliverabilityRouter,
 } from "./routersExtra";
+import {
+  aiRouter,
+  notificationsRouter,
+  savedCompaniesRouter,
+  leadScoringAdvancedRouter,
+  leadScoringRouter,
+  aiSettingsRouter,
+  abTestsRouter,
+  abTestingRouter,
+  webhooksRouter,
+  activityLogRouter,
+  stripeRouter,
+} from "./routersFeatures";
 
 export const appRouter = router({
   system: systemRouter,
@@ -48,7 +62,14 @@ export const appRouter = router({
     }),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      // Clear with the strictest attribute set so the cookie is removed in
+      // cross-site contexts too (sameSite=none requires secure).
+      ctx.res.clearCookie(COOKIE_NAME, {
+        ...cookieOptions,
+        sameSite: "none",
+        secure: true,
+        maxAge: -1,
+      });
       return {
         success: true,
       } as const;
@@ -107,15 +128,25 @@ export const appRouter = router({
   leads: router({
     list: protectedProcedure
       .input(
-        z.object({
-          campaignId: z.number().optional(),
-          status: z.string().optional(),
-        })
+        z
+          .object({
+            campaignId: z.number().optional(),
+            status: z.string().optional(),
+            search: z.string().optional(),
+            limit: z.number().min(1).max(500).default(100),
+            offset: z.number().min(0).default(0),
+          })
+          .optional()
       )
-      .query(async ({ ctx, input }) => {
-        const leads = await db.getLeads(ctx.user.id, input.campaignId, input.status);
-        return leads;
-      }),
+      .query(async ({ ctx, input }) =>
+        db.listLeads(ctx.user.id, {
+          campaignId: input?.campaignId,
+          status: input?.status,
+          search: input?.search,
+          limit: input?.limit ?? 100,
+          offset: input?.offset ?? 0,
+        })
+      ),
 
     get: protectedProcedure
       .input(
@@ -128,22 +159,76 @@ export const appRouter = router({
         return lead;
       }),
 
+    getById: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        const lead = await db.getLeadFlatById(ctx.user.id, input.id);
+        if (!lead) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Lead not found" });
+        }
+        return lead;
+      }),
+
     create: protectedProcedure
       .input(
         z.object({
-          campaignId: z.number().optional(),
-          companyId: z.number(),
+          companyName: z.string().min(1),
           email: z.string().email().optional(),
-          name: z.string().optional(),
+          phone: z.string().optional(),
+          website: z.string().optional(),
+          industry: z.string().optional(),
+          employees: z.number().optional(),
+          notes: z.string().optional(),
+          status: z.string().optional(),
+          campaignId: z.number().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) =>
+        db.createDirectLead({
+          ...input,
+          userId: ctx.user.id,
+        })
+      ),
+
+    update: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          companyName: z.string().min(1).optional(),
+          email: z.string().email().optional(),
+          phone: z.string().optional(),
+          website: z.string().optional(),
+          industry: z.string().optional(),
+          employees: z.number().optional(),
+          notes: z.string().optional(),
           status: z.string().optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
-        const lead = await db.createLead({
-          ...input,
-          userId: ctx.user.id,
-        });
-        return lead;
+        const { id, ...data } = input;
+        const updated = await db.updateLead(id, ctx.user.id, data);
+        if (!updated) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Lead not found" });
+        }
+        return updated;
+      }),
+
+    delete: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const existing = await db.getLeadById(ctx.user.id, input.id);
+        if (!existing) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Lead not found" });
+        }
+        return db.deleteLead(input.id, ctx.user.id);
       }),
 
     updateStatus: protectedProcedure
@@ -197,10 +282,22 @@ export const appRouter = router({
         return campaign;
       }),
 
+    // Alias of `get` (same ownership check) — used by tests and newer clients.
+    getById: protectedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        const campaign = await db.getCampaignById(input.id, ctx.user.id);
+        return campaign;
+      }),
+
     create: protectedProcedure
       .input(
         z.object({
-          name: z.string(),
+          name: z.string().min(1),
           status: z.string().optional(),
           emailSubject: z.string().optional(),
           emailBody: z.string().optional(),
@@ -257,7 +354,11 @@ export const appRouter = router({
           id: z.number(),
         })
       )
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        const campaign = await db.getCampaignById(input.id, ctx.user.id);
+        if (!campaign) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "Campaign not found" });
+        }
         const { getCampaignStats } = await import("./campaignStats");
         const stats = await getCampaignStats(input.id);
         return stats;
@@ -304,8 +405,12 @@ export const appRouter = router({
       ).length;
 
       return {
+        // Flat aliases kept alongside the structured shape (integration spec)
+        totalCampaigns,
+        totalLeads: campaignStats?.totalRecipients || 0,
+        totalEmails: campaignStats?.totalSent || 0,
         companies: {
-          total: companiesStats.totalCompanies,
+          total: companiesStats.total,
           withEmail: companiesStats.withEmail,
           withPhone: companiesStats.withPhone,
         },
@@ -332,7 +437,14 @@ export const appRouter = router({
           openRate: campaignStats?.openRate || "0.00",
           clickRate: campaignStats?.clickRate || "0.00",
           replyRate: campaignStats?.replyRate || "0.00",
-          averageEngagement: campaignStats?.averageEngagement || 0,
+          averageEngagement: campaignStats
+            ? Number(
+                (
+                  (parseFloat(campaignStats.openRate) + parseFloat(campaignStats.clickRate)) /
+                  2
+                ).toFixed(2)
+              )
+            : 0,
         },
         recentActivities,
       };
@@ -463,29 +575,7 @@ export const appRouter = router({
   // ============================================
   // NOTIFICATIONS ROUTER
   // ============================================
-  notifications: router({
-    list: protectedProcedure
-      .input(
-        z.object({
-          limit: z.number().min(1).max(50).default(10),
-        })
-      )
-      .query(async ({ ctx, input }) => {
-        const notifications = await db.getNotifications(ctx.user.id, input.limit);
-        return notifications;
-      }),
-
-    markAsRead: protectedProcedure
-      .input(
-        z.object({
-          id: z.number(),
-        })
-      )
-      .mutation(async ({ ctx, input }) => {
-        const result = await db.markNotificationAsRead(ctx.user.id, input.id);
-        return result;
-      }),
-  }),
+  notifications: notificationsRouter,
 
   // ============================================
   // SAVED FILTERS ROUTER
@@ -500,11 +590,15 @@ export const appRouter = router({
       .input(
         z.object({
           name: z.string(),
-          filters: z.record(z.any()),
+          filters: z.record(z.string(), z.any()),
         })
       )
       .mutation(async ({ ctx, input }) => {
-        const filter = await db.createSavedFilter(ctx.user.id, input.name, input.filters);
+        const filter = await db.createSavedFilter({
+          userId: ctx.user.id,
+          name: input.name,
+          filters: input.filters,
+        });
         return filter;
       }),
 
@@ -515,7 +609,7 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
-        const result = await db.deleteSavedFilter(ctx.user.id, input.id);
+        const result = await db.deleteSavedFilter(input.id, ctx.user.id);
         return result;
       }),
   }),
@@ -558,6 +652,16 @@ export const appRouter = router({
   brreg: brregRouter,
   emailFinder: emailFinderRouter,
   deliverability: deliverabilityRouter,
+  ai: aiRouter,
+  savedCompanies: savedCompaniesRouter,
+  leadScoring: leadScoringRouter,
+  leadScoringAdvanced: leadScoringAdvancedRouter,
+  stripe: stripeRouter,
+  aiSettings: aiSettingsRouter,
+  abTests: abTestsRouter,
+  abTesting: abTestingRouter,
+  webhooks: webhooksRouter,
+  activityLog: activityLogRouter,
 });
 
 export type AppRouter = typeof appRouter;

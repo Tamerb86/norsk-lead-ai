@@ -24,6 +24,8 @@ interface RegisterData {
   email: string;
   password: string;
   name: string;
+  /** Optional referral code captured on the registration page. */
+  referralCode?: string;
 }
 
 type UseAuthOptions = {

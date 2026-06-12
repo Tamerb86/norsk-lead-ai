@@ -230,7 +230,7 @@ export default function Search() {
       return;
     }
 
-    exportCompaniesToCSV(data.companies);
+    exportCompaniesToCSV(data.companies.map((c) => ({ ...c, name: c.navn })));
   };
 
   const toggleCompanySelection = (companyId: number) => {
@@ -961,9 +961,8 @@ export default function Search() {
                             <div className="flex flex-col gap-2">
                               <AIEmailWriter
                                 companyName={company.navn}
-                                companyEmail={company.epostadresse || ""}
-                                companyWebsite={company.hjemmeside || ""}
-                                leadScore={company.leadScore || 0}
+                                industry={company.naeringsbeskrivelse1 || undefined}
+                                location={company.poststed || undefined}
                               />
 
                               <Button 

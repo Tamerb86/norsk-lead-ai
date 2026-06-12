@@ -64,14 +64,14 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
       };
     }
 
-    // Prepare email message
+    // Prepare email message (strip CR/LF from subject to block header injection)
     const msg = {
       to: options.to,
       from: {
         email: SENDGRID_FROM_EMAIL,
         name: SENDGRID_FROM_NAME
       },
-      subject: options.subject,
+      subject: options.subject.replace(/[\r\n\0]/g, " ").trim(),
       html: options.html,
       text: options.text || stripHtml(options.html),
       // Add custom args for tracking

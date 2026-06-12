@@ -274,8 +274,7 @@ interface RecentCampaignsProps {
     id: number;
     name: string;
     status: string;
-    sent: number;
-    opened: number;
+    sentEmails: number;
     openRate: string;
   }>;
 }
@@ -313,7 +312,7 @@ export function RecentCampaignsWidget({ data }: RecentCampaignsProps) {
                     {STATUS_LABELS[campaign.status] || campaign.status}
                   </Badge>
                   <span className="text-xs text-muted-foreground">
-                    {campaign.sent} sendt
+                    {campaign.sentEmails} sendt
                   </span>
                 </div>
               </div>
@@ -467,10 +466,9 @@ interface NotificationsProps {
   data?: Array<{
     id: number;
     title: string;
-    message: string;
+    message: string | null;
     type: string;
-    createdAt: string;
-    read: boolean;
+    isRead: boolean;
   }>;
 }
 
@@ -491,7 +489,7 @@ export function NotificationsWidget({ data }: NotificationsProps) {
       {data.slice(0, 4).map((notification) => (
         <div
           key={notification.id}
-          className={`p-3 rounded-lg ${notification.read ? "bg-muted/30" : "bg-primary/5"}`}
+          className={`p-3 rounded-lg ${notification.isRead ? "bg-muted/30" : "bg-primary/5"}`}
         >
           <p className="font-medium text-sm">{notification.title}</p>
           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">

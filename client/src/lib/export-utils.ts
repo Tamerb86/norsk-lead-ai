@@ -5,14 +5,14 @@
 export interface Company {
   id: number;
   name: string;
-  orgNr?: string;
-  email?: string;
-  phone?: string;
-  website?: string;
-  address?: string;
-  poststed?: string;
-  employees?: number;
-  industry?: string;
+  orgNr?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  address?: string | null;
+  poststed?: string | null;
+  employees?: number | null;
+  industry?: string | null;
   [key: string]: any;
 }
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { trpc } from "@/lib/trpc";
+import { trpcClient } from "@/lib/trpc";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,18 +49,18 @@ export default function LeadScoring() {
   // Fetch lead scores
   const { data: scores, isLoading: scoresLoading } = useQuery({
     queryKey: ["leadScores", selectedTier],
-    queryFn: () => trpc.leadScoringAdvanced.getScores.query(selectedTier ? { tier: selectedTier as any } : undefined),
+    queryFn: () => trpcClient.leadScoringAdvanced.getScores.query(selectedTier ? { tier: selectedTier as any } : undefined),
   });
 
   // Fetch scoring rules
   const { data: rules, isLoading: rulesLoading } = useQuery({
     queryKey: ["scoringRules"],
-    queryFn: () => trpc.leadScoringAdvanced.getRules.query(),
+    queryFn: () => trpcClient.leadScoringAdvanced.getRules.query(),
   });
 
   // Create rule mutation
   const createRuleMutation = useMutation({
-    mutationFn: (data: any) => trpc.leadScoringAdvanced.createRule.mutate(data),
+    mutationFn: (data: any) => trpcClient.leadScoringAdvanced.createRule.mutate(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scoringRules"] });
       setIsRuleDialogOpen(false);
@@ -74,7 +74,7 @@ export default function LeadScoring() {
 
   // Delete rule mutation
   const deleteRuleMutation = useMutation({
-    mutationFn: (ruleId: number) => trpc.leadScoringAdvanced.deleteRule.mutate({ ruleId }),
+    mutationFn: (ruleId: number) => trpcClient.leadScoringAdvanced.deleteRule.mutate({ ruleId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scoringRules"] });
       toast.success("Regel slettet!");
@@ -84,7 +84,7 @@ export default function LeadScoring() {
   // Update rule mutation
   const updateRuleMutation = useMutation({
     mutationFn: ({ ruleId, isActive }: { ruleId: number; isActive: boolean }) =>
-      trpc.leadScoringAdvanced.updateRule.mutate({ ruleId, isActive }),
+      trpcClient.leadScoringAdvanced.updateRule.mutate({ ruleId, isActive }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["scoringRules"] });
       toast.success("Regel oppdatert!");

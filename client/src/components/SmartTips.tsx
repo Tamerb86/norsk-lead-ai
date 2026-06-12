@@ -433,7 +433,7 @@ export function SmartTips({ enabled = true }: SmartTipsProps) {
       const newDismissed = new Set(dismissedTips);
       newDismissed.add(currentTip.id);
       setDismissedTips(newDismissed);
-      localStorage.setItem("dismissedTips", JSON.stringify([...newDismissed]));
+      localStorage.setItem("dismissedTips", JSON.stringify(Array.from(newDismissed)));
     }
     dismissTip();
   };
