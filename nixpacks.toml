@@ -8,4 +8,6 @@ cmds = ["npm install -g pnpm", "pnpm install"]
 cmds = ["pnpm run build"]
 
 [start]
-cmd = "pnpm run start"
+# Apply pending DB migrations before boot (baseline is idempotent, so this
+# is safe on databases that already have the schema).
+cmd = "npx drizzle-kit migrate && pnpm run start"
