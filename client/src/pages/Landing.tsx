@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Link } from "wouter";
-import { motion } from "framer-motion";
-import { useState, useEffect } from "react";
+import { motion, useReducedMotion, type Easing } from "framer-motion";
+import { useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { SEOHead, structuredDataGenerators } from "@/components/SEOHead";
 import {
@@ -27,75 +27,54 @@ import {
   LogOut,
 } from "lucide-react";
 
-// Animated Counter Component
-function AnimatedNumber({ value }: { value: string }) {
-  return (
-    <motion.span
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="font-bold"
-    >
-      {value}
-    </motion.span>
-  );
-}
-
 // FAQ Item Component
 function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <motion.div
-      className="border-b border-gray-200 pb-4"
-      initial={false}
-    >
+    <div className="border-b border-border pb-4">
       <button
         className="flex justify-between items-center w-full text-left py-4"
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
       >
-        <span className="font-medium text-lg">{question}</span>
+        <span className="font-medium text-lg text-foreground">{question}</span>
         <ChevronDown
-          className={`w-5 h-5 transition-transform ${
+          className={`w-5 h-5 text-muted-foreground transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
           }`}
         />
       </button>
       <motion.div
-        initial={{ height: 0, opacity: 0 }}
+        initial={false}
         animate={{
           height: isOpen ? "auto" : 0,
           opacity: isOpen ? 1 : 0,
         }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.25, ease: "easeOut" as Easing }}
         className="overflow-hidden"
       >
-        <p className="text-gray-600 pb-4">{answer}</p>
+        <p className="text-muted-foreground pb-4">{answer}</p>
       </motion.div>
-    </motion.div>
+    </div>
   );
 }
 
 export default function Landing() {
   const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { user, isAuthenticated, logout, loading } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
+  const reduce = useReducedMotion();
+  const easeOut: Easing = "easeOut";
 
-  // Crisp Chat Integration - Disabled until valid CRISP_WEBSITE_ID is configured
-  // To enable: Replace YOUR_CRISP_WEBSITE_ID with your actual Crisp website ID
-  // useEffect(() => {
-  //   (window as any).$crisp = [];
-  //   (window as any).CRISP_WEBSITE_ID = "YOUR_CRISP_WEBSITE_ID";
-  //   const script = document.createElement('script');
-  //   script.src = 'https://client.crisp.chat/l.js';
-  //   script.async = true;
-  //   document.head.appendChild(script);
-  //   return () => {
-  //     if (document.head.contains(script)) {
-  //       document.head.removeChild(script);
-  //     }
-  //   };
-  // }, []);
+  // Gentle entrance reveal — fires on mount (deterministic; never leaves content
+  // gated invisible the way scroll-triggered whileInView can), small offset,
+  // short, ease-out, and fully collapses under reduced motion.
+  const reveal = (delay = 0) => ({
+    initial: { opacity: 0, y: reduce ? 0 : 16 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: reduce ? 0 : 0.4, ease: easeOut, delay: reduce ? 0 : delay },
+  });
 
   const openCrispChat = () => {
     if ((window as any).$crisp) {
@@ -120,18 +99,18 @@ export default function Landing() {
         canonicalUrl="https://lead.nexifyhub.no/"
         structuredData={structuredDataGenerators.faqPage(faqData)}
       />
-    <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/30 to-white">
+    <div className="min-h-screen bg-background text-foreground">
       {/* Header */}
-      <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-border bg-background/90 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <Link href="/">
             <div className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-                <Search className="w-6 h-6 text-white" />
+              <div className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center">
+                <Search className="w-6 h-6 text-primary-foreground" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-gray-900">NorskLeads</h1>
-                <p className="text-xs text-gray-600">Finn dine neste kunder</p>
+                <h1 className="text-xl font-semibold text-foreground">NorskLeads</h1>
+                <p className="text-xs text-muted-foreground">Finn dine neste kunder</p>
               </div>
             </div>
           </Link>
@@ -172,10 +151,10 @@ export default function Landing() {
               </>
             )}
           </div>
-          
+
           {/* Mobile Menu Button */}
           <button
-            className="md:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="md:hidden p-2 hover:bg-muted rounded-lg transition-colors"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             aria-label="Toggle menu"
           >
@@ -186,7 +165,7 @@ export default function Landing() {
 
       {/* Mobile Navigation Menu */}
       {isMobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 top-[73px] bg-white z-40 border-b shadow-lg">
+        <div className="md:hidden fixed inset-0 top-[73px] bg-background z-40 border-b border-border shadow-sm">
           <nav className="container mx-auto px-4 py-6 flex flex-col gap-4">
             <Link href="/search" onClick={() => setIsMobileMenuOpen(false)}>
               <Button variant="ghost" className="w-full justify-start text-lg">
@@ -224,69 +203,63 @@ export default function Landing() {
         </div>
       )}
 
-      {/* Hero Section - Asymmetric Modern Design */}
-      <section className="relative py-24 md:py-40 overflow-hidden gradient-mesh">
-        {/* Floating Elements for Visual Interest */}
-        <div className="absolute top-20 right-10 w-72 h-72 bg-blue-400/20 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-20 left-10 w-96 h-96 bg-indigo-400/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
-        
+      {/* Hero Section */}
+      <section className="relative py-20 md:py-28 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left Column - Content */}
             <div className="space-y-8 lg:pr-12">
-              {/* Badge with Glassmorphism */}
+              {/* Badge */}
               <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="inline-flex items-center gap-2 px-5 py-2.5 glass-card rounded-full text-sm font-medium"
+                initial={{ opacity: 0, y: reduce ? 0 : 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: reduce ? 0 : 0.35, ease: easeOut }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-muted border border-border rounded-full text-sm font-medium text-foreground"
               >
-                <span className="text-2xl">🇳🇴</span>
-                <span className="gradient-text font-semibold">
-                  Laget for det norske markedet
-                </span>
+                <span className="text-xl" aria-hidden="true">🇳🇴</span>
+                <span>Laget for det norske markedet</span>
               </motion.div>
 
-              {/* Main Heading - Bigger & Bolder */}
+              {/* Main Heading */}
               <motion.h1
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.1 }}
-                className="text-5xl sm:text-6xl md:text-8xl font-black leading-[1.1] tracking-tight"
+                initial={{ opacity: 0, y: reduce ? 0 : 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: reduce ? 0 : 0.05, duration: reduce ? 0 : 0.4, ease: easeOut }}
+                className="font-bold leading-[1.08] tracking-tight text-balance text-foreground"
+                style={{ fontSize: "clamp(2.5rem, 6vw, 4.5rem)" }}
               >
                 Finn dine neste kunder i{" "}
-                <span className="gradient-text block mt-2">
-                  Norge
-                </span>
+                <span className="text-primary">Norge</span>
               </motion.h1>
 
-              {/* Subheading - More Prominent */}
+              {/* Subheading */}
               <motion.p
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 }}
-                className="text-xl sm:text-2xl md:text-3xl text-gray-700 leading-relaxed font-light"
+                initial={{ opacity: 0, y: reduce ? 0 : 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: reduce ? 0 : 0.1, duration: reduce ? 0 : 0.4, ease: easeOut }}
+                className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-xl"
               >
-                Tilgang til <span className="font-bold text-blue-600">1.1 millioner</span> norske
+                Tilgang til <span className="font-semibold text-foreground">1.1 millioner</span> norske
                 bedrifter. Søk, filtrer, og send personaliserte e-postkampanjer
                 til dine ideelle B2B-kunder.
               </motion.p>
 
-              {/* CTA Buttons - Premium Design */}
+              {/* CTA Buttons */}
               <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
-                className="flex flex-col sm:flex-row gap-4 pt-4"
+                initial={{ opacity: 0, y: reduce ? 0 : 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: reduce ? 0 : 0.15, duration: reduce ? 0 : 0.4, ease: easeOut }}
+                className="flex flex-col sm:flex-row gap-4 pt-2"
               >
                 <Link href="/dashboard">
-                  <Button size="lg" className="btn-premium text-lg sm:text-xl px-8 sm:px-10 py-5 sm:py-7 rounded-2xl font-semibold">
+                  <Button size="lg" className="w-full sm:w-auto text-base px-8">
                     Start gratis prøveperiode <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </Link>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="glass-card text-lg sm:text-xl px-8 sm:px-10 py-5 sm:py-7 rounded-2xl font-semibold hover:scale-105 transition-transform border-2"
+                  className="w-full sm:w-auto text-base px-8"
                   onClick={() => {
                     document.getElementById('features')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
                   }}
@@ -296,71 +269,71 @@ export default function Landing() {
                 </Button>
               </motion.div>
 
-              {/* Trust Signals - Enhanced */}
+              {/* Trust Signals */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="flex flex-wrap gap-6 pt-6 text-base"
+                transition={{ delay: reduce ? 0 : 0.2, duration: reduce ? 0 : 0.4, ease: easeOut }}
+                className="flex flex-wrap gap-3 pt-4 text-sm"
               >
-                <div className="flex items-center gap-2 glass-card px-4 py-2 rounded-full">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  <span className="font-medium">Ingen kredittkort påkrevd</span>
+                <div className="flex items-center gap-2 bg-card border border-border px-3 py-1.5 rounded-full">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  <span className="font-medium text-foreground">Ingen kredittkort påkrevd</span>
                 </div>
-                <div className="flex items-center gap-2 glass-card px-4 py-2 rounded-full">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  <span className="font-medium">14 dagers gratis prøveperiode</span>
+                <div className="flex items-center gap-2 bg-card border border-border px-3 py-1.5 rounded-full">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  <span className="font-medium text-foreground">14 dagers gratis prøveperiode</span>
                 </div>
               </motion.div>
             </div>
 
             {/* Right Column - Visual */}
             <motion.div
-              initial={{ opacity: 0, x: 20, scale: 0.95 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              transition={{ delay: 0.5, duration: 0.8 }}
-              className="relative mt-12 lg:mt-0"
+              initial={{ opacity: 0, y: reduce ? 0 : 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: reduce ? 0 : 0.2, duration: reduce ? 0 : 0.4, ease: easeOut }}
+              className="relative mt-8 lg:mt-0"
             >
               <div className="relative">
-                {/* Main Screenshot with Enhanced Styling & Video Overlay */}
-                <div 
-                  className="relative rounded-3xl overflow-hidden shadow-2xl glow cursor-pointer group"
+                {/* Main Screenshot with Video Overlay */}
+                <button
+                  type="button"
+                  className="block w-full rounded-2xl overflow-hidden border border-border shadow-lg cursor-pointer group text-left"
                   onClick={() => setIsVideoOpen(true)}
+                  aria-label="Spill av demovideo"
                 >
                   <img
                     src="/dashboard-screenshot.webp"
                     alt="NorskLeads Dashboard"
-                    className="w-full transform group-hover:scale-105 transition-transform duration-500"
+                    className="w-full block"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-blue-600/20 to-transparent" />
-                  
                   {/* Play Button Overlay */}
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform">
-                      <Play className="w-10 h-10 text-blue-600 ml-1" />
+                    <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center shadow-md transition-colors group-hover:bg-primary/90">
+                      <Play className="w-8 h-8 text-primary-foreground ml-0.5" />
                     </div>
                   </div>
-                </div>
-                
-                {/* Floating Stats Cards */}
+                </button>
+
+                {/* Stats Cards */}
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: reduce ? 0 : 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1 }}
-                  className="absolute -bottom-6 -left-6 glass-card p-6 rounded-2xl shadow-xl"
+                  transition={{ delay: reduce ? 0 : 0.35, duration: reduce ? 0 : 0.4, ease: easeOut }}
+                  className="absolute -bottom-5 -left-5 bg-card border border-border p-5 rounded-xl shadow-sm"
                 >
-                  <div className="text-sm text-gray-600 mb-1">Aktive kampanjer</div>
-                  <div className="text-3xl font-bold gradient-text">247</div>
+                  <div className="text-sm text-muted-foreground mb-1">Aktive kampanjer</div>
+                  <div className="text-2xl font-semibold text-foreground">247</div>
                 </motion.div>
-                
+
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0, y: reduce ? 0 : 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.2 }}
-                  className="absolute -top-6 -right-6 glass-card p-6 rounded-2xl shadow-xl"
+                  transition={{ delay: reduce ? 0 : 0.45, duration: reduce ? 0 : 0.4, ease: easeOut }}
+                  className="absolute -top-5 -right-5 bg-card border border-border p-5 rounded-xl shadow-sm"
                 >
-                  <div className="text-sm text-gray-600 mb-1">Åpningsrate</div>
-                  <div className="text-3xl font-bold text-green-600">68%</div>
+                  <div className="text-sm text-muted-foreground mb-1">Åpningsrate</div>
+                  <div className="text-2xl font-semibold text-green-600">68%</div>
                 </motion.div>
               </div>
             </motion.div>
@@ -368,48 +341,33 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Why NorskLeads Section - Enhanced with Glassmorphism */}
-      <section className="py-32 bg-gradient-to-b from-white via-blue-50/30 to-white relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-400/10 rounded-full blur-3xl" />
-        
-        <div className="container mx-auto px-4 relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-20"
-          >
-            <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tight">
-              Hvorfor NorskLeads er <span className="gradient-text">så viktig</span>
+      {/* Why NorskLeads Section */}
+      <section className="py-24 bg-background">
+        <div className="container mx-auto px-4">
+          <motion.div {...reveal()} className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight text-balance text-foreground">
+              Hvorfor NorskLeads er <span className="text-primary">så viktig</span>
             </h2>
-            <p className="text-2xl md:text-3xl text-gray-600 max-w-3xl mx-auto font-light">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
               Norske B2B-selgere kaster bort tid og penger hver dag
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {/* Problem 1: Time Waste */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="group"
-            >
-              <div className="glass-card text-center p-10 rounded-3xl h-full hover:scale-105 transition-all duration-300">
-                <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-lg group-hover:rotate-6 transition-transform">
-                  <Clock className="w-10 h-10 text-white" />
+            <motion.div {...reveal(0.05)}>
+              <div className="bg-card border border-border shadow-sm text-center p-8 rounded-2xl h-full transition-shadow hover:shadow-md">
+                <div className="w-14 h-14 bg-muted rounded-xl flex items-center justify-center mx-auto mb-6">
+                  <Clock className="w-7 h-7 text-destructive" />
                 </div>
-                <h3 className="text-4xl md:text-5xl font-black mb-4 text-gray-900">
+                <h3 className="text-3xl font-semibold mb-3 text-foreground">
                   20+ timer/uke
                 </h3>
-                <p className="text-lg text-gray-700 leading-relaxed mb-6">
+                <p className="text-base text-muted-foreground leading-relaxed mb-6">
                   kastet bort på manuell prospektering i stedet for salg
                 </p>
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <p className="text-base text-red-600 font-bold">
+                <div className="mt-6 pt-6 border-t border-border">
+                  <p className="text-sm text-destructive font-semibold">
                     = kr 40 000/mnd i tapt tid
                   </p>
                 </div>
@@ -417,25 +375,19 @@ export default function Landing() {
             </motion.div>
 
             {/* Problem 2: Lost Leads */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="group"
-            >
-              <div className="glass-card text-center p-10 rounded-3xl h-full hover:scale-105 transition-all duration-300">
-                <div className="w-20 h-20 bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-lg group-hover:rotate-6 transition-transform">
-                  <Users className="w-10 h-10 text-white" />
+            <motion.div {...reveal(0.1)}>
+              <div className="bg-card border border-border shadow-sm text-center p-8 rounded-2xl h-full transition-shadow hover:shadow-md">
+                <div className="w-14 h-14 bg-muted rounded-xl flex items-center justify-center mx-auto mb-6">
+                  <Users className="w-7 h-7 text-destructive" />
                 </div>
-                <h3 className="text-4xl md:text-5xl font-black mb-4 text-gray-900">
+                <h3 className="text-3xl font-semibold mb-3 text-foreground">
                   70% tapt
                 </h3>
-                <p className="text-lg text-gray-700 leading-relaxed mb-6">
+                <p className="text-base text-muted-foreground leading-relaxed mb-6">
                   av potensielle kunder forsvinner uten systematisk oppfølging
                 </p>
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <p className="text-base text-orange-600 font-bold">
+                <div className="mt-6 pt-6 border-t border-border">
+                  <p className="text-sm text-destructive font-semibold">
                     = kr 100 000+ i tapt omsetning
                   </p>
                 </div>
@@ -443,45 +395,34 @@ export default function Landing() {
             </motion.div>
 
             {/* Solution: NorskLeads */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-              className="group"
-            >
-              <div className="glass-card text-center p-10 rounded-3xl h-full border-2 border-green-500 bg-gradient-to-br from-green-50 to-white hover:scale-105 transition-all duration-300 glow">
-                <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-lg group-hover:rotate-6 transition-transform">
-                  <Zap className="w-10 h-10 text-white" />
+            <motion.div {...reveal(0.15)}>
+              <div className="bg-card border border-primary shadow-sm text-center p-8 rounded-2xl h-full transition-shadow hover:shadow-md">
+                <div className="w-14 h-14 bg-primary rounded-xl flex items-center justify-center mx-auto mb-6">
+                  <Zap className="w-7 h-7 text-primary-foreground" />
                 </div>
-                <h3 className="text-4xl md:text-5xl font-black mb-4 text-gray-900">
+                <h3 className="text-3xl font-semibold mb-3 text-foreground">
                   3x høyere
                 </h3>
-                <p className="text-lg text-gray-700 leading-relaxed mb-6">
+                <p className="text-base text-muted-foreground leading-relaxed mb-6">
                   konverteringsrate med NorskLeads vs. manuell prospektering
                 </p>
-                <div className="mt-6 pt-6 border-t border-green-200">
-                  <p className="text-base text-green-600 font-bold">
-                    ✓ Spar tid. Øk salg. Voks raskere.
+                <div className="mt-6 pt-6 border-t border-border">
+                  <p className="text-sm text-green-600 font-semibold flex items-center justify-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Spar tid. Øk salg. Voks raskere.
                   </p>
                 </div>
               </div>
             </motion.div>
           </div>
 
-          {/* CTA - Enhanced */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.4 }}
-            className="text-center mt-16"
-          >
-            <p className="text-2xl text-gray-800 mb-8 font-light">
-              <strong className="font-bold">Løsningen:</strong> Alt du trenger på én plattform - fra prospektering til lukket salg
+          {/* CTA */}
+          <motion.div {...reveal(0.2)} className="text-center mt-14">
+            <p className="text-lg text-foreground mb-6">
+              <strong className="font-semibold">Løsningen:</strong> Alt du trenger på én plattform - fra prospektering til lukket salg
             </p>
             <Link href="/dashboard">
-              <Button size="lg" className="btn-premium text-xl px-12 py-7 rounded-2xl font-semibold">
+              <Button size="lg" className="text-base px-8">
                 Start gratis i dag <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>
@@ -489,134 +430,97 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Real Screenshots Section - Enhanced */}
-      <section id="features" className="py-32 bg-white relative overflow-hidden">
+      {/* Real Screenshots Section */}
+      <section id="features" className="py-24 bg-muted/30">
         <div className="container mx-auto px-4">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-20"
-          >
-            <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tight">
-              Alt du trenger for å <span className="gradient-text">finne kunder</span>
+          <motion.div {...reveal()} className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight text-balance text-foreground">
+              Alt du trenger for å <span className="text-primary">finne kunder</span>
             </h2>
-            <p className="text-2xl md:text-3xl text-gray-600 max-w-3xl mx-auto font-light">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
               Kraftige verktøy for å søke, kontakte og følge opp potensielle kunder
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-2 gap-16 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 max-w-6xl mx-auto">
             {/* Search Feature */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-              className="space-y-6 group"
-            >
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl shadow-lg group-hover:scale-110 transition-transform">
-                <Search className="w-10 h-10 text-white" />
+            <motion.div {...reveal()} className="space-y-5">
+              <div className="inline-flex items-center justify-center w-14 h-14 bg-primary rounded-xl">
+                <Search className="w-7 h-7 text-primary-foreground" />
               </div>
-              <h3 className="text-3xl md:text-4xl font-bold">Avansert søk</h3>
-              <p className="text-gray-700 text-xl leading-relaxed">
-                Søk blant <span className="font-bold text-blue-600">1.1 millioner</span> norske bedrifter med kraftige filtre.
+              <h3 className="text-2xl md:text-3xl font-semibold text-foreground">Avansert søk</h3>
+              <p className="text-muted-foreground text-lg leading-relaxed">
+                Søk blant <span className="font-semibold text-foreground">1.1 millioner</span> norske bedrifter med kraftige filtre.
                 Finn bedrifter etter fylke, kommune, næringskode, antall
                 ansatte, og mer.
               </p>
-              <div className="relative group">
-                <img
-                  src="/search-screenshot.webp"
-                  alt="Søk i norske bedrifter"
-                  className="rounded-2xl shadow-2xl border border-gray-200 group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-blue-600/10 to-transparent rounded-2xl" />
-              </div>
+              <img
+                src="/search-screenshot.webp"
+                alt="Søk i norske bedrifter"
+                className="rounded-2xl shadow-sm border border-border w-full"
+              />
             </motion.div>
 
             {/* Kanban Feature */}
-            <motion.div
-              initial={{ opacity: 0, y: 30 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="space-y-6 group"
-            >
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-purple-500 to-purple-600 rounded-3xl shadow-lg group-hover:scale-110 transition-transform">
-                <Users className="w-10 h-10 text-white" />
+            <motion.div {...reveal(0.1)} className="space-y-5">
+              <div className="inline-flex items-center justify-center w-14 h-14 bg-primary rounded-xl">
+                <Users className="w-7 h-7 text-primary-foreground" />
               </div>
-              <h3 className="text-3xl md:text-4xl font-bold">Administrer leads</h3>
-              <p className="text-gray-700 text-xl leading-relaxed">
+              <h3 className="text-2xl md:text-3xl font-semibold text-foreground">Administrer leads</h3>
+              <p className="text-muted-foreground text-lg leading-relaxed">
                 Organiser dine leads i et visuelt Kanban-board. Dra og slipp
                 for å oppdatere status automatisk. Hold oversikt over alle
                 potensielle kunder.
               </p>
-              <div className="relative group">
-                <img
-                  src="/leads-screenshot.webp"
-                  alt="Kanban board for leads"
-                  className="rounded-2xl shadow-2xl border border-gray-200 group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-purple-600/10 to-transparent rounded-2xl" />
-              </div>
+              <img
+                src="/leads-screenshot.webp"
+                alt="Kanban board for leads"
+                className="rounded-2xl shadow-sm border border-border w-full"
+              />
             </motion.div>
           </div>
         </div>
       </section>
 
-      {/* Features Grid - Hand-drawn Style */}
-      <section className="py-20">
+      {/* Features Grid */}
+      <section className="py-24 bg-background">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Hvorfor NorskLeads?</h2>
-            <p className="text-xl text-gray-600">
+          <motion.div {...reveal()} className="text-center mb-14">
+            <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight text-balance text-foreground">Hvorfor NorskLeads?</h2>
+            <p className="text-lg md:text-xl text-muted-foreground">
               Alt du trenger for å lykkes med B2B-salg i Norge
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {[
               {
                 icon: Mail,
                 title: "E-postkampanjer",
                 description:
                   "Send personaliserte e-poster med dynamiske variabler. Automatiske oppfølginger og tracking.",
-                color: "blue",
               },
               {
                 icon: BarChart3,
                 title: "Avansert analyse",
                 description:
                   "Følg med på åpningsrate, klikkrate, og svarrate. Optimaliser kampanjene dine basert på data.",
-                color: "purple",
               },
               {
                 icon: Zap,
                 title: "AI-drevet automatisering",
                 description:
                   "La AI hjelpe deg med å skrive bedre e-poster og finne de beste tidspunktene å sende.",
-                color: "indigo",
               },
             ].map((feature, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ y: -5 }}
-              >
-                <Card className="h-full hover:shadow-lg transition-shadow">
+              <motion.div key={index} {...reveal(index * 0.05)}>
+                <Card className="h-full transition-shadow hover:shadow-md">
                   <CardContent className="p-8 space-y-4">
-                    <div
-                      className={`inline-flex items-center justify-center w-14 h-14 bg-${feature.color}-100 rounded-xl`}
-                    >
-                      <feature.icon
-                        className={`w-7 h-7 text-${feature.color}-600`}
-                      />
+                    <div className="inline-flex items-center justify-center w-12 h-12 bg-muted rounded-xl">
+                      <feature.icon className="w-6 h-6 text-primary" />
                     </div>
-                    <h3 className="text-xl font-bold">{feature.title}</h3>
-                    <p className="text-gray-600 leading-relaxed">
+                    <h3 className="text-xl font-semibold text-foreground">{feature.title}</h3>
+                    <p className="text-muted-foreground leading-relaxed">
                       {feature.description}
                     </p>
                   </CardContent>
@@ -627,19 +531,19 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* Testimonials - Real Norwegian Names */}
-      <section className="py-20 bg-gray-50">
+      {/* Testimonials */}
+      <section className="py-24 bg-muted/30">
         <div className="container mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">
+          <motion.div {...reveal()} className="text-center mb-14">
+            <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight text-balance text-foreground">
               Hva kundene våre sier
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-lg md:text-xl text-muted-foreground">
               Norske bedrifter som bruker NorskLeads hver dag
             </p>
-          </div>
+          </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
             {[
               {
                 name: "Lars Olsen",
@@ -663,37 +567,31 @@ export default function Landing() {
                 rating: 5,
               },
             ].map((testimonial, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-              >
+              <motion.div key={index} {...reveal(index * 0.05)}>
                 <Card className="h-full">
                   <CardContent className="p-8 space-y-4">
                     {/* Stars */}
-                    <div className="flex gap-1">
+                    <div className="flex gap-1" aria-label={`${testimonial.rating} av 5 stjerner`}>
                       {[...Array(testimonial.rating)].map((_, i) => (
-                        <span key={i} className="text-yellow-400 text-xl">
+                        <span key={i} className="text-amber-500 text-lg" aria-hidden="true">
                           ★
                         </span>
                       ))}
                     </div>
 
                     {/* Content */}
-                    <p className="text-gray-700 leading-relaxed italic">
+                    <p className="text-foreground leading-relaxed">
                       "{testimonial.content}"
                     </p>
 
                     {/* Author */}
-                    <div className="flex items-center gap-4 pt-4 border-t">
-                      <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                    <div className="flex items-center gap-4 pt-4 border-t border-border">
+                      <div className="w-11 h-11 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-semibold text-lg">
                         {testimonial.name[0]}
                       </div>
                       <div>
-                        <p className="font-semibold">{testimonial.name}</p>
-                        <p className="text-sm text-gray-600">
+                        <p className="font-semibold text-foreground">{testimonial.name}</p>
+                        <p className="text-sm text-muted-foreground">
                           {testimonial.role}
                         </p>
                       </div>
@@ -707,17 +605,17 @@ export default function Landing() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-20">
+      <section className="py-24 bg-background">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-4xl font-bold mb-4">
+            <motion.div {...reveal()} className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight text-balance text-foreground">
                 Ofte stilte spørsmål
               </h2>
-              <p className="text-xl text-gray-600">
+              <p className="text-lg md:text-xl text-muted-foreground">
                 Alt du lurer på om NorskLeads
               </p>
-            </div>
+            </motion.div>
 
             <div className="space-y-2">
               <FAQItem
@@ -750,42 +648,32 @@ export default function Landing() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-24 bg-gradient-to-b from-white to-gray-50">
+      <section id="pricing" className="py-24 bg-muted/30">
         <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <span className="inline-block px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold mb-4">
+          <motion.div {...reveal()} className="text-center mb-14">
+            <span className="inline-block px-3 py-1.5 bg-muted border border-border text-foreground rounded-full text-sm font-medium mb-4">
               Priser
             </span>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+            <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight text-balance text-foreground">
               Velg planen som passer for deg
             </h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
               Start gratis og oppgrader når du er klar. Ingen skjulte kostnader.
             </p>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto items-start">
             {/* Starter Plan */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0 }}
-            >
-              <Card className="h-full hover:shadow-xl transition-shadow relative overflow-hidden">
+            <motion.div {...reveal()}>
+              <Card className="h-full transition-shadow hover:shadow-md relative overflow-hidden">
                 <CardContent className="p-8">
-                  <h3 className="text-2xl font-bold mb-2">Starter</h3>
-                  <p className="text-gray-600 mb-6">For små bedrifter og gründere</p>
+                  <h3 className="text-2xl font-semibold mb-2 text-foreground">Starter</h3>
+                  <p className="text-muted-foreground mb-6">For små bedrifter og gründere</p>
                   <div className="mb-6">
-                    <span className="text-5xl font-black">kr 499</span>
-                    <span className="text-gray-600">/mnd</span>
+                    <span className="text-4xl font-bold text-foreground">kr 499</span>
+                    <span className="text-muted-foreground">/mnd</span>
                   </div>
-                  <ul className="space-y-4 mb-8">
+                  <ul className="space-y-3 mb-8">
                     {[
                       "500 bedriftssøk/mnd",
                       "100 e-poster/mnd",
@@ -794,13 +682,13 @@ export default function Landing() {
                       "Grunnleggende analyse",
                     ].map((feature, i) => (
                       <li key={i} className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                        <span>{feature}</span>
+                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                        <span className="text-foreground">{feature}</span>
                       </li>
                     ))}
                   </ul>
                   <Link href="/register">
-                    <Button variant="outline" className="w-full py-6 text-lg">
+                    <Button variant="outline" className="w-full py-6 text-base">
                       Start gratis prøveperiode
                     </Button>
                   </Link>
@@ -809,24 +697,19 @@ export default function Landing() {
             </motion.div>
 
             {/* Pro Plan - Popular */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-            >
-              <Card className="h-full hover:shadow-xl transition-shadow relative overflow-hidden border-2 border-blue-500 scale-105">
-                <div className="absolute top-0 left-0 right-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-center py-2 text-sm font-semibold">
+            <motion.div {...reveal(0.05)}>
+              <Card className="h-full transition-shadow hover:shadow-md relative overflow-hidden border-primary">
+                <div className="absolute top-0 left-0 right-0 bg-primary text-primary-foreground text-center py-2 text-sm font-semibold">
                   Mest populær
                 </div>
                 <CardContent className="p-8 pt-14">
-                  <h3 className="text-2xl font-bold mb-2">Pro</h3>
-                  <p className="text-gray-600 mb-6">For voksende salgsavdelinger</p>
+                  <h3 className="text-2xl font-semibold mb-2 text-foreground">Pro</h3>
+                  <p className="text-muted-foreground mb-6">For voksende salgsavdelinger</p>
                   <div className="mb-6">
-                    <span className="text-5xl font-black">kr 999</span>
-                    <span className="text-gray-600">/mnd</span>
+                    <span className="text-4xl font-bold text-foreground">kr 999</span>
+                    <span className="text-muted-foreground">/mnd</span>
                   </div>
-                  <ul className="space-y-4 mb-8">
+                  <ul className="space-y-3 mb-8">
                     {[
                       "Ubegrenset bedriftssøk",
                       "5 000 e-poster/mnd",
@@ -837,13 +720,13 @@ export default function Landing() {
                       "CRM-integrasjoner",
                     ].map((feature, i) => (
                       <li key={i} className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                        <span>{feature}</span>
+                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                        <span className="text-foreground">{feature}</span>
                       </li>
                     ))}
                   </ul>
                   <Link href="/register">
-                    <Button className="w-full py-6 text-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                    <Button className="w-full py-6 text-base">
                       Start gratis prøveperiode
                     </Button>
                   </Link>
@@ -852,20 +735,15 @@ export default function Landing() {
             </motion.div>
 
             {/* Enterprise Plan */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-            >
-              <Card className="h-full hover:shadow-xl transition-shadow relative overflow-hidden">
+            <motion.div {...reveal(0.1)}>
+              <Card className="h-full transition-shadow hover:shadow-md relative overflow-hidden">
                 <CardContent className="p-8">
-                  <h3 className="text-2xl font-bold mb-2">Enterprise</h3>
-                  <p className="text-gray-600 mb-6">For store organisasjoner</p>
+                  <h3 className="text-2xl font-semibold mb-2 text-foreground">Enterprise</h3>
+                  <p className="text-muted-foreground mb-6">For store organisasjoner</p>
                   <div className="mb-6">
-                    <span className="text-5xl font-black">Kontakt</span>
+                    <span className="text-4xl font-bold text-foreground">Kontakt</span>
                   </div>
-                  <ul className="space-y-4 mb-8">
+                  <ul className="space-y-3 mb-8">
                     {[
                       "Alt i Pro +",
                       "Ubegrenset e-poster",
@@ -876,12 +754,12 @@ export default function Landing() {
                       "On-premise mulighet",
                     ].map((feature, i) => (
                       <li key={i} className="flex items-center gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-green-500 flex-shrink-0" />
-                        <span>{feature}</span>
+                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+                        <span className="text-foreground">{feature}</span>
                       </li>
                     ))}
                   </ul>
-                  <Button variant="outline" className="w-full py-6 text-lg">
+                  <Button variant="outline" className="w-full py-6 text-base">
                     Kontakt salg
                   </Button>
                 </CardContent>
@@ -890,14 +768,9 @@ export default function Landing() {
           </div>
 
           {/* Money back guarantee */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            className="text-center mt-12"
-          >
-            <p className="text-gray-600 flex items-center justify-center gap-2">
-              <Shield className="w-5 h-5 text-green-500" />
+          <motion.div {...reveal(0.15)} className="text-center mt-12">
+            <p className="text-muted-foreground flex items-center justify-center gap-2">
+              <Shield className="w-5 h-5 text-green-600" />
               14 dagers pengene-tilbake-garanti. Ingen spørsmål.
             </p>
           </motion.div>
@@ -905,69 +778,58 @@ export default function Landing() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-24 bg-white">
+      <section className="py-24 bg-background">
         <div className="container mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-16"
-          >
-            <span className="inline-block px-4 py-2 bg-indigo-100 text-indigo-700 rounded-full text-sm font-semibold mb-4">
+          <motion.div {...reveal()} className="text-center mb-14">
+            <span className="inline-block px-3 py-1.5 bg-muted border border-border text-foreground rounded-full text-sm font-medium mb-4">
               Slik fungerer det
             </span>
-            <h2 className="text-4xl md:text-5xl font-bold mb-4">
+            <h2 className="text-3xl md:text-4xl font-semibold mb-4 tracking-tight text-balance text-foreground">
               Fra søk til salg på 3 enkle steg
             </h2>
           </motion.div>
 
-          <div className="grid md:grid-cols-3 gap-12 max-w-5xl mx-auto">
+          <div className="grid md:grid-cols-3 gap-10 max-w-5xl mx-auto">
             {[
               {
                 step: "1",
                 title: "Finn bedrifter",
                 description: "Søk blant 1.1 millioner norske bedrifter med avanserte filtre. Finn de perfekte kundene for din virksomhet.",
                 icon: Search,
-                color: "blue",
               },
               {
                 step: "2",
                 title: "Send kampanjer",
                 description: "Lag personaliserte e-postkampanjer med AI-hjelp. Automatiser oppfølginger og spar tid.",
                 icon: Mail,
-                color: "purple",
               },
               {
                 step: "3",
                 title: "Lukk salg",
                 description: "Følg opp leads i Kanban-boardet. Se hvem som åpner e-poster og prioriter de varmeste leadsene.",
                 icon: BarChart3,
-                color: "green",
               },
             ].map((item, index) => (
               <motion.div
                 key={index}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.15 }}
+                {...reveal(index * 0.05)}
                 className="text-center relative"
               >
                 {/* Connector line */}
                 {index < 2 && (
-                  <div className="hidden md:block absolute top-16 left-[60%] w-[80%] h-0.5 bg-gradient-to-r from-gray-300 to-transparent" />
+                  <div className="hidden md:block absolute top-12 left-[60%] w-[80%] h-px bg-border" />
                 )}
-                
+
                 {/* Step number */}
-                <div className={`inline-flex items-center justify-center w-32 h-32 rounded-full bg-gradient-to-br from-${item.color}-100 to-${item.color}-200 mb-6 relative`}>
-                  <item.icon className={`w-12 h-12 text-${item.color}-600`} />
-                  <span className={`absolute -top-2 -right-2 w-10 h-10 bg-${item.color}-600 text-white rounded-full flex items-center justify-center font-bold text-lg`}>
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-muted mb-6 relative">
+                  <item.icon className="w-10 h-10 text-primary" />
+                  <span className="absolute -top-1 -right-1 w-9 h-9 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-semibold">
                     {item.step}
                   </span>
                 </div>
-                
-                <h3 className="text-2xl font-bold mb-4">{item.title}</h3>
-                <p className="text-gray-600 text-lg leading-relaxed">{item.description}</p>
+
+                <h3 className="text-xl font-semibold mb-3 text-foreground">{item.title}</h3>
+                <p className="text-muted-foreground leading-relaxed">{item.description}</p>
               </motion.div>
             ))}
           </div>
@@ -975,7 +837,7 @@ export default function Landing() {
       </section>
 
       {/* Trust Badges */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-muted/30">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
             {[
@@ -1001,11 +863,11 @@ export default function Landing() {
               },
             ].map((badge, index) => (
               <div key={index} className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-md mb-4">
-                  <badge.icon className="w-8 h-8 text-blue-600" />
+                <div className="inline-flex items-center justify-center w-14 h-14 bg-card border border-border rounded-full mb-4">
+                  <badge.icon className="w-7 h-7 text-primary" />
                 </div>
-                <h4 className="font-semibold mb-1">{badge.title}</h4>
-                <p className="text-sm text-gray-600">{badge.description}</p>
+                <h4 className="font-semibold mb-1 text-foreground">{badge.title}</h4>
+                <p className="text-sm text-muted-foreground">{badge.description}</p>
               </div>
             ))}
           </div>
@@ -1013,29 +875,29 @@ export default function Landing() {
       </section>
 
       {/* Final CTA */}
-      <section className="py-20">
+      <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
-          <div className="max-w-4xl mx-auto text-center space-y-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-3xl p-12 md:p-16 text-white">
-            <h2 className="text-4xl md:text-5xl font-bold">
+          <div className="max-w-4xl mx-auto text-center space-y-6 bg-primary rounded-2xl p-12 md:p-16 text-primary-foreground">
+            <h2 className="text-3xl md:text-4xl font-semibold tracking-tight text-balance">
               Klar til å finne dine neste kunder?
             </h2>
-            <p className="text-xl opacity-90">
+            <p className="text-lg opacity-90">
               Start din gratis prøveperiode i dag. Ingen kredittkort påkrevd.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-2">
               <Link href="/dashboard">
                 <Button
                   size="lg"
                   variant="secondary"
-                  className="text-lg px-8 py-6"
+                  className="text-base px-8"
                 >
-                  Start gratis prøveperiode <ArrowRight className="ml-2" />
+                  Start gratis prøveperiode <ArrowRight className="ml-2 w-5 h-5" />
                 </Button>
               </Link>
               <Button
                 size="lg"
                 variant="outline"
-                className="text-lg px-8 py-6 bg-transparent border-white text-white hover:bg-white/10"
+                className="text-base px-8 bg-transparent border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10"
               >
                 Snakk med salg
               </Button>
@@ -1045,106 +907,106 @@ export default function Landing() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t bg-gray-50 py-12">
+      <footer className="border-t border-border bg-muted/30 py-12">
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
-              <h3 className="font-bold mb-4">NorskLeads</h3>
-              <p className="text-sm text-gray-600">
+              <h3 className="font-semibold mb-4 text-foreground">NorskLeads</h3>
+              <p className="text-sm text-muted-foreground">
                 Finn dine neste kunder i Norge med AI-drevet lead generation.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Produkt</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <h4 className="font-semibold mb-4 text-foreground">Produkt</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
-                  <Link href="/features" className="hover:text-blue-600 cursor-pointer">
+                  <Link href="/features" className="hover:text-primary transition-colors cursor-pointer">
                     Funksjoner
                   </Link>
                 </li>
                 <li>
-                  <Link href="/pricing" className="hover:text-blue-600 cursor-pointer">
+                  <Link href="/pricing" className="hover:text-primary transition-colors cursor-pointer">
                     Priser
                   </Link>
                 </li>
                 <li>
-                  <Link href="/integrations" className="hover:text-blue-600 cursor-pointer">
+                  <Link href="/integrations" className="hover:text-primary transition-colors cursor-pointer">
                     Integrasjoner
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Selskap</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <h4 className="font-semibold mb-4 text-foreground">Selskap</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
-                  <Link href="/about" className="hover:text-blue-600 cursor-pointer">
+                  <Link href="/about" className="hover:text-primary transition-colors cursor-pointer">
                     Om oss
                   </Link>
                 </li>
                 <li>
-                  <Link href="/contact" className="hover:text-blue-600 cursor-pointer">
+                  <Link href="/contact" className="hover:text-primary transition-colors cursor-pointer">
                     Kontakt
                   </Link>
                 </li>
                 <li>
-                  <Link href="/privacy" className="hover:text-blue-600 cursor-pointer">
+                  <Link href="/privacy" className="hover:text-primary transition-colors cursor-pointer">
                     Personvern
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-sm text-gray-600">
+              <h4 className="font-semibold mb-4 text-foreground">Support</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
                 <li>
-                  <Link href="/help" className="hover:text-blue-600 cursor-pointer">
+                  <Link href="/help" className="hover:text-primary transition-colors cursor-pointer">
                     Hjelpesenter
                   </Link>
                 </li>
                 <li>
-                  <Link href="/docs" className="hover:text-blue-600 cursor-pointer">
+                  <Link href="/docs" className="hover:text-primary transition-colors cursor-pointer">
                     Dokumentasjon
                   </Link>
                 </li>
                 <li>
-                  <Link href="/status" className="hover:text-blue-600 cursor-pointer">
+                  <Link href="/status" className="hover:text-primary transition-colors cursor-pointer">
                     Status
                   </Link>
                 </li>
               </ul>
             </div>
           </div>
-          <div className="border-t pt-8">
+          <div className="border-t border-border pt-8">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="text-center md:text-left text-sm text-gray-600">
+              <div className="text-center md:text-left text-sm text-muted-foreground">
                 <p>&copy; 2024 NorskLeads by Nexify CRM Systems AS</p>
                 <p className="text-xs mt-1">Org.nr: 92146050 | Laget med ❤️ i Norge</p>
               </div>
               <div className="flex items-center gap-4">
-                <a 
-                  href="https://www.linkedin.com/company/nexify-crm" 
-                  target="_blank" 
+                <a
+                  href="https://www.linkedin.com/company/nexify-crm"
+                  target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-600 hover:text-blue-600 transition-colors"
+                  className="text-muted-foreground hover:text-primary transition-colors"
                   title="Følg oss på LinkedIn"
                 >
                   <Linkedin className="w-5 h-5" />
                 </a>
-                <a 
-                  href="https://www.facebook.com/nexifycrm" 
-                  target="_blank" 
+                <a
+                  href="https://www.facebook.com/nexifycrm"
+                  target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-600 hover:text-blue-600 transition-colors"
+                  className="text-muted-foreground hover:text-primary transition-colors"
                   title="Følg oss på Facebook"
                 >
                   <Facebook className="w-5 h-5" />
                 </a>
-                <a 
-                  href="https://twitter.com/nexifycrm" 
-                  target="_blank" 
+                <a
+                  href="https://twitter.com/nexifycrm"
+                  target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-600 hover:text-blue-400 transition-colors"
+                  className="text-muted-foreground hover:text-primary transition-colors"
                   title="Følg oss på Twitter"
                 >
                   <Twitter className="w-5 h-5" />
@@ -1159,9 +1021,10 @@ export default function Landing() {
       <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50">
         <Button
           size="lg"
-          className="rounded-full w-16 h-16 shadow-2xl hover:scale-110 transition-transform"
+          className="rounded-full w-14 h-14 shadow-md transition-colors"
           onClick={openCrispChat}
           title="Chat med oss"
+          aria-label="Chat med oss"
         >
           <MessageCircle className="w-6 h-6" />
         </Button>
@@ -1169,11 +1032,11 @@ export default function Landing() {
 
       {/* Video Modal */}
       {isVideoOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4"
           onClick={() => setIsVideoOpen(false)}
         >
-          <div 
+          <div
             className="relative w-full max-w-5xl aspect-video bg-black rounded-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1181,10 +1044,11 @@ export default function Landing() {
             <button
               onClick={() => setIsVideoOpen(false)}
               className="absolute top-4 right-4 z-10 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-colors"
+              aria-label="Lukk video"
             >
               <span className="text-2xl text-gray-800">×</span>
             </button>
-            
+
             {/* YouTube Embed - Replace with actual demo video URL */}
             <iframe
               className="w-full h-full"
