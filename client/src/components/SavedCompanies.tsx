@@ -99,7 +99,7 @@ export function SavedCompaniesButton({ companyId, companyName }: { companyId: nu
         variant="ghost"
         size="icon"
         onClick={isSaved ? handleRemove : () => setIsDialogOpen(true)}
-        className={isSaved ? "text-yellow-500 hover:text-yellow-600" : "text-gray-400 hover:text-yellow-500"}
+        className={isSaved ? "text-yellow-500 hover:text-yellow-600" : "text-muted-foreground hover:text-yellow-500"}
         data-onboarding="save-company"
       >
         {isSaved ? (

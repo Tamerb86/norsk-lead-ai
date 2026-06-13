@@ -106,7 +106,7 @@ export default function ActivityLog() {
               <Activity className="h-6 w-6 text-indigo-600" />
               Aktivitetslogg
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">
+            <p className="text-muted-foreground mt-1">
               Se alle handlinger utført i systemet
             </p>
           </div>
@@ -126,7 +126,7 @@ export default function ActivityLog() {
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
                         {stats.filter((s: any) => s.action === 'create').reduce((acc: number, s: any) => acc + Number(s.count), 0)}
                       </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Opprettet</p>
+                      <p className="text-sm text-muted-foreground">Opprettet</p>
                     </div>
                   </div>
                 </CardContent>
@@ -141,7 +141,7 @@ export default function ActivityLog() {
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
                         {stats.filter((s: any) => s.action === 'update').reduce((acc: number, s: any) => acc + Number(s.count), 0)}
                       </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Oppdatert</p>
+                      <p className="text-sm text-muted-foreground">Oppdatert</p>
                     </div>
                   </div>
                 </CardContent>
@@ -156,7 +156,7 @@ export default function ActivityLog() {
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
                         {stats.filter((s: any) => s.action === 'export').reduce((acc: number, s: any) => acc + Number(s.count), 0)}
                       </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Eksportert</p>
+                      <p className="text-sm text-muted-foreground">Eksportert</p>
                     </div>
                   </div>
                 </CardContent>
@@ -171,7 +171,7 @@ export default function ActivityLog() {
                       <p className="text-2xl font-bold text-gray-900 dark:text-white">
                         {stats.filter((s: any) => s.action === 'login').reduce((acc: number, s: any) => acc + Number(s.count), 0)}
                       </p>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Innlogginger</p>
+                      <p className="text-sm text-muted-foreground">Innlogginger</p>
                     </div>
                   </div>
                 </CardContent>
@@ -196,7 +196,7 @@ export default function ActivityLog() {
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     placeholder="Søk i aktiviteter..."
                     value={filters.search}
@@ -248,7 +248,7 @@ export default function ActivityLog() {
         <Card className="dark:bg-gray-800">
           <CardHeader>
             <CardTitle className="dark:text-white">Nylige aktiviteter</CardTitle>
-            <CardDescription className="dark:text-gray-400">
+            <CardDescription>
               Siste 30 dager
             </CardDescription>
           </CardHeader>
@@ -301,13 +301,13 @@ export default function ActivityLog() {
                           </p>
                         )}
                         {log.details && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          <p className="text-xs text-muted-foreground mt-1">
                             {typeof log.details === 'string' 
                               ? JSON.parse(log.details).message || log.details 
                               : log.details.message}
                           </p>
                         )}
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                        <p className="text-xs text-muted-foreground mt-2">
                           {formatTime(log.createdAt)}
                           {log.ip_address && ` • ${log.ip_address}`}
                         </p>
@@ -328,7 +328,7 @@ export default function ActivityLog() {
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Forrige
                   </Button>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                  <span className="text-sm text-muted-foreground">
                     Side {page + 1}
                   </span>
                   <Button
@@ -349,7 +349,7 @@ export default function ActivityLog() {
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                   Ingen aktiviteter funnet
                 </h3>
-                <p className="text-gray-500 dark:text-gray-400">
+                <p className="text-muted-foreground">
                   Aktiviteter vil vises her når du bruker systemet
                 </p>
               </div>

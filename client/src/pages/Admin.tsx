@@ -333,7 +333,7 @@ function EmailFinderTab() {
               <div>
                 <p className="text-sm text-gray-500">Med e-post</p>
                 <p className="text-2xl font-bold text-green-600">{stats?.withEmail?.toLocaleString() || "-"}</p>
-                <p className="text-xs text-gray-400">{stats?.emailCoverage || 0}% dekning</p>
+                <p className="text-xs text-muted-foreground">{stats?.emailCoverage || 0}% dekning</p>
               </div>
               <CheckCircle className="h-8 w-8 text-green-500" />
             </div>
@@ -356,7 +356,7 @@ function EmailFinderTab() {
               <div>
                 <p className="text-sm text-gray-500">Med nettside (uten e-post)</p>
                 <p className="text-2xl font-bold text-purple-600">{stats?.websiteNoEmail?.toLocaleString() || "-"}</p>
-                <p className="text-xs text-gray-400">Gode kandidater</p>
+                <p className="text-xs text-muted-foreground">Gode kandidater</p>
               </div>
               <Globe className="h-8 w-8 text-purple-500" />
             </div>
@@ -1117,7 +1117,7 @@ export default function Admin() {
                 {/* Filters */}
                 <div className="flex items-center gap-4 mt-4">
                   <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
                       placeholder="Søk brukere..."
                       value={searchQuery}

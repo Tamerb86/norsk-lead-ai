@@ -91,7 +91,7 @@ export default function Profile() {
       <div className="max-w-2xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-white">Min profil</h1>
-          <p className="text-gray-400">Administrer din kontoinformasjon</p>
+          <p className="text-muted-foreground">Administrer din kontoinformasjon</p>
         </div>
 
         {/* Profile Info Card */}
@@ -101,7 +101,7 @@ export default function Profile() {
               <User className="h-5 w-5 text-pink-500" />
               Profilinformasjon
             </CardTitle>
-            <CardDescription className="text-gray-400">
+            <CardDescription className="text-muted-foreground">
               Oppdater din personlige informasjon
             </CardDescription>
           </CardHeader>
@@ -142,7 +142,7 @@ export default function Profile() {
                     id="email"
                     type="email"
                     value={user?.email || ""}
-                    className="pl-10 bg-gray-700/50 border-gray-600 text-gray-400"
+                    className="pl-10 bg-gray-700/50 border-gray-600 text-muted-foreground"
                     disabled
                   />
                 </div>
@@ -182,7 +182,7 @@ export default function Profile() {
               <Lock className="h-5 w-5 text-pink-500" />
               Endre passord
             </CardTitle>
-            <CardDescription className="text-gray-400">
+            <CardDescription className="text-muted-foreground">
               Oppdater passordet ditt for å holde kontoen sikker
             </CardDescription>
           </CardHeader>

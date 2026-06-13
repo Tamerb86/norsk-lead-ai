@@ -245,7 +245,7 @@ export function NotificationCenter() {
                         </p>
                       )}
                       <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           {formatDistanceToNow(new Date(notification.createdAt), {
                             addSuffix: true,
@@ -273,7 +273,7 @@ export function NotificationCenter() {
                         deleteMutation.mutate({ id: notification.id });
                       }}
                     >
-                      <X className="h-4 w-4 text-gray-400 hover:text-red-500" />
+                      <X className="h-4 w-4 text-muted-foreground hover:text-red-500" />
                     </Button>
                   </div>
                 );

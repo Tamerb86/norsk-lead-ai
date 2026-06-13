@@ -185,7 +185,7 @@ export default function Inbox() {
               <InboxIcon className="h-6 w-6 text-indigo-600" />
               Innboks
             </h1>
-            <p className="text-gray-500 dark:text-gray-400 mt-1">Svar fra leads</p>
+            <p className="text-muted-foreground mt-1">Svar fra leads</p>
           </div>
           {stats && (
             <div className="flex flex-wrap items-center gap-2">
@@ -254,7 +254,7 @@ export default function Inbox() {
           <Card className={`dark:bg-gray-800 ${selectedId !== null ? "lg:col-span-2" : "lg:col-span-5"}`}>
             <CardHeader>
               <CardTitle className="dark:text-white">Meldinger</CardTitle>
-              <CardDescription className="dark:text-gray-400">
+              <CardDescription>
                 {total} {total === 1 ? "melding" : "meldinger"}
               </CardDescription>
             </CardHeader>
@@ -296,7 +296,7 @@ export default function Inbox() {
                             {classificationLabel(message.classification)}
                           </Badge>
                           {typeof message.confidence === "number" && (
-                            <span className="text-xs text-gray-400 dark:text-gray-500">
+                            <span className="text-xs text-muted-foreground">
                               {message.confidence}%
                             </span>
                           )}
@@ -308,11 +308,11 @@ export default function Inbox() {
                           {message.subject || "(Uten emne)"}
                         </p>
                         {message.preview && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                             {message.preview}
                           </p>
                         )}
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
+                        <p className="text-xs text-muted-foreground mt-2">
                           {message.fromEmail} • {formatTime(message.createdAt)}
                         </p>
                       </div>
@@ -331,7 +331,7 @@ export default function Inbox() {
                       <ChevronLeft className="h-4 w-4 mr-1" />
                       Forrige
                     </Button>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                    <span className="text-sm text-muted-foreground">
                       Side {page + 1}
                     </span>
                     <Button
@@ -352,7 +352,7 @@ export default function Inbox() {
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
                     {hasFilters ? "Ingen meldinger matcher filtrene" : "Ingen svar ennå"}
                   </h3>
-                  <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                  <p className="text-muted-foreground max-w-md mx-auto">
                     {hasFilters
                       ? "Prøv å endre eller nullstille filtrene for å se flere meldinger."
                       : "Når leads svarer på e-postene dine, dukker de opp her. Svar fanges opp automatisk fra kampanjene dine."}
@@ -371,7 +371,7 @@ export default function Inbox() {
                     <CardTitle className="dark:text-white truncate">
                       {detail?.message.subject || "(Uten emne)"}
                     </CardTitle>
-                    <CardDescription className="dark:text-gray-400 mt-1">
+                    <CardDescription className="mt-1">
                       {detail?.message.fromEmail}
                       {detail?.companyName ? ` • ${detail.companyName}` : ""}
                     </CardDescription>
@@ -415,7 +415,7 @@ export default function Inbox() {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                    <p className="text-xs text-muted-foreground">
                       Mottatt {formatTime(detail.message.createdAt)}
                       {detail.leadEmailSentAt &&
                         ` • E-post sendt ${formatTime(detail.leadEmailSentAt)}`}
@@ -447,8 +447,8 @@ export default function Inbox() {
                         return (
                           <div className="p-4 border border-dashed rounded-lg dark:border-gray-700">
                             <div className="flex items-center gap-2">
-                              <Sparkles className="h-4 w-4 text-gray-400 dark:text-gray-500" />
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                              <Sparkles className="h-4 w-4 text-muted-foreground" />
+                              <p className="text-sm text-muted-foreground">
                                 Negativt svar – ingen oppfølging
                               </p>
                             </div>
@@ -531,7 +531,7 @@ export default function Inbox() {
                           ) : (
                             // No draft yet — offer to generate one.
                             <div className="space-y-3">
-                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                              <p className="text-sm text-muted-foreground">
                                 Generer et forslag til svar på norsk, rediger det og send.
                               </p>
                               <Button

@@ -490,7 +490,7 @@ export default function Calendar() {
                     <div className={`text-sm font-medium mb-1 ${
                       isTodayDate 
                         ? "bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center" 
-                        : isCurrentMonth ? "text-gray-900" : "text-gray-400"
+                        : isCurrentMonth ? "text-gray-900" : "text-muted-foreground"
                     }`}>
                       {format(date, "d")}
                     </div>

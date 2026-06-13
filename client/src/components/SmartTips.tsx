@@ -461,7 +461,7 @@ export function SmartTips({ enabled = true }: SmartTipsProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 text-gray-400 hover:text-gray-600"
+              className="h-6 w-6 p-0 text-muted-foreground hover:text-gray-600"
               onClick={dismissTip}
             >
               <X className="w-4 h-4" />
@@ -487,7 +487,7 @@ export function SmartTips({ enabled = true }: SmartTipsProps) {
           <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">
             <button
               onClick={dismissPermanently}
-              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-xs text-muted-foreground hover:text-gray-600 transition-colors"
             >
               Ikke vis igjen
             </button>

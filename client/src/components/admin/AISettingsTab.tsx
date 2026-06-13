@@ -463,7 +463,7 @@ function CategorySection({
                         
                         {/* API Key Display */}
                         <div className="flex items-center gap-2 mt-3">
-                          <Key className="w-4 h-4 text-gray-400" />
+                          <Key className="w-4 h-4 text-muted-foreground" />
                           <code className="text-sm bg-gray-100 px-2 py-1 rounded">
                             {showApiKey[integration.id] 
                               ? integration.apiKey || "Ikke konfigurert"
@@ -526,7 +526,7 @@ function CategorySection({
           <CardContent className="py-12">
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-                <Icon className="w-8 h-8 text-gray-400" />
+                <Icon className="w-8 h-8 text-muted-foreground" />
               </div>
               <h3 className="font-semibold text-gray-900 mb-2">Ingen integrasjoner</h3>
               <p className="text-gray-500 mb-4">
@@ -959,7 +959,7 @@ function BrregSettingsCard() {
                 </>
               ) : (
                 <>
-                  <XCircle className="w-4 h-4 text-gray-400" />
+                  <XCircle className="w-4 h-4 text-muted-foreground" />
                   <span className="text-sm text-gray-500">Deaktivert</span>
                 </>
               )}

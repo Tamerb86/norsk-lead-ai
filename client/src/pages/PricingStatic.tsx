@@ -185,7 +185,7 @@ export default function PricingStatic() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-12">
+      <footer className="bg-gray-900 text-muted-foreground py-12">
         <div className="container mx-auto px-4 text-center">
           <p>© 2025 NorskLeads. Alle rettigheter reservert.</p>
         </div>

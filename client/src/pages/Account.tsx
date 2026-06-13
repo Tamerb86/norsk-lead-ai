@@ -582,7 +582,7 @@ export default function Account() {
                   <div className="space-y-2">
                     <Label htmlFor="email">E-post</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                      <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="email"
                         type="email"
@@ -766,7 +766,7 @@ export default function Account() {
                         className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
                       >
                         <div className="flex items-center gap-4">
-                          <FileText className="h-5 w-5 text-gray-400" />
+                          <FileText className="h-5 w-5 text-muted-foreground" />
                           <div>
                             <p className="font-medium">
                               {new Date(invoice.date).toLocaleDateString('nb-NO', {

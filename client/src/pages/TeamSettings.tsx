@@ -128,7 +128,7 @@ export default function TeamSettings() {
         <Card>
           <CardContent className="py-8">
             <div className="text-center">
-              <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+              <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Team</h3>
               <p className="text-gray-600 mb-4">
                 You are not part of any team yet.
@@ -289,7 +289,7 @@ export default function TeamSettings() {
                   className="flex items-center justify-between p-4 border rounded-lg"
                 >
                   <div className="flex items-center gap-3">
-                    <Mail className="w-5 h-5 text-gray-400" />
+                    <Mail className="w-5 h-5 text-muted-foreground" />
                     <div>
                       <div className="font-medium">{invitation.email}</div>
                       <div className="text-sm text-gray-600">

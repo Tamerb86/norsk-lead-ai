@@ -41,7 +41,7 @@ export function VariableInserter({ onInsert }: VariableInserterProps) {
       <PopoverContent className="w-96 p-0" align="start">
         <div className="p-3 border-b">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Søk etter variabler..."
               value={search}
@@ -72,7 +72,7 @@ export function VariableInserter({ onInsert }: VariableInserterProps) {
                       <p className="text-xs text-gray-500 mt-0.5">
                         {variable.description}
                       </p>
-                      <p className="text-xs text-gray-400 mt-1 italic">
+                      <p className="text-xs text-muted-foreground mt-1 italic">
                         Eksempel: {variable.example}
                       </p>
                     </div>

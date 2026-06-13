@@ -323,7 +323,7 @@ export function QuickStartCard() {
                       {step.title}
                     </span>
                     {!isCompleted && (
-                      <ArrowRight className="h-3 w-3 ml-auto text-gray-400" />
+                      <ArrowRight className="h-3 w-3 ml-auto text-muted-foreground" />
                     )}
                   </div>
                 </Link>
@@ -392,7 +392,7 @@ export function FeatureCards() {
                   <h3 className="font-semibold text-gray-900">{feature.title}</h3>
                   <p className="text-sm text-gray-600">{feature.description}</p>
                 </div>
-                <ArrowRight className="h-4 w-4 ml-auto text-gray-400" />
+                <ArrowRight className="h-4 w-4 ml-auto text-muted-foreground" />
               </div>
             </CardContent>
           </Card>

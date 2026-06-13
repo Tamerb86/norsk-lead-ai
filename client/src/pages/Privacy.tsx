@@ -195,7 +195,7 @@ export default function Privacy() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-gray-400 py-8">
+      <footer className="bg-gray-900 text-muted-foreground py-8">
         <div className="container mx-auto px-4 text-center text-sm">
           <p>© 2025 Nexify CRM systems AS (Org.nr: 936300278). Alle rettigheter reservert.</p>
           <div className="mt-2 space-x-4">
