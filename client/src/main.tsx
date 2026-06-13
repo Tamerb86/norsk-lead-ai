@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import Search from "./pages/Search";
 import Campaigns from "./pages/Campaigns";
 import Leads from "./pages/Leads";
+import Inbox from "./pages/Inbox";
 import Templates from "./pages/Templates";
 import Settings from "./pages/Settings";
 import TeamSettings from "./pages/TeamSettings";
@@ -108,6 +109,7 @@ function Router() {
       <Route path="/search" component={Search} />
       <Route path="/campaigns" component={Campaigns} />
       <Route path="/leads" component={Leads} />
+      <Route path="/inbox" component={Inbox} />
       <Route path="/templates" component={Templates} />
       <Route path="/settings" component={Settings} />
       <Route path="/team" component={TeamSettings} />

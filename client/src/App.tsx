@@ -35,6 +35,7 @@ const Templates = lazy(() => import(/* webpackChunkName: "templates" */ "./pages
 const Sequences = lazy(() => import(/* webpackChunkName: "sequences" */ "./pages/Sequences"));
 const Analytics = lazy(() => import(/* webpackChunkName: "analytics" */ "./pages/Analytics"));
 const Calendar = lazy(() => import(/* webpackChunkName: "calendar" */ "./pages/Calendar"));
+const Inbox = lazy(() => import(/* webpackChunkName: "inbox" */ "./pages/Inbox"));
 
 // Settings & admin
 const Settings = lazy(() => import(/* webpackChunkName: "settings" */ "./pages/Settings"));
@@ -115,6 +116,7 @@ function Router() {
         <Route path="/search" component={Search} />
         <Route path="/campaigns" component={Campaigns} />
         <Route path="/leads" component={Leads} />
+        <Route path="/inbox" component={Inbox} />
         <Route path="/templates" component={Templates} />
         <Route path="/sequences" component={Sequences} />
         <Route path="/analytics" component={Analytics} />

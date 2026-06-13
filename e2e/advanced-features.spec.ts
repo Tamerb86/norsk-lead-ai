@@ -38,6 +38,7 @@ test.describe("Feature pages render without crashing", () => {
     { path: "/ab-testing", heading: /A\/B-testing/i },
     { path: "/lead-scoring", heading: /Lead Scoring/i },
     { path: "/activity", heading: /Aktivitetslogg/i },
+    { path: "/inbox", heading: /^Innboks$/ },
     { path: "/calendar", heading: /Kalender/i },
     // A brand-new user has no team yet, so /team renders its "No Team"
     // empty state instead of the full settings view.
@@ -58,6 +59,30 @@ test.describe("Feature pages render without crashing", () => {
       expect(pageErrors).toEqual([]);
     });
   }
+});
+
+test.describe("Reply Inbox", () => {
+  test("/inbox shows the empty state for a fresh user", async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on("pageerror", (err) => pageErrors.push(err.message));
+
+    await loginAsNewUser(page);
+    await page.goto("/inbox");
+
+    await expect(
+      page.getByRole("heading", { name: /^Innboks$/ }).first(),
+    ).toBeVisible({ timeout: 20_000 });
+
+    // A brand-new account has no inbound messages, so the empty state shows.
+    await expect(page.getByText(/Ingen svar ennå/i)).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(
+      page.getByText(/Når leads svarer på e-postene dine, dukker de opp her/i),
+    ).toBeVisible();
+
+    expect(pageErrors).toEqual([]);
+  });
 });
 
 test.describe("Notifications", () => {

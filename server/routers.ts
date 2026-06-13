@@ -31,6 +31,7 @@ import {
   activityLogRouter,
   stripeRouter,
 } from "./routersFeatures";
+import { inboxRouter } from "./routersInbox";
 
 export const appRouter = router({
   system: systemRouter,
@@ -652,6 +653,7 @@ export const appRouter = router({
   brreg: brregRouter,
   emailFinder: emailFinderRouter,
   deliverability: deliverabilityRouter,
+  inbox: inboxRouter,
   ai: aiRouter,
   savedCompanies: savedCompaniesRouter,
   leadScoring: leadScoringRouter,

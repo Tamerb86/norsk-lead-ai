@@ -164,7 +164,11 @@ const CLASSIFICATION_RULES: ClassificationRule[] = [
       /\b(passer ikke|ikke aktuelt|ikke relevant)\b/i,
       /\b(maybe (later|next year|in the future)|not (now|at this time))\b/i,
     ],
-    priority: 50,
+    // Must outrank INTERESTED (70): the negations "not interested" / "ikke
+    // interessert" both contain the positive token "interested"/"interessert",
+    // so without higher priority a rejection would be misread as interest and
+    // could trigger an automated reply. Stopping wins ties.
+    priority: 72,
     action: "stop_not_interested",
   },
 ];
