@@ -392,7 +392,7 @@ export default function Leads() {
 
                         {/* Empty State */}
                         {column.items.length === 0 && (
-                          <div className="flex flex-col items-center justify-center py-8 text-gray-400">
+                          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                             <AlertCircle className="w-8 h-8 mb-2" />
                             <p className="text-sm">Ingen leads her</p>
                           </div>

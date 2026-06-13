@@ -111,7 +111,7 @@ export default function Login() {
               <CardTitle className="text-2xl text-white text-center">
                 Tofaktorautentisering
               </CardTitle>
-              <CardDescription className="text-gray-400 text-center">
+              <CardDescription className="text-muted-foreground text-center">
                 {useBackupCode
                   ? "Skriv inn en av dine reservekoder"
                   : "Skriv inn koden fra autentiseringsappen din"}
@@ -155,7 +155,7 @@ export default function Login() {
                 <Button
                   type="button"
                   variant="link"
-                  className="text-gray-400 hover:text-purple-400 p-0 h-auto"
+                  className="text-muted-foreground hover:text-purple-400 p-0 h-auto"
                   onClick={() => {
                     setUseBackupCode(!useBackupCode);
                     setTwoFactorCode("");
@@ -190,7 +190,7 @@ export default function Login() {
                 <Button
                   type="button"
                   variant="ghost"
-                  className="text-gray-400 hover:text-white"
+                  className="text-muted-foreground hover:text-white"
                   onClick={handleBackToLogin}
                 >
                   Tilbake til innlogging
@@ -220,7 +220,7 @@ export default function Login() {
         <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-white text-center">Logg inn</CardTitle>
-            <CardDescription className="text-gray-400 text-center">
+            <CardDescription className="text-muted-foreground text-center">
               Skriv inn e-post og passord for å logge inn
             </CardDescription>
           </CardHeader>
@@ -290,7 +290,7 @@ export default function Login() {
                 )}
               </Button>
 
-              <p className="text-center text-gray-400 text-sm">
+              <p className="text-center text-muted-foreground text-sm">
                 Har du ikke en konto?{" "}
                 <Link href="/register" className="text-pink-400 hover:text-pink-300 font-medium">
                   Registrer deg

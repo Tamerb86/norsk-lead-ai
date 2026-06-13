@@ -102,7 +102,7 @@ export function Breadcrumbs({ items, className = "" }: BreadcrumbsProps) {
             itemType="https://schema.org/ListItem"
           >
             {index > 0 && (
-              <ChevronRight className="h-4 w-4 mx-1 text-gray-400" />
+              <ChevronRight className="h-4 w-4 mx-1 text-muted-foreground" />
             )}
             
             {item.href ? (

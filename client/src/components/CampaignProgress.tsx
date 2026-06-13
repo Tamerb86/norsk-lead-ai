@@ -78,7 +78,7 @@ export function CampaignProgress({
                   "flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors",
                   completed && "bg-green-500 border-green-500 text-white",
                   current && !completed && "border-primary bg-primary text-white",
-                  !completed && !current && "border-gray-300 text-gray-400"
+                  !completed && !current && "border-gray-300 text-muted-foreground"
                 )}
               >
                 {completed ? (
@@ -141,7 +141,7 @@ export function CampaignProgress({
                     "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all",
                     completed && "bg-green-500 border-green-500 text-white",
                     current && !completed && "border-primary bg-primary text-white scale-110",
-                    !completed && !current && "border-gray-300 text-gray-400"
+                    !completed && !current && "border-gray-300 text-muted-foreground"
                   )}
                 >
                   {completed ? (

@@ -34,7 +34,7 @@ export function PageHelp({ title, description }: PageHelpProps) {
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="inline-flex items-center justify-center rounded-full p-1 text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="inline-flex items-center justify-center rounded-full p-1 text-muted-foreground hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               aria-label={`Hjelp for ${title}`}
             >
               <HelpCircle className="h-5 w-5" />

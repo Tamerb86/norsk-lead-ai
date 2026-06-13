@@ -67,7 +67,7 @@ export function SEOFooter() {
                 <span className="text-xl font-bold text-white">NorskLeads</span>
               </div>
             </Link>
-            <p className="text-sm text-gray-400 mb-4">
+            <p className="text-sm text-muted-foreground mb-4">
               Norges ledende plattform for B2B leadgenerering. Finn dine neste kunder blant 500,000+ norske bedrifter.
             </p>
             <div className="flex gap-4">
@@ -132,7 +132,7 @@ export function SEOFooter() {
       <div className="border-t border-gray-800">
         <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-muted-foreground">
               © {currentYear} NorskLeads by Nexify CRM Systems AS. Alle rettigheter reservert.
             </p>
             <div className="flex gap-6 text-sm">

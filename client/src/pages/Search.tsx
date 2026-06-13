@@ -591,7 +591,7 @@ export default function Search() {
                   <div className="space-y-2">
                     <Label htmlFor="naeringskode" className="flex items-center gap-2">
                       Bransje (Næringskode)
-                      <Info className="w-4 h-4 text-gray-400" />
+                      <Info className="w-4 h-4 text-muted-foreground" />
                     </Label>
                     <Select
                       value={naeringskode || "all"}
@@ -1023,7 +1023,7 @@ export default function Search() {
             ) : data && data.companies && data.companies.length === 0 ? (
               <Card>
                 <CardContent className="py-12 text-center">
-                  <SearchIcon className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <SearchIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Ingen resultater</h3>
                   <p className="text-gray-600">Prøv å justere søkekriteriene dine</p>
                 </CardContent>

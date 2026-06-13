@@ -464,7 +464,7 @@ export function BrregTab() {
           
           {detailDialog.loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
           ) : detailDialog.data ? (
             <div className="space-y-6">
@@ -659,7 +659,7 @@ export function BrregTab() {
           
           {syncDialog.loading ? (
             <div className="flex flex-col items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-gray-400 mb-4" />
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
               <p className="text-gray-500">Synkroniserer med Brreg...</p>
             </div>
           ) : syncDialog.result ? (

@@ -107,7 +107,7 @@ export default function Register() {
         <Card className="bg-gray-800/50 border-gray-700 backdrop-blur-sm">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-white text-center">Opprett konto</CardTitle>
-            <CardDescription className="text-gray-400 text-center">
+            <CardDescription className="text-muted-foreground text-center">
               Start din gratis prøveperiode i dag
             </CardDescription>
           </CardHeader>
@@ -131,7 +131,7 @@ export default function Register() {
                       +50 kreditter
                     </Badge>
                   </div>
-                  <p className="text-sm text-gray-400 mt-1">
+                  <p className="text-sm text-muted-foreground mt-1">
                     Du får ekstra kreditter ved å registrere deg via en henvisningslenke
                   </p>
                 </div>
@@ -229,7 +229,7 @@ export default function Register() {
                       disabled={loading}
                     />
                     {validatingReferral && (
-                      <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-gray-400" />
+                      <Loader2 className="absolute right-3 top-3 h-4 w-4 animate-spin text-muted-foreground" />
                     )}
                     {referralCode && !validatingReferral && referralValid === true && (
                       <Check className="absolute right-3 top-3 h-4 w-4 text-green-400" />
@@ -248,7 +248,7 @@ export default function Register() {
                   onCheckedChange={(checked) => setAcceptTerms(checked as boolean)}
                   className="mt-1 border-gray-600 data-[state=checked]:bg-pink-500"
                 />
-                <label htmlFor="terms" className="text-sm text-gray-400 leading-tight">
+                <label htmlFor="terms" className="text-sm text-muted-foreground leading-tight">
                   Jeg godtar{" "}
                   <Link href="/terms" className="text-pink-400 hover:text-pink-300">
                     vilkårene
@@ -280,7 +280,7 @@ export default function Register() {
                 )}
               </Button>
 
-              <p className="text-sm text-gray-400 text-center">
+              <p className="text-sm text-muted-foreground text-center">
                 Har du allerede en konto?{" "}
                 <Link href="/login" className="text-pink-400 hover:text-pink-300 font-medium">
                   Logg inn

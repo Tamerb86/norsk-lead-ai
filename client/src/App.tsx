@@ -13,7 +13,7 @@ function PageLoader() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
       <div className="flex flex-col items-center gap-4">
         <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin dark:border-indigo-800 dark:border-t-indigo-400" />
-        <p className="text-sm text-gray-500 dark:text-gray-400">Laster...</p>
+        <p className="text-sm text-muted-foreground">Laster...</p>
       </div>
     </div>
   );
