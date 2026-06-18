@@ -10,7 +10,7 @@ function createAuthContext(role: "admin" | "user" = "user"): TrpcContext {
     openId: "test-user",
     email: "test@example.com",
     name: "Test User",
-    loginMethod: "manus",
+    loginMethod: "local",
     role,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -21,7 +21,7 @@ function createAuthContext(role: "admin" | "user" = "user"): TrpcContext {
     user,
     req: {
       protocol: "https",
-      headers: { origin: "https://test.manusvm.computer" },
+      headers: { origin: "http://localhost:3000" },
     } as TrpcContext["req"],
     res: {
       clearCookie: () => {},

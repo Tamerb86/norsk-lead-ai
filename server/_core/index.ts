@@ -52,11 +52,11 @@ async function startServer() {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://manus-analytics.com", "https://cdn.jsdelivr.net"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://js.stripe.com", "https://maps.googleapis.com", "https://cdn.jsdelivr.net"],
           styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
           fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
           imgSrc: ["'self'", "data:", "https:", "blob:"],
-          connectSrc: ["'self'", "https://api.stripe.com", "https://manus-analytics.com", "https://api.openai.com", "https://api.anthropic.com", "https://data.brreg.no", "wss:"],
+          connectSrc: ["'self'", "https://api.stripe.com", "https://api.openai.com", "https://maps.googleapis.com", "https://*.amazonaws.com", "https://data.brreg.no", "wss:"],
           frameSrc: ["'self'", "https://js.stripe.com"],
           objectSrc: ["'none'"],
           baseUri: ["'self'"],

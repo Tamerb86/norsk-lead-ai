@@ -184,8 +184,8 @@ export default function Settings() {
                   <Input value={user?.email || ""} disabled />
                 </div>
 
-                <p className="text-sm text-gray-500">
-                  Account settings are managed through your Manus profile
+                <p className="text-sm text-muted-foreground">
+                  Manage your account settings below.
                 </p>
               </div>
             </CardContent>

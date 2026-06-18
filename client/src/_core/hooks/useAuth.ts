@@ -67,7 +67,7 @@ export function useAuth(options?: UseAuthOptions) {
 
       if (response.ok) {
         const data = await response.json();
-        localStorage.setItem("manus-runtime-user-info", JSON.stringify(data.user));
+        localStorage.setItem("auth-user-info", JSON.stringify(data.user));
         setState({
           user: data.user,
           loading: false,
@@ -75,7 +75,7 @@ export function useAuth(options?: UseAuthOptions) {
           error: null,
         });
       } else {
-        localStorage.removeItem("manus-runtime-user-info");
+        localStorage.removeItem("auth-user-info");
         setState({
           user: null,
           loading: false,
@@ -84,7 +84,7 @@ export function useAuth(options?: UseAuthOptions) {
         });
       }
     } catch (error) {
-      localStorage.removeItem("manus-runtime-user-info");
+      localStorage.removeItem("auth-user-info");
       setState({
         user: null,
         loading: false,
@@ -135,7 +135,7 @@ export function useAuth(options?: UseAuthOptions) {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        localStorage.setItem("manus-runtime-user-info", JSON.stringify(result.user));
+        localStorage.setItem("auth-user-info", JSON.stringify(result.user));
         setState({
           user: result.user,
           loading: false,
@@ -180,7 +180,7 @@ export function useAuth(options?: UseAuthOptions) {
       const result = await response.json();
 
       if (response.ok) {
-        localStorage.setItem("manus-runtime-user-info", JSON.stringify(result.user));
+        localStorage.setItem("auth-user-info", JSON.stringify(result.user));
         setState({
           user: result.user,
           loading: false,
@@ -214,7 +214,7 @@ export function useAuth(options?: UseAuthOptions) {
         credentials: "include",
       });
 
-      localStorage.removeItem("manus-runtime-user-info");
+      localStorage.removeItem("auth-user-info");
       setState({
         user: null,
         loading: false,

@@ -2,7 +2,7 @@
 
 ## نظرة عامة
 
-تم استبدال نظام Manus OAuth بنظام مصادقة محلي (Local Authentication) يعتمد على:
+تم استبدال نظام OAuth الخارجي بنظام مصادقة محلي (Local Authentication) يعتمد على:
 - **JWT (JSON Web Tokens)** للجلسات
 - **bcrypt** لتشفير كلمات المرور
 - **Cookies** لتخزين الجلسات
@@ -505,7 +505,7 @@ curl https://lead.nexifyhub.no/api/auth/me \
 
 ## 13. الخطوات التالية
 
-1. ✅ إزالة Manus OAuth
+1. ✅ إزالة OAuth الخارجي
 2. ✅ تثبيت نظام المصادقة المحلي
 3. ✅ إنشاء صفحات Login/Register/Profile
 4. ✅ إنشاء صفحة Admin
