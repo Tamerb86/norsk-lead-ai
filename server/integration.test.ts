@@ -18,7 +18,7 @@ function createAuthContext(
     openId: `integration-test-user-${userId}`,
     email: `integration${userId}@example.com`,
     name: `Integration Test User ${userId}`,
-    loginMethod: "manus",
+    loginMethod: "local",
     role,
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -29,7 +29,7 @@ function createAuthContext(
     user,
     req: {
       protocol: "https",
-      headers: { origin: "https://test.manusvm.computer" },
+      headers: { origin: "http://localhost:3000" },
     } as TrpcContext["req"],
     res: {
       clearCookie: () => {},

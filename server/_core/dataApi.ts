@@ -1,7 +1,13 @@
 /**
- * Quick example (matches curl usage):
- *   await callDataApi("Youtube/search", {
- *     query: { gl: "US", hl: "en", q: "manus" },
+ * Generic search/data API client.
+ *
+ * This is intentionally provider-agnostic. Configure it with SEARCH_API_URL
+ * (base URL) and SEARCH_API_KEY (bearer token). The `apiId` is appended to the
+ * base URL as a path segment and the options are sent as the request body.
+ *
+ * Quick example:
+ *   await callDataApi("search", {
+ *     query: { q: "norsk leads", gl: "no", hl: "nb" },
  *   })
  */
 import { ENV } from "./env";
@@ -17,27 +23,29 @@ export async function callDataApi(
   apiId: string,
   options: DataApiCallOptions = {}
 ): Promise<unknown> {
-  if (!ENV.forgeApiUrl) {
-    throw new Error("BUILT_IN_FORGE_API_URL is not configured");
-  }
-  if (!ENV.forgeApiKey) {
-    throw new Error("BUILT_IN_FORGE_API_KEY is not configured");
+  if (!ENV.searchApiUrl) {
+    throw new Error(
+      "Search/Data API is not configured: set SEARCH_API_URL (and SEARCH_API_KEY)"
+    );
   }
 
-  // Build the full URL by appending the service path to the base URL
-  const baseUrl = ENV.forgeApiUrl.endsWith("/") ? ENV.forgeApiUrl : `${ENV.forgeApiUrl}/`;
-  const fullUrl = new URL("webdevtoken.v1.WebDevService/CallApi", baseUrl).toString();
+  const baseUrl = ENV.searchApiUrl.endsWith("/")
+    ? ENV.searchApiUrl
+    : `${ENV.searchApiUrl}/`;
+  const fullUrl = new URL(apiId.replace(/^\/+/, ""), baseUrl).toString();
+
+  const headers: Record<string, string> = {
+    accept: "application/json",
+    "content-type": "application/json",
+  };
+  if (ENV.searchApiKey) {
+    headers.authorization = `Bearer ${ENV.searchApiKey}`;
+  }
 
   const response = await fetch(fullUrl, {
     method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-      "connect-protocol-version": "1",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
-    },
+    headers,
     body: JSON.stringify({
-      apiId,
       query: options.query,
       body: options.body,
       path_params: options.pathParams,
@@ -52,13 +60,5 @@ export async function callDataApi(
     );
   }
 
-  const payload = await response.json().catch(() => ({}));
-  if (payload && typeof payload === "object" && "jsonData" in payload) {
-    try {
-      return JSON.parse((payload as Record<string, string>).jsonData ?? "{}");
-    } catch {
-      return (payload as Record<string, unknown>).jsonData;
-    }
-  }
-  return payload;
+  return response.json().catch(() => ({}));
 }

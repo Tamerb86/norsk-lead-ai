@@ -30,7 +30,7 @@
 - **الكود المصدري:**
   - Frontend: React (TypeScript)
   - Backend: Node.js / Express / tRPC (TypeScript)
-- **قاعدة البيانات:** TiDB Cloud (MySQL compatible)
+- **قاعدة البيانات:** PostgreSQL (via Drizzle ORM)
 - **البنية التحتية:** Railway (Hosting), GitHub (Code)
 
 ### المنهجية
@@ -46,7 +46,7 @@
 
 - **اختبار الاختراق الخارجي (External Penetration Testing):** لم يتم إجراء اختبار اختراق من قبل جهة خارجية.
 - **الهندسة الاجتماعية (Social Engineering):** لم يتم فحص هذا الجانب.
-- **الأمان المادي (Physical Security):** يعتمد على مزودي الخدمة (Railway, TiDB).
+- **الأمان المادي (Physical Security):** يعتمد على مزودي الخدمة (Railway, PostgreSQL).
 
 ---
 
@@ -54,14 +54,14 @@
 
 - **العميل (Client):** React (Vite) + TypeScript + Tailwind CSS
 - **الـ API:** Node.js + Express + tRPC
-- **قاعدة البيانات:** TiDB Cloud (MySQL compatible)
+- **قاعدة البيانات:** PostgreSQL (via Drizzle ORM)
 - **الاستضافة (Hosting):** Railway
-- **تخزين البيانات:** TiDB Cloud (Region: `eu-central-1` - Frankfurt, Germany) - متوافق مع GDPR.
+- **تخزين البيانات:** PostgreSQL (Region: `eu-central-1` - Frankfurt, Germany) - متوافق مع GDPR.
 
 ```mermaid
 graph TD
     A[Client - React] -->|tRPC| B(API - Node.js/Express)
-    B --> C{DB - TiDB Cloud}
+    B --> C{DB - PostgreSQL}
     B --> D[Stripe API]
     B --> E[SendGrid API]
 ```
@@ -77,7 +77,7 @@ graph TD
 
 ### التشفير أثناء التخزين (Encryption at Rest)
 
-- ✅ **قاعدة البيانات:** TiDB Cloud يقوم بتشفير البيانات على مستوى القرص (AES-256).
+- ✅ **قاعدة البيانات:** PostgreSQL يقوم بتشفير البيانات على مستوى القرص (AES-256).
 - ✅ **النسخ الاحتياطي:** النسخ الاحتياطية مشفرة أيضاً.
 
 ---
@@ -85,11 +85,11 @@ graph TD
 ## 5. النسخ الاحتياطي والتعافي من الكوارث (Backup & Disaster Recovery)
 
 - **النسخ الاحتياطي:**
-  - **التردد:** يومي (Daily backups) بواسطة TiDB Cloud.
+  - **التردد:** يومي (Daily backups) بواسطة PostgreSQL.
   - **الاحتفاظ:** 7 أيام.
   - **الاسترجاع:** لم يتم اختبار استرجاع نسخة احتياطية بشكل كامل (مخطط له).
 - **التعافي من الكوارث:**
-  - **الخطة:** في حال فشل TiDB أو Railway، سيتم استعادة الخدمة من آخر نسخة احتياطية على مزود خدمة آخر.
+  - **الخطة:** في حال فشل PostgreSQL أو Railway، سيتم استعادة الخدمة من آخر نسخة احتياطية على مزود خدمة آخر.
   - **RTO/RPO:** (Recovery Time/Point Objective) لم يتم تحديدهما رسمياً.
 
 ---
@@ -134,7 +134,7 @@ graph TD
   - بيانات العملاء المحتملين: يتم حذفها بعد 12 شهراً من عدم النشاط.
 - **المعالجون الفرعيون (Sub-processors):**
   - Railway (Hosting, EU)
-  - TiDB Cloud (Database, EU)
+  - PostgreSQL (Database, EU)
   - Stripe (Payments, Global)
   - SendGrid (Email, US)
 
@@ -157,7 +157,7 @@ graph TD
 - **الوصول للبنية التحتية:**
   - GitHub: محمي بـ 2FA.
   - Railway: محمي بـ 2FA.
-  - TiDB Cloud: محمي بـ 2FA.
+  - PostgreSQL: محمي بـ 2FA.
 - **مبدأ الامتيازات الأقل (Principle of Least Privilege):**
   - مطبق على مستوى صلاحيات المستخدمين (admin, manager, viewer).
   - **توصية:** تطبيقه على مستوى حسابات الخدمات (service accounts).
@@ -186,5 +186,3 @@ graph TD
 ## الخلاصة النهائية
 
 التطبيق يتمتع بأساس أمني قوي. تم تطبيق العديد من أفضل الممارسات، والإصلاحات المطبقة عززت الأمان بشكل كبير. التوصيات المذكورة أعلاه ستساعد في الوصول إلى مستوى أمان ممتاز.
-
-*تم إنشاء هذا التقرير بواسطة Manus AI*

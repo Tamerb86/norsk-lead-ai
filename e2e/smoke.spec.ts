@@ -13,7 +13,6 @@ function isBenignConsoleError(text: string): boolean {
     text.includes("sentry") ||
     text.includes("Sentry") ||
     text.includes("analytics") ||
-    text.includes("manus") ||
     text.includes("DevTools") ||
     text.includes("CORS") ||
     text.includes("sourcemap") ||

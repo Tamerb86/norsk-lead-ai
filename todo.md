@@ -153,7 +153,7 @@
 - [x] Analyze current rate limiting implementation (3 rate limiters: API, Auth, General)
 - [x] Install helmet.js for security headers
 - [x] Configure helmet with CSP for Stripe and Google Fonts
-- [x] Configure CORS with origin validation (whitelist + Manus VM domains)
+- [x] Configure CORS with origin validation (whitelist + localhost dev domains)
 - [x] Review existing rate limiting rules (API: 100/15min, Auth: 5/15min, General: 1000/hour)
 - [x] Rate limiting already applied to OAuth routes and API endpoints
 - [x] Security headers: CSP, HSTS, X-Frame-Options, X-Content-Type-Options

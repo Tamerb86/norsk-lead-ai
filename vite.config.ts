@@ -4,16 +4,14 @@ import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "path";
 import { defineConfig } from "vite";
-import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 import viteCompression from "vite-plugin-compression";
 import { VitePWA } from "vite-plugin-pwa";
 
 
 const plugins = [
-  react(), 
-  tailwindcss(), 
-  jsxLocPlugin(), 
-  vitePluginManusRuntime(),
+  react(),
+  tailwindcss(),
+  jsxLocPlugin(),
   // PWA configuration
   VitePWA({
     registerType: 'autoUpdate',
@@ -161,13 +159,10 @@ export default defineConfig({
   server: {
     host: true,
     allowedHosts: [
-      ".manuspre.computer",
-      ".manus.computer",
-      ".manus-asia.computer",
-      ".manuscomputer.ai",
-      ".manusvm.computer",
       "localhost",
       "127.0.0.1",
+      // Optional extra host (e.g. a tunnel/preview domain) via env.
+      ...(process.env.VITE_ALLOWED_HOST ? [process.env.VITE_ALLOWED_HOST] : []),
     ],
     fs: {
       strict: true,

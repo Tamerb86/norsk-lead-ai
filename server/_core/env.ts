@@ -66,9 +66,29 @@ export const ENV = {
   // Optional variables
   ownerOpenId: optional("OWNER_OPEN_ID"),
   oAuthServerUrl: optional("OAUTH_SERVER_URL"),
-  forgeApiUrl: optional("BUILT_IN_FORGE_API_URL"),
-  forgeApiKey: optional("BUILT_IN_FORGE_API_KEY"),
-  
+
+  // LLM (OpenAI / OpenAI-compatible gateway)
+  openaiApiKey: optional("OPENAI_API_KEY"),
+  openaiModel: optional("OPENAI_MODEL", "gpt-4o-mini"),
+  // Base URL for the OpenAI-compatible API (override for Azure/Anthropic-compatible gateways)
+  openaiBaseUrl: optional("OPENAI_BASE_URL", "https://api.openai.com/v1"),
+
+  // Google Maps (server-side)
+  googleMapsApiKey: optional("GOOGLE_MAPS_API_KEY"),
+
+  // AWS S3 storage
+  awsRegion: optional("AWS_REGION"),
+  awsS3Bucket: optional("AWS_S3_BUCKET"),
+  awsAccessKeyId: optional("AWS_ACCESS_KEY_ID"),
+  awsSecretAccessKey: optional("AWS_SECRET_ACCESS_KEY"),
+
+  // Generic outbound notification webhook (no-op when unset)
+  notificationWebhookUrl: optional("NOTIFICATION_WEBHOOK_URL"),
+
+  // Generic search/SERP API (optional; throws a clear error if used while unset)
+  searchApiUrl: optional("SEARCH_API_URL"),
+  searchApiKey: optional("SEARCH_API_KEY"),
+
   // Stripe
   stripeSecretKey: optional("STRIPE_SECRET_KEY"),
   stripeWebhookSecret: optional("STRIPE_WEBHOOK_SECRET"),
